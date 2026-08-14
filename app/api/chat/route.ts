@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import type { ConversationState } from '../../../core/engine';
+import { createSessionStore } from '../../../core/store/session-store';
 
 const adapter = createWebAdapter();
-
-/** In-memory for the prototype. Swap for Redis or Postgres before launch. */
-const sessions = new Map<string, ConversationState>();
+const sessions = createSessionStore();
 
 export async function POST(request: Request) {
   const { engine, config } = await getAssistant();
@@ -16,11 +14,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid payload' }, { status: 400 });
   }
 
-  const state = sessions.get(inbound.contactId) ?? { history: [], hasOffered: false };
+  const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
 
   try {
     const result = await engine.respond(state, inbound.text, adapter);
-    sessions.set(inbound.contactId, result.state);
+    await sessions.set(inbound.contactId, result.state);
 
     return NextResponse.json({
       text: result.reply.text,

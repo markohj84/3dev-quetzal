@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter } from '../../../core/channels/whatsapp';
-import type { ConversationState } from '../../../core/engine';
+import { createSessionStore, createInboundClock } from '../../../core/store/session-store';
 
-/** Replace both maps with real storage before this handles live traffic. */
-const sessions = new Map<string, ConversationState>();
-const lastInbound = new Map<string, Date>();
+const sessions = createSessionStore();
+const inboundClock = createInboundClock();
 
 const adapter = createWhatsAppAdapter({
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
   accessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
-  lastInboundAt: async (id) => lastInbound.get(id) ?? null,
+  lastInboundAt: (id) => inboundClock.get(id),
 });
 
 /** Meta verifies the webhook with a GET before it will send anything. */
@@ -33,12 +32,12 @@ export async function POST(request: Request) {
   // Meta retries anything that is not a 200, including delivery receipts.
   if (!inbound) return new Response('ok', { status: 200 });
 
-  lastInbound.set(inbound.contactId, inbound.receivedAt);
-  const state = sessions.get(inbound.contactId) ?? { history: [], hasOffered: false };
+  await inboundClock.set(inbound.contactId, inbound.receivedAt);
+  const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
 
   try {
     const result = await engine.respond(state, inbound.text, adapter);
-    sessions.set(inbound.contactId, result.state);
+    await sessions.set(inbound.contactId, result.state);
     await adapter.deliver(inbound.contactId, result.reply);
   } catch (error) {
     console.error(`[${config.id}] whatsapp failed`, error);

@@ -45,7 +45,6 @@ El sitio de 3dev es un repositorio aparte y solo consume el widget por embed.
 
 ## Pendientes conocidos
 
-- Sesiones en `Map` de memoria → mover a Redis o Postgres
 - Falta validar la firma del webhook de Meta
 - Falta límite de peticiones por sesión
 - Falta registro de conversaciones

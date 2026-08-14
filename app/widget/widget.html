@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quetzal — widget 3dev</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink-900:#050b09; --ink-800:#0c1f1a; --ink-700:#1a3329; --ink-600:#2a4a3e;
+  --ink-500:#4a665e; --ink-400:#6b8580; --ink-300:#95a8a0;
+  --jade-900:#04342c; --jade-800:#085041; --jade-700:#1d9e75;
+  --jade-600:#5dc4a4; --jade-500:#7dd5b8; --jade-400:#9fe1cb;
+  --cream-300:#f0ebe1; --cream-500:#d8d1c2;
+
+  --surface-bg:var(--ink-800);
+  --surface-elev:var(--ink-700);
+  --surface-sunken:#081411;
+  --text-primary:var(--cream-300);
+  --text-secondary:var(--ink-300);
+  --text-tertiary:var(--ink-500);
+  --accent-default:var(--jade-600);
+
+  --border-sub:rgba(255,255,255,.06);
+  --border-default:rgba(255,255,255,.10);
+
+  --glass-bg:rgba(26,51,41,.45);
+  --glass-bg-strong:rgba(26,51,41,.65);
+  --glass-border:rgba(255,255,255,.08);
+  --glass-blur:blur(20px) saturate(180%);
+  --glass-blur-strong:blur(28px) saturate(180%);
+  --glass-highlight:inset 0 1px 0 rgba(255,255,255,.04);
+
+  --glow-accent-sm:0 0 20px rgba(93,196,164,.15);
+  --glow-accent-md:0 0 40px rgba(93,196,164,.25);
+
+  --font-sans:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px;
+  --r-sm:4px; --r-md:6px; --r-lg:8px; --r-xl:14px; --r-2xl:20px; --r-full:9999px;
+
+  --m-fast:200ms; --m-base:360ms; --m-slow:600ms;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+}
+
+*{box-sizing:border-box}
+
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:var(--font-sans);
+  background:transparent;
+  color:var(--text-primary);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ---- panel ---- */
+/* El tamaño y la posición flotante ya los resuelve el iframe host (embed.js);
+   aquí el panel solo llena el contenedor que le dieron. */
+.panel{
+  width:100%; height:100%;
+  display:flex; flex-direction:column;
+  background:var(--glass-bg-strong);
+  -webkit-backdrop-filter:var(--glass-blur-strong);
+  backdrop-filter:var(--glass-blur-strong);
+  border:1px solid var(--glass-border);
+  border-radius:var(--r-2xl);
+  box-shadow:var(--glass-highlight), 0 24px 60px rgba(0,0,0,.45);
+  overflow:hidden;
+  animation:panelIn var(--m-base) var(--ease-out) both;
+}
+
+@keyframes panelIn{
+  from{opacity:0; transform:translateY(12px) scale(.97)}
+  to{opacity:1; transform:none}
+}
+@keyframes fadeUp{
+  from{opacity:0; transform:translateY(10px)}
+  to{opacity:1; transform:none}
+}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---- header ---- */
+.head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:var(--s-4) var(--s-5);
+  border-bottom:1px solid var(--border-sub);
+  flex-shrink:0;
+}
+.mark{
+  font-family:var(--font-mono);
+  font-size:15px; font-weight:600; letter-spacing:-.2px;
+  display:flex; align-items:baseline; gap:1px;
+}
+.mark .slash{color:var(--accent-default)}
+.mark-sub{
+  display:block;
+  font-family:var(--font-mono);
+  font-size:10px; letter-spacing:1.2px; font-weight:500;
+  color:var(--text-tertiary);
+  margin-top:3px;
+}
+.close{
+  width:28px; height:28px;
+  display:grid; place-items:center;
+  background:transparent; border:none;
+  border-radius:var(--r-md);
+  color:var(--text-secondary);
+  cursor:pointer;
+  transition:background var(--m-fast) var(--ease-out), color var(--m-fast) var(--ease-out);
+}
+.close:hover{background:rgba(255,255,255,.05); color:var(--text-primary)}
+.close:focus-visible{outline:2px solid var(--accent-default); outline-offset:2px}
+.close svg{width:16px; height:16px; stroke-width:2}
+
+/* ---- log ---- */
+.log{
+  flex:1; overflow-y:auto;
+  padding:var(--s-5);
+  display:flex; flex-direction:column; gap:var(--s-6);
+  scrollbar-width:thin;
+  scrollbar-color:var(--ink-600) transparent;
+}
+.log::-webkit-scrollbar{width:6px}
+.log::-webkit-scrollbar-thumb{background:var(--ink-600); border-radius:var(--r-full)}
+
+.turn{animation:fadeUp var(--m-base) var(--ease-out) both}
+
+/* Quetzal: sin burbuja, regla en jade */
+.turn.bot{
+  border-left:1.5px solid var(--accent-default);
+  padding-left:var(--s-4);
+}
+.turn.bot p{
+  margin:0 0 var(--s-3);
+  font-size:14px; line-height:1.6;
+  color:var(--text-primary);
+}
+.turn.bot p:last-child{margin-bottom:0}
+.turn.bot ul{
+  margin:0 0 var(--s-3); padding:0; list-style:none;
+  display:flex; flex-direction:column; gap:var(--s-2);
+}
+.turn.bot li{
+  font-size:14px; line-height:1.5;
+  color:var(--text-secondary);
+  padding-left:var(--s-4); position:relative;
+}
+.turn.bot li::before{
+  content:'/'; position:absolute; left:0;
+  color:var(--accent-default);
+  font-family:var(--font-mono); font-size:12px;
+}
+
+/* Usuario: burbuja discreta, no jade */
+.turn.user{
+  align-self:flex-end;
+  max-width:82%;
+  background:var(--surface-sunken);
+  border:1px solid var(--border-sub);
+  border-radius:var(--r-lg);
+  padding:var(--s-3) var(--s-4);
+  font-size:14px; line-height:1.5;
+  color:var(--text-primary);
+}
+
+.typing{
+  border-left:1.5px solid var(--accent-default);
+  padding-left:var(--s-4);
+  display:flex; gap:5px; align-items:center; height:22px;
+}
+.typing span{
+  width:5px; height:5px; border-radius:var(--r-full);
+  background:var(--accent-default);
+  animation:blink 1.2s var(--ease-out) infinite;
+}
+.typing span:nth-child(2){animation-delay:.18s}
+.typing span:nth-child(3){animation-delay:.36s}
+
+/* ---- chips ---- */
+.chips{
+  display:flex; flex-wrap:wrap; gap:var(--s-2);
+  padding:0 var(--s-5) var(--s-4);
+  flex-shrink:0;
+}
+.chips[hidden]{display:none}
+.chip{
+  font-family:var(--font-sans);
+  font-size:13px; line-height:1;
+  padding:var(--s-2) var(--s-3);
+  background:transparent;
+  border:1px solid var(--border-default);
+  border-radius:var(--r-full);
+  color:var(--text-secondary);
+  cursor:pointer;
+  transition:border-color var(--m-fast) var(--ease-out),
+             color var(--m-fast) var(--ease-out),
+             transform var(--m-fast) var(--ease-spring);
+}
+.chip:hover{
+  border-color:rgba(93,196,164,.35);
+  color:var(--text-primary);
+  transform:translateY(-1px);
+}
+.chip:focus-visible{outline:2px solid var(--accent-default); outline-offset:2px}
+
+/* ---- composer ---- */
+.composer{
+  display:flex; align-items:flex-end; gap:var(--s-2);
+  padding:var(--s-4) var(--s-5);
+  border-top:1px solid var(--border-sub);
+  flex-shrink:0;
+}
+.composer textarea{
+  flex:1;
+  background:transparent; border:none; resize:none;
+  font-family:var(--font-sans); font-size:14px; line-height:1.5;
+  color:var(--text-primary);
+  max-height:96px; padding:var(--s-2) 0;
+}
+.composer textarea::placeholder{color:var(--text-tertiary)}
+.composer textarea:focus{outline:none}
+.send{
+  width:32px; height:32px; flex-shrink:0;
+  display:grid; place-items:center;
+  background:var(--accent-default);
+  border:none; border-radius:var(--r-md);
+  color:var(--jade-900);
+  cursor:pointer;
+  transition:opacity var(--m-fast) var(--ease-out), transform var(--m-fast) var(--ease-spring);
+}
+.send:hover:not(:disabled){transform:translateY(-1px)}
+.send:disabled{opacity:.3; cursor:not-allowed}
+.send:focus-visible{outline:2px solid var(--accent-default); outline-offset:2px}
+.send svg{width:15px; height:15px; stroke-width:2.2}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<section class="panel" id="panel" aria-label="Conversación con Quetzal">
+  <header class="head">
+    <div>
+      <div class="mark">quetzal<span class="slash">/</span></div>
+      <span class="mark-sub">3DEV · BRAND PRODUCT AI</span>
+    </div>
+    <button class="close" id="close" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </header>
+
+  <div class="log" id="log" role="log" aria-live="polite"></div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="composer">
+    <textarea id="input" rows="1" placeholder="Escribe tu mensaje" aria-label="Mensaje"></textarea>
+    <button class="send" id="send" disabled aria-label="Enviar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+    </button>
+  </div>
+</section>
+
+<script>
+const log = document.getElementById('log');
+const chipRow = document.getElementById('chips');
+const input = document.getElementById('input');
+const send = document.getElementById('send');
+
+const sessionId = crypto.randomUUID();
+const OPENERS = ['Estamos construyendo un producto', 'Ya tenemos operación andando', 'Solo estoy viendo qué hacen'];
+
+function el(cls, html){
+  const d = document.createElement('div');
+  d.className = cls;
+  d.innerHTML = html;
+  return d;
+}
+
+function push(cls, html){
+  const node = el(cls, html);
+  log.appendChild(node);
+  log.scrollTop = log.scrollHeight;
+  return node;
+}
+
+function chips(list){
+  chipRow.innerHTML = '';
+  if(!list || !list.length){ chipRow.hidden = true; return; }
+  chipRow.hidden = false;
+  list.forEach(function(t){
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = t;
+    b.onclick = function(){ submit(t); };
+    chipRow.appendChild(b);
+  });
+}
+
+/* Texto del usuario y del modelo se muestran vía innerHTML — hay que
+   escaparlo, ya no son strings fijos escritos por nosotros. */
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function renderBotText(text){
+  return text.split(/\n\s*\n/).map(function(para){
+    return '<p>' + escapeHtml(para.trim()).replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+}
+
+async function submit(text){
+  const value = (text || input.value).trim();
+  if(!value) return;
+
+  push('turn user', escapeHtml(value));
+  input.value = '';
+  input.style.height = 'auto';
+  send.disabled = true;
+  chips([]);
+
+  const dots = push('typing', '<span></span><span></span><span></span>');
+
+  let data;
+  try{
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId, text: value }),
+    });
+    if(!res.ok) throw new Error('bad status ' + res.status);
+    data = await res.json();
+  }catch(err){
+    dots.remove();
+    push('turn bot', renderBotText('No pude conectar en este momento. Intenta de nuevo en unos segundos.'));
+    return;
+  }
+
+  dots.remove();
+  push('turn bot', renderBotText(data.text));
+  chips(data.chips);
+}
+
+input.addEventListener('input', () => {
+  send.disabled = !input.value.trim();
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 96) + 'px';
+});
+
+input.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); submit(); }
+});
+
+send.addEventListener('click', () => submit());
+
+document.getElementById('close').addEventListener('click', () => {
+  window.parent.postMessage('assistant:close', '*');
+});
+
+push('turn bot', '<p>Hola, soy Quetzal. Ayudo a resolver dudas sobre 3dev y, si tiene sentido, a agendar una conversación con el equipo.</p><p>¿En qué estás trabajando?</p>');
+chips(OPENERS);
+input.focus();
+</script>
+</body>
+</html>

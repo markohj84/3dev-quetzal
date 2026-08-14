@@ -15,7 +15,7 @@ export default AssistantConfig.parse({
 
   scheduling: {
     provider: 'calendly',
-    url: process.env.CALENDLY_URL,
+    url: process.env.CALENDLY_URL || undefined,
     durationMinutes: 30,
     hostName: 'Marco',
     maxOffers: 1,
