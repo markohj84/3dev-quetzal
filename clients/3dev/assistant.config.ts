@@ -27,7 +27,7 @@ export default AssistantConfig.parse({
       openers: [
         'Estamos construyendo un producto',
         'Ya tenemos operación andando',
-        'Solo estoy viendo qué hacen',
+        'Quiero saber más antes de decidir',
       ],
     },
     whatsapp: {
