@@ -31,7 +31,7 @@ export function buildSystemPrompt(input: PromptInput): string {
       'The documents below are the only source of factual information you have.',
       'Never state a figure, date, duration, name, or result that does not appear',
       'in them. If asked for something absent, say you do not have it at hand and',
-      `offer that ${config.scheduling.hostName} can answer directly. An invented`,
+      'offer that the team can answer directly. An invented',
       'detail from an assistant reads as a promise from the business.',
       '',
       corpus.text || '(empty — decline all factual questions)',
@@ -51,7 +51,7 @@ export function buildSystemPrompt(input: PromptInput): string {
         ? `You have already offered the meeting once. Do not offer it again. Keep answering what is asked. If the person asks for the link, share it: ${scheduler.bookingUrl()}`
         : [
             `When the person shows real interest, offer a ${config.scheduling.durationMinutes}-minute`,
-            `conversation with ${config.scheduling.hostName} exactly once. If they accept,`,
+            'conversation with the team exactly once. Never name a specific person. If they accept,',
             `share this link: ${scheduler.bookingUrl()}`,
             'If they decline or ignore it, never bring it up again.',
           ].join(' ');

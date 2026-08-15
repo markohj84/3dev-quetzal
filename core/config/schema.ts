@@ -14,8 +14,6 @@ export const SchedulingConfig = z.object({
   provider: z.enum(['calendly', 'none']),
   url: z.string().url().optional(),
   durationMinutes: z.number().int().positive().default(30),
-  /** Who the prospect is being scheduled with, as the assistant should say it. */
-  hostName: z.string(),
   /** Offer the meeting at most this many times per conversation. */
   maxOffers: z.number().int().min(1).default(1),
 });
