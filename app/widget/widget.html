@@ -371,6 +371,7 @@ document.getElementById('close').addEventListener('click', () => {
   window.parent.postMessage('assistant:close', '*');
 });
 
+push('turn bot', '<p>Hola, soy Quetzal. Ayudo a resolver dudas sobre 3dev y, si tiene sentido, a agendar una conversación con el equipo.</p><p>Elige la opción que más se parezca a tu caso, o cuéntamelo con tus palabras.</p>');
 chips(OPENERS);
 input.focus();
 </script>
