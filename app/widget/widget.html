@@ -142,6 +142,7 @@ body{
   color:var(--text-primary);
 }
 .turn.bot p:last-child{margin-bottom:0}
+.turn.bot a{color:var(--accent-default)}
 .turn.bot ul{
   margin:0 0 var(--s-3); padding:0; list-style:none;
   display:flex; flex-direction:column; gap:var(--s-2);
@@ -317,9 +318,15 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
+function linkify(escaped){
+  return escaped.replace(/https?:\/\/[^\s<]+/g, function(url){
+    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+  });
+}
+
 function renderBotText(text){
   return text.split(/\n\s*\n/).map(function(para){
-    return '<p>' + escapeHtml(para.trim()).replace(/\n/g, '<br>') + '</p>';
+    return '<p>' + linkify(escapeHtml(para.trim())).replace(/\n/g, '<br>') + '</p>';
   }).join('');
 }
 
