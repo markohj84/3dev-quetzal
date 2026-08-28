@@ -2,7 +2,9 @@
 
 ## ¿Cuánto cuesta?
 
-Depende de lo que se busque. Los planes de IA para negocios tienen un costo de implementación más una mensualidad — ver `planes.md` para el detalle de cada uno. Los proyectos integrados arrancan en 50 mil dólares, y el alcance final se aterriza en la primera conversación.
+Los planes de IA para negocios tienen un costo de implementación más una mensualidad, según el canal — ver `planes.md` para el detalle de cada uno.
+
+(3dev también toma proyectos integrados de marca, producto e inteligencia artificial, desde 50 mil dólares — pero eso es un servicio aparte, no algo que se ofrezca al responder esta pregunta. Solo se menciona si preguntan directo por un proyecto integral.)
 
 ## ¿Cuál plan de IA me conviene?
 
