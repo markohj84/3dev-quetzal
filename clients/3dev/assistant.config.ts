@@ -24,8 +24,8 @@ export default AssistantConfig.parse({
     web: {
       enabled: true,
       openers: [
-        'Estamos construyendo un producto',
-        'Ya tenemos operación andando',
+        'Quiero un asistente de IA para mi negocio',
+        'Busco un proyecto de marca y producto',
         'Quiero saber más antes de decidir',
       ],
     },

@@ -41,17 +41,31 @@ export function createEngine(deps: EngineDeps) {
     ): Promise<{ reply: OutboundMessage; state: ConversationState }> {
       const history: Turn[] = [...state.history, { role: 'user', content: userText }];
 
+      const systemPrompt = buildSystemPrompt({
+        config,
+        voice,
+        corpus,
+        capabilities: adapter.capabilities,
+        scheduler,
+        hasOffered: state.hasOffered,
+      });
+
       const response = await client.messages.create({
         model: config.model.model,
         max_tokens: config.model.maxTokens,
-        system: buildSystemPrompt({
-          config,
-          voice,
-          corpus,
-          capabilities: adapter.capabilities,
-          scheduler,
-          hasOffered: state.hasOffered,
-        }),
+        // Cached as one block: voice + knowledge dominate the token count and
+        // are identical across every turn and every user of this client, so
+        // caching the whole prompt still captures most of the saving without
+        // restructuring buildSystemPrompt's boundary contract. The prompt
+        // does shift once, when hasOffered flips true — that turn re-writes
+        // the cache; every turn after it hits again.
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
         messages: history.map((t) => ({ role: t.role, content: t.content })),
       });
 

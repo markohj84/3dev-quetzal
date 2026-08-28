@@ -33,7 +33,11 @@ export const ChannelConfig = z.object({
 });
 
 export const ModelConfig = z.object({
-  model: z.string().default('claude-sonnet-4-6'),
+  /**
+   * Haiku by default: same anti-fabrication behaviour at a fraction of the
+   * cost. Move a client to a larger model only if evals show it's needed.
+   */
+  model: z.string().default('claude-haiku-4-5-20251001'),
   maxTokens: z.number().int().positive().default(1024),
   /** Corpus above this token estimate should move to retrieval. */
   corpusWarnTokens: z.number().int().positive().default(40_000),
