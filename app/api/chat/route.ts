@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import { createSessionStore } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
 
 const adapter = createWebAdapter();
 const sessions = createSessionStore();
+// Keyed by IP, not sessionId: the widget mints a fresh sessionId per page load,
+// so a session-scoped limit costs an attacker nothing to bypass.
+const rateLimiter = createRateLimiter(20, 60);
 
 export async function POST(request: Request) {
   const { engine, config } = await getAssistant();
+
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (!(await rateLimiter.check(ip))) {
+    return NextResponse.json({ error: 'too many requests' }, { status: 429 });
+  }
 
   const inbound = adapter.parse(await request.json().catch(() => null));
   if (!inbound) {

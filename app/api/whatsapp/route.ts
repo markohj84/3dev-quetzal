@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter } from '../../../core/channels/whatsapp';
-import { createSessionStore, createInboundClock } from '../../../core/store/session-store';
+import { createSessionStore, createInboundClock, createRateLimiter } from '../../../core/store/session-store';
 
 const sessions = createSessionStore();
 const inboundClock = createInboundClock();
+// contactId here is Meta's own phone number id, not caller-supplied — safe to key on directly.
+const rateLimiter = createRateLimiter(20, 60);
 
 const adapter = createWhatsAppAdapter({
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
@@ -31,6 +33,10 @@ export async function POST(request: Request) {
   const inbound = adapter.parse(await request.json().catch(() => null));
   // Meta retries anything that is not a 200, including delivery receipts.
   if (!inbound) return new Response('ok', { status: 200 });
+
+  if (!(await rateLimiter.check(inbound.contactId))) {
+    return new Response('ok', { status: 200 });
+  }
 
   await inboundClock.set(inbound.contactId, inbound.receivedAt);
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };

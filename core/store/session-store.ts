@@ -26,6 +26,24 @@ export function createSessionStore(): SessionStore {
   };
 }
 
+export interface RateLimiter {
+  /** True if this call is within limit; false if the caller should be rejected. */
+  check(key: string): Promise<boolean>;
+}
+
+/** Fixed-window counter: `limit` calls per `windowSeconds`, per key. */
+export function createRateLimiter(limit: number, windowSeconds: number): RateLimiter {
+  return {
+    async check(key) {
+      const window = Math.floor(Date.now() / 1000 / windowSeconds);
+      const bucket = `ratelimit:${key}:${window}`;
+      const count = await kv.incr(bucket);
+      if (count === 1) await kv.expire(bucket, windowSeconds);
+      return count <= limit;
+    },
+  };
+}
+
 /** Tracks last-inbound timestamps per contact, e.g. for a channel's send-window check. */
 export interface InboundClock {
   get(contactId: string): Promise<Date | null>;
