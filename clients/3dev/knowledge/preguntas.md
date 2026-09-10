@@ -24,10 +24,8 @@ Se comparte lo que hay publicado. Los proyectos bajo confidencialidad no se deta
 
 ## ¿Cuánto tarda un proyecto integrado?
 
-<!-- PENDIENTE: confirmar el rango real antes de publicar esto.
-     Mientras esté vacío, Quetzal responderá que no tiene el dato. -->
+Entre 8 y 16 semanas, según el alcance — el mismo rango de ciclos de entrega que maneja el estudio.
 
 ## ¿Cuánto tarda en estar listo un plan de IA?
 
-<!-- PENDIENTE: confirmar tiempos reales de implementación por plan
-     con datos del primer piloto antes de publicar esto. -->
+Entre 2 y 3 semanas desde que arranca la implementación, igual para los tres planes (Start, WhatsApp, Business).
