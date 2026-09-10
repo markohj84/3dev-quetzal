@@ -44,6 +44,34 @@ export function createRateLimiter(limit: number, windowSeconds: number): RateLim
   };
 }
 
+export interface LogEntry {
+  channel: string;
+  contactId: string;
+  userText: string;
+  assistantText: string;
+  at: Date;
+}
+
+export interface ConversationLog {
+  append(entry: LogEntry): Promise<void>;
+}
+
+// ponytail: 90-day retention in a Redis list. Fine for reading back a day's
+// conversations by hand; once someone needs search or dashboards, move this
+// to a real datastore instead of growing this key scheme.
+const LOG_TTL_SECONDS = 60 * 60 * 24 * 90;
+
+export function createConversationLog(clientId: string): ConversationLog {
+  return {
+    async append(entry) {
+      const day = entry.at.toISOString().slice(0, 10);
+      const key = `log:${clientId}:${day}`;
+      await kv.rpush(key, JSON.stringify(entry));
+      await kv.expire(key, LOG_TTL_SECONDS);
+    },
+  };
+}
+
 /** Tracks last-inbound timestamps per contact, e.g. for a channel's send-window check. */
 export interface InboundClock {
   get(contactId: string): Promise<Date | null>;

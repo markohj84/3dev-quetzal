@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter, createConversationLog } from '../../../core/store/session-store';
 
 const adapter = createWebAdapter();
 const sessions = createSessionStore();
@@ -27,6 +27,13 @@ export async function POST(request: Request) {
   try {
     const result = await engine.respond(state, inbound.text, adapter);
     await sessions.set(inbound.contactId, result.state);
+    await createConversationLog(config.id).append({
+      channel: 'web',
+      contactId: inbound.contactId,
+      userText: inbound.text,
+      assistantText: result.reply.text,
+      at: new Date(),
+    });
 
     return NextResponse.json({
       text: result.reply.text,

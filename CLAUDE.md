@@ -43,9 +43,13 @@ El motor no debe poder averiguar por qué canal llegó un mensaje.
 Next.js 15 (App Router), TypeScript, SDK de Anthropic, Zod, Vercel.
 El sitio de 3dev es un repositorio aparte y solo consume el widget por embed.
 
-## Pendientes conocidos
+## Registro de conversaciones
 
-- Falta registro de conversaciones
+Cada turno se guarda en Redis (`core/store/session-store.ts`,
+`createConversationLog`), en una lista por cliente y día:
+`log:<clientId>:<YYYY-MM-DD>`, con retención de 90 días. Es para revisar
+conversaciones a mano, no para búsqueda ni dashboards — si eso hace falta,
+mover a un datastore real en vez de seguir creciendo este esquema de keys.
 
 ## Estilo
 

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter, verifySignature } from '../../../core/channels/whatsapp';
-import { createSessionStore, createInboundClock, createRateLimiter } from '../../../core/store/session-store';
+import {
+  createSessionStore,
+  createInboundClock,
+  createRateLimiter,
+  createConversationLog,
+} from '../../../core/store/session-store';
 
 const sessions = createSessionStore();
 const inboundClock = createInboundClock();
@@ -56,6 +61,13 @@ export async function POST(request: Request) {
     const result = await engine.respond(state, inbound.text, adapter);
     await sessions.set(inbound.contactId, result.state);
     await adapter.deliver(inbound.contactId, result.reply);
+    await createConversationLog(config.id).append({
+      channel: 'whatsapp',
+      contactId: inbound.contactId,
+      userText: inbound.text,
+      assistantText: result.reply.text,
+      at: new Date(),
+    });
   } catch (error) {
     console.error(`[${config.id}] whatsapp failed`, error);
   }
