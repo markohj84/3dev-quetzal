@@ -1,3 +1,5 @@
+import assert from 'node:assert';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { ChannelAdapter, InboundMessage } from './types';
 
 /**
@@ -12,6 +14,24 @@ import type { ChannelAdapter, InboundMessage } from './types';
  */
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Verifies Meta's `X-Hub-Signature-256` header against the raw request body.
+ * Must run on the raw bytes before JSON.parse — a re-serialized body won't
+ * match byte-for-byte and would always fail.
+ */
+export function verifySignature(appSecret: string, rawBody: string, header: string | null): boolean {
+  if (!header?.startsWith('sha256=')) return false;
+
+  const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  const given = header.slice('sha256='.length);
+
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const givenBuf = Buffer.from(given, 'hex');
+  if (expectedBuf.length !== givenBuf.length) return false;
+
+  return timingSafeEqual(expectedBuf, givenBuf);
+}
 
 export function createWhatsAppAdapter(opts: {
   phoneNumberId: string;
@@ -106,4 +126,19 @@ function toWhatsAppMarkup(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, '*$1*')
     .replace(/^[-*]\s+/gm, '• ')
     .trim();
+}
+
+// Self-check: `node core/channels/whatsapp.ts`
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const secret = 'test-secret';
+  const body = '{"hello":"world"}';
+  const goodSig = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
+
+  assert.ok(verifySignature(secret, body, goodSig), 'valid signature should pass');
+  assert.ok(!verifySignature(secret, body, 'sha256=' + '0'.repeat(64)), 'wrong signature should fail');
+  assert.ok(!verifySignature(secret, body, null), 'missing header should fail');
+  assert.ok(!verifySignature(secret, body, 'not-sha256=abc'), 'wrong prefix should fail');
+  assert.ok(!verifySignature('other-secret', body, goodSig), 'wrong secret should fail');
+
+  console.log('whatsapp.ts self-check passed');
 }

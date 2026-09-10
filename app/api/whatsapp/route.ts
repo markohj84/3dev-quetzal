@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
-import { createWhatsAppAdapter } from '../../../core/channels/whatsapp';
+import { createWhatsAppAdapter, verifySignature } from '../../../core/channels/whatsapp';
 import { createSessionStore, createInboundClock, createRateLimiter } from '../../../core/store/session-store';
 
 const sessions = createSessionStore();
@@ -30,7 +30,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'channel disabled' }, { status: 404 });
   }
 
-  const inbound = adapter.parse(await request.json().catch(() => null));
+  const rawBody = await request.text();
+  if (!verifySignature(process.env.WHATSAPP_APP_SECRET ?? '', rawBody, request.headers.get('x-hub-signature-256'))) {
+    return new Response('forbidden', { status: 403 });
+  }
+
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    /* falls through to adapter.parse(null) below, same as a malformed body always has */
+  }
+  const inbound = adapter.parse(parsed);
   // Meta retries anything that is not a 200, including delivery receipts.
   if (!inbound) return new Response('ok', { status: 200 });
 
