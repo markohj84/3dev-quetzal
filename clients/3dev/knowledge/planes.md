@@ -12,7 +12,7 @@ Chat con inteligencia artificial para el sitio web del negocio.
 - Métricas de uso básicas.
 - Un canal: el sitio web.
 
-Implementación: $9,900 MXN. Mensualidad: $1,990 MXN.
+Implementación: $3,900 MXN. Mensualidad: $990 MXN.
 
 Ideal para negocios que necesitan resolver preguntas frecuentes y captar prospectos desde su sitio.
 
@@ -25,7 +25,7 @@ Todo lo de Start, con WhatsApp como canal principal.
 - Agenda o una integración simple.
 - Una automatización de seguimiento.
 
-Implementación: $14,900 MXN. Mensualidad: $3,490 MXN.
+Implementación: $7,900 MXN. Mensualidad: $2,490 MXN.
 
 Ideal para negocios que venden o agendan principalmente por WhatsApp.
 
@@ -38,7 +38,7 @@ WhatsApp y sitio web juntos, con un asistente que además actúa.
 - Las acciones sensibles siempre pasan por aprobación humana.
 - Soporte prioritario y analítica operativa básica.
 
-Implementación: $24,900 MXN. Mensualidad: $5,490 MXN.
+Implementación: $19,900 MXN. Mensualidad: $4,990 MXN.
 
 Ideal para negocios que necesitan WhatsApp junto con agenda, seguimiento de clientes o automatizaciones puntuales.
 
