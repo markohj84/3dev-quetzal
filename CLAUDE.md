@@ -51,6 +51,32 @@ Cada turno se guarda en Redis (`core/store/session-store.ts`,
 conversaciones a mano, no para búsqueda ni dashboards — si eso hace falta,
 mover a un datastore real en vez de seguir creciendo este esquema de keys.
 
+## Hoja de ruta (visión del modelo de negocio, no estado actual)
+
+El modelo de negocio vigente es una escalera de tres ofertas — Oferta 0
+(automatización puntual, sin chatbot), Oferta 1 "Quetzal / Asistente"
+(web + WhatsApp) y Oferta 2 "Quetzal / Flujos" (el asistente + automatización
+real) — reflejada en `clients/3dev/knowledge/` y `voice.md`. Eso ya está
+implementado y probado.
+
+El documento de estrategia que definió esta escalera también da por hechas
+piezas de ingeniería que **no existen todavía**. No meterlas en el prompt del
+asistente hasta que estén construidas — prometer una capacidad que no existe
+es peor que no tener el dato:
+
+- **Memoria persistente entre sesiones** ("Quetzal recuerda quién eres días
+  después"). Hoy la sesión expira a las 24h (`SESSION_TTL_SECONDS`); no hay
+  perfil de contacto que sobreviva entre conversaciones.
+- **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes").
+  Hoy `app/assistant.ts` tiene el cliente hardcodeado (`CLIENT_DIR`) — cambiar
+  de cliente es swap + redeploy, un deploy por cliente.
+- **Postgres/Supabase** para conversaciones, leads y memoria (pgvector para
+  RAG). Hoy solo hay Redis (sesión + el log de 90 días).
+- **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
+  Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
+- Dashboard de cliente, panel de administración para 3dev, flujos n8n reales,
+  handoff en vivo a un humano con notificación al dueño del negocio.
+
 ## Estilo
 
 Comentarios solo donde expliquen *por qué*, no *qué*. Nombres en inglés en

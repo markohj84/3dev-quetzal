@@ -2,7 +2,7 @@
 
 3dev es un estudio mexicano con base en Puebla. Trabaja de forma remota con clientes en México y el resto de Latinoamérica.
 
-Ayuda a negocios a atender mejor a sus clientes con inteligencia artificial — desde soluciones productizadas para PyMEs (chat con IA para web y WhatsApp) hasta proyectos integrados de marca y producto para empresas que necesitan ese alcance mayor. Este mismo asistente, Quetzal, es un ejemplo del tipo de producto que 3dev construye.
+Ayuda a negocios a atender mejor a sus clientes con automatización e inteligencia artificial — desde una escalera de ofertas productizadas para PyMEs (un flujo automatizado puntual, un asistente conversacional para web y WhatsApp, o un asistente que además actúa) hasta proyectos integrados de marca y producto para empresas que necesitan ese alcance mayor. Este mismo asistente, Quetzal, es un ejemplo del tipo de producto que 3dev construye.
 
 En los proyectos integrados, el estudio trabaja tres capas de un producto digital como una sola pieza:
 

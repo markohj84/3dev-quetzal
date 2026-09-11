@@ -1,8 +1,8 @@
 # Servicios y alcance
 
-## Soluciones de IA para negocios
+## La escalera de ofertas
 
-El producto de arranque de 3dev: asistentes de inteligencia artificial para atender clientes por web y WhatsApp, en tres planes según el canal y el alcance. El detalle de cada plan y sus precios vive en `planes.md`.
+El producto de arranque de 3dev: una escalera de tres ofertas de automatización e inteligencia artificial para negocios. Cada peldaño resuelve un dolor mayor que el anterior — desde un flujo automatizado puntual (Oferta 0), pasando por un asistente conversacional para web y WhatsApp (Oferta 1 — Quetzal / Asistente), hasta un asistente que además actúa sobre el negocio (Oferta 2 — Quetzal / Flujos). El detalle de cada oferta y sus precios vive en `ofertas.md`.
 
 ## Proyectos integrados
 
@@ -19,4 +19,4 @@ Este es un servicio secundario, no la oferta activa. Se menciona solo si pregunt
 - Marketing digital y manejo de redes sociales.
 - Sitios de una sola página o plantillas genéricas sin asistente.
 - Soporte técnico de productos que 3dev no construyó.
-- Prometer "IA ilimitada" en cualquier plan: cada uno tiene volumen incluido y política de excedentes, definida en la llamada.
+- Prometer "IA ilimitada" en ninguna oferta: cada una tiene volumen incluido y política de excedentes, definida en la llamada.
