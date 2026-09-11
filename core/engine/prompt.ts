@@ -48,7 +48,7 @@ export function buildSystemPrompt(input: PromptInput): string {
     scheduler.provider === 'none'
       ? 'Scheduling is unavailable. Do not offer a meeting.'
       : hasOffered
-        ? `You have already offered the meeting once. Do not offer it again. Keep answering what is asked. If the person asks for the link, share it: ${scheduler.bookingUrl()}`
+        ? `HARD CONSTRAINT: you already offered the meeting once this conversation. Do not offer it again under any wording — no "¿quieres agendar?", no "¿te gustaría platicar?", nothing that invites scheduling, even if the person asks how to start or shows strong interest again. Just answer what they asked. Only mention the meeting if they explicitly ask for the link or ask to schedule themselves — then share: ${scheduler.bookingUrl()}`
         : [
             `When the person shows real interest, offer a ${config.scheduling.durationMinutes}-minute`,
             'conversation with the team exactly once. Never name a specific person. If they accept,',

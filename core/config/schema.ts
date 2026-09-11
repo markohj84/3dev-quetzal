@@ -16,6 +16,13 @@ export const SchedulingConfig = z.object({
   durationMinutes: z.number().int().positive().default(30),
   /** Offer the meeting at most this many times per conversation. */
   maxOffers: z.number().int().min(1).default(1),
+  /**
+   * Regex (case-insensitive) matched against the assistant's own reply to
+   * detect that it just made the scheduling offer — must match the exact
+   * phrasing voice.md uses, or `hasOffered` silently stops being
+   * state-enforced and falls back to hoping the model doesn't repeat itself.
+   */
+  offerPattern: z.string().default('calendly|cal\\.com|agendar|agendo|schedule|booking'),
 });
 
 export const ChannelConfig = z.object({

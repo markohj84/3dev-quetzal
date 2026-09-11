@@ -18,6 +18,10 @@ export default AssistantConfig.parse({
     url: process.env.CALENDLY_URL || undefined,
     durationMinutes: 30,
     maxOffers: 1,
+    // Must match voice.md's exact offer line ("¿Quieres platicar con
+    // nosotros?") or hasOffered never flips and the one-offer rule stops
+    // being state-enforced.
+    offerPattern: 'platicar con nosotros|agendar|calendly|cal\\.com|schedule|booking',
   },
 
   channels: {

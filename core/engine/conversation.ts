@@ -25,6 +25,7 @@ export interface EngineDeps {
 
 export function createEngine(deps: EngineDeps) {
   const { config, voice, corpus, scheduler, client } = deps;
+  const offerPattern = new RegExp(config.scheduling.offerPattern, 'i');
 
   if (corpus.estimatedTokens > config.model.corpusWarnTokens) {
     console.warn(
@@ -76,7 +77,7 @@ export function createEngine(deps: EngineDeps) {
         .trim();
 
       const offeredNow =
-        state.hasOffered || (scheduler.provider !== 'none' && mentionsMeeting(text));
+        state.hasOffered || (scheduler.provider !== 'none' && offerPattern.test(text));
 
       return {
         reply: { text },
@@ -87,12 +88,4 @@ export function createEngine(deps: EngineDeps) {
       };
     },
   };
-}
-
-/**
- * The one-offer rule is enforced in state, not left to the model's memory.
- * A model asked politely not to repeat itself will still repeat itself.
- */
-function mentionsMeeting(text: string): boolean {
-  return /calendly|cal\.com|agendar|agendo|schedule|booking/i.test(text);
 }
