@@ -7,8 +7,9 @@
  *   node clients/3dev/evals.ts   # in another
  *
  * Goes through the real HTTP route, so it writes a few test entries to the
- * Redis session store and conversation log under session ids prefixed
- * "eval-" — harmless, and easy to spot/clear by that prefix.
+ * Redis session store, conversation log and leads store under session ids
+ * prefixed "eval-" — the script deletes those at the end of a run.
+ * Requires KV_REST_API_URL/TOKEN in the environment (same as the app).
  *
  * LLM output varies between runs, so checks are pattern-based smoke tests,
  * not exact-match assertions — they catch regressions in the rules that
@@ -16,13 +17,16 @@
  * not wording drift.
  */
 import assert from 'node:assert';
+import { Redis } from '@upstash/redis';
 
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
+const CLIENT_ID = 'quetzal-3dev';
+const kv = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
 
 interface Case {
   name: string;
   turns: string[];
-  check(replies: string[]): void;
+  check(replies: string[], contactId: string): void | Promise<void>;
 }
 
 const cases: Case[] = [
@@ -88,6 +92,19 @@ const cases: Case[] = [
       assert.ok(/no comparto|el equipo/i.test(r), `debería declinar dar el nombre: ${r}`);
     },
   },
+  {
+    name: 'compartir nombre y contacto se registra con capture_lead',
+    turns: [
+      '¿Tienen algo para clínicas dentales?',
+      'Soy Juan Pérez, mi WhatsApp es 222-555-1234, mejor que me marquen',
+    ],
+    async check(_replies, contactId) {
+      const leads = await kv.lrange<{ contactId: string; nombre: string }>(`leads:${CLIENT_ID}`, 0, -1);
+      const found = leads.find((l) => l.contactId === contactId);
+      assert.ok(found, 'debería haber quedado un lead capturado para esta conversación');
+      assert.match(found!.nombre, /juan/i);
+    },
+  },
 ];
 
 async function sendTurn(sessionId: string, text: string): Promise<string> {
@@ -101,22 +118,38 @@ async function sendTurn(sessionId: string, text: string): Promise<string> {
   return data.text;
 }
 
+async function cleanup(sessionIds: string[]) {
+  for (const id of sessionIds) {
+    await kv.del(`session:${id}`);
+  }
+  const leads = await kv.lrange<{ contactId: string }>(`leads:${CLIENT_ID}`, 0, -1);
+  const keep = leads.filter((l) => !sessionIds.includes(l.contactId));
+  if (keep.length !== leads.length) {
+    await kv.del(`leads:${CLIENT_ID}`);
+    if (keep.length) await kv.rpush(`leads:${CLIENT_ID}`, ...keep.map((l) => JSON.stringify(l)));
+  }
+}
+
 async function run() {
   let failed = 0;
+  const sessionIds: string[] = [];
   for (const [i, c] of cases.entries()) {
     const sessionId = `eval-${i}-${Date.now()}`;
+    sessionIds.push(sessionId);
     const replies: string[] = [];
     try {
       for (const turn of c.turns) {
         replies.push(await sendTurn(sessionId, turn));
       }
-      c.check(replies);
+      await c.check(replies, sessionId);
       console.log(`\x1b[32m✓\x1b[0m ${c.name}`);
     } catch (err) {
       failed++;
       console.error(`\x1b[31m✗\x1b[0m ${c.name}\n  ${(err as Error).message}`);
     }
   }
+
+  await cleanup(sessionIds);
 
   console.log(`\n${cases.length - failed}/${cases.length} passed`);
   if (failed) process.exitCode = 1;

@@ -6,6 +6,7 @@ import {
   createInboundClock,
   createRateLimiter,
   createConversationLog,
+  createLeadStore,
 } from '../../../core/store/session-store';
 import { createLeadNotifier } from '../../../core/notify';
 
@@ -75,6 +76,21 @@ export async function POST(request: Request) {
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
+      });
+    }
+
+    if (result.capturedLead) {
+      await createLeadStore(config.id).save({
+        ...result.capturedLead,
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        at: new Date().toISOString(),
+      });
+      await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        transcript: result.state.history,
+        captured: result.capturedLead,
       });
     }
   } catch (error) {

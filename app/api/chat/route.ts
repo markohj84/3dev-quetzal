@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import { createSessionStore, createRateLimiter, createConversationLog } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter, createConversationLog, createLeadStore } from '../../../core/store/session-store';
 import { createLeadNotifier } from '../../../core/notify';
 
 const adapter = createWebAdapter();
@@ -41,6 +41,21 @@ export async function POST(request: Request) {
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
+      });
+    }
+
+    if (result.capturedLead) {
+      await createLeadStore(config.id).save({
+        ...result.capturedLead,
+        channel: 'web',
+        contactId: inbound.contactId,
+        at: new Date().toISOString(),
+      });
+      await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+        channel: 'web',
+        contactId: inbound.contactId,
+        transcript: result.state.history,
+        captured: result.capturedLead,
       });
     }
 

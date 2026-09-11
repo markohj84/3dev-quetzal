@@ -1,9 +1,12 @@
 import type { Turn } from './engine';
+import type { CapturedLead } from './tools';
 
 export interface LeadAlert {
   channel: string;
   contactId: string;
   transcript: Turn[];
+  /** Set when capture_lead was called this turn — puts real contact info front and center. */
+  captured?: CapturedLead;
 }
 
 export interface LeadNotifier {
@@ -26,9 +29,15 @@ export function createLeadNotifier(to: string | undefined, from: string | undefi
         return;
       }
 
-      const text = alert.transcript
+      const transcript = alert.transcript
         .map((t) => `${t.role === 'user' ? 'Prospecto' : 'Asistente'}: ${t.content}`)
         .join('\n\n');
+
+      const header = alert.captured
+        ? `Nombre: ${alert.captured.nombre}\nContacto: ${alert.captured.contacto}` +
+          (alert.captured.necesidad ? `\nNecesidad: ${alert.captured.necesidad}` : '') +
+          '\n\n---\n\n'
+        : '';
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -39,8 +48,10 @@ export function createLeadNotifier(to: string | undefined, from: string | undefi
         body: JSON.stringify({
           from,
           to: [to],
-          subject: `Nuevo interés — canal ${alert.channel}`,
-          text,
+          subject: alert.captured
+            ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
+            : `Nuevo interés — canal ${alert.channel}`,
+          text: header + transcript,
         }),
       });
 

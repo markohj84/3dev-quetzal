@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "check:boundary": "! grep -rilE '3dev|quetzal' core/ || (echo 'core/ references a client' && exit 1)",
-    "eval:3dev": "node clients/3dev/evals.ts"
+    "eval:3dev": "node --env-file=.env.local clients/3dev/evals.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

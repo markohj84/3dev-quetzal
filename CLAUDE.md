@@ -47,18 +47,34 @@ El sitio de 3dev es un repositorio aparte y solo consume el widget por embed.
 
 `clients/3dev/evals.ts` corre casos de humo contra `/api/chat` real (no
 inventa datos, una sola oferta de agendar, enrutamiento correcto a cada
-oferta, nunca nombra al equipo, no promete memoria persistente). Correr con
-`npm run dev` en una terminal y `npm run eval:3dev` en otra, después de
-cualquier cambio a `voice.md`, `knowledge/` o `assistant.config.ts`. Usa
-Anthropic real (cuesta unos centavos) y dos sesiones prefijadas `eval-` que
-quedan en Redis — se pueden limpiar a mano, no son datos de cliente real.
+oferta, nunca nombra al equipo, no promete memoria persistente, captura de
+lead). Correr con `npm run dev` en una terminal y `npm run eval:3dev` en
+otra, después de cualquier cambio a `voice.md`, `knowledge/`,
+`assistant.config.ts` o al tool-calling del motor. Usa Anthropic real
+(cuesta unos centavos), necesita `KV_REST_API_URL`/`TOKEN` en el entorno
+(las carga `--env-file=.env.local`), y limpia sus propias sesiones y leads
+de prueba (prefijo `eval-`) al terminar.
+
+## Tool-calling
+
+`core/engine/conversation.ts` corre un loop de tool-calling (tope
+`MAX_TOOL_ROUNDS`) alrededor de cada `respond()` — el ir y venir con el
+modelo queda dentro de esa llamada, no se persiste en `ConversationState`.
+El único tool hoy es `capture_lead` (`core/tools.ts`): el modelo lo llama
+en cuanto alguien comparte nombre y contacto, sin importar el motivo.
+`respond()` regresa `capturedLead` cuando eso pasa; las rutas lo guardan
+sin vencimiento en `leads:<clientId>` (`createLeadStore`,
+`core/store/session-store.ts`) y disparan `core/notify.ts` con los datos
+estructurados. Nuevos tools van en `core/tools.ts` si son genéricos —
+un tool con lógica específica de un cliente no debe vivir en `core/`.
 
 ## Notificación de leads
 
-Cuando `hasOffered` pasa de `false` a `true` en un turno (la señal de "esta
-conversación llegó al punto de interés real"), `core/notify.ts` manda un
-correo con la transcripción vía la API de Resend — una sola vez por
-conversación, no en cada turno. Configurado por cliente en
+Se dispara en dos momentos distintos, que pueden no coincidir: (1) cuando
+`hasOffered` pasa de `false` a `true` (alguien mostró interés real, aunque
+no haya dejado contacto) y (2) cuando el modelo llama `capture_lead` (ver
+"Tool-calling" arriba). Ambos usan `core/notify.ts` — un correo con la
+transcripción vía la API de Resend. Configurado por cliente en
 `assistant.config.ts` (`notify.email`, `notify.fromEmail`); sin
 `RESEND_API_KEY` en el entorno, no truena — solo avisa por log y sigue
 respondiendo normal. Requiere que el dominio del `fromEmail` esté verificado
@@ -80,10 +96,16 @@ El modelo de negocio vigente es una escalera de tres ofertas — Oferta 0
 real) — reflejada en `clients/3dev/knowledge/` y `voice.md`. Eso ya está
 implementado y probado.
 
+**Oferta 2 ("que actúe") tiene ya la infraestructura de tool-calling
+(ver "Tool-calling" arriba) y un tool real: capturar leads.** Pero eso es
+apenas el primero — "agenda citas" y "consulta información del negocio en
+vivo" siguen sin tool que los resuelva. No digas que Oferta 2 ya cumple su
+promesa completa hasta que existan.
+
 El documento de estrategia que definió esta escalera también da por hechas
-piezas de ingeniería que **no existen todavía**. No meterlas en el prompt del
-asistente hasta que estén construidas — prometer una capacidad que no existe
-es peor que no tener el dato:
+otras piezas de ingeniería que **no existen todavía**. No meterlas en el
+prompt del asistente hasta que estén construidas — prometer una capacidad
+que no existe es peor que no tener el dato:
 
 - **Memoria persistente entre sesiones** ("Quetzal recuerda quién eres días
   después"). Hoy la sesión expira a las 24h (`SESSION_TTL_SECONDS`); no hay

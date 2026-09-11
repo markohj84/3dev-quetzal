@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import type { ConversationState } from '../engine';
+import type { CapturedLead } from '../tools';
 
 /** Names match what Vercel's Upstash Marketplace integration injects, not @upstash/redis's own convention. */
 const kv = new Redis({
@@ -68,6 +69,28 @@ export function createConversationLog(clientId: string): ConversationLog {
       const key = `log:${clientId}:${day}`;
       await kv.rpush(key, JSON.stringify(entry));
       await kv.expire(key, LOG_TTL_SECONDS);
+    },
+  };
+}
+
+export interface StoredLead extends CapturedLead {
+  channel: string;
+  contactId: string;
+  at: string;
+}
+
+export interface LeadStore {
+  save(lead: StoredLead): Promise<void>;
+}
+
+/**
+ * A captured lead is a real business record someone has to follow up on,
+ * not a debug trace — no TTL, unlike the conversation log.
+ */
+export function createLeadStore(clientId: string): LeadStore {
+  return {
+    async save(lead) {
+      await kv.rpush(`leads:${clientId}`, JSON.stringify(lead));
     },
   };
 }
