@@ -108,6 +108,25 @@ export function createEngine(deps: EngineDeps) {
         ];
       }
 
+      if (!text) {
+        // The model can end a round on a tool_use block with no text — rare,
+        // but if it happens on every round up to MAX_TOOL_ROUNDS, the loop
+        // exits with nothing to say. Force one plain answer rather than
+        // showing the person an empty message.
+        const fallback = await client.messages.create({
+          model: config.model.model,
+          max_tokens: config.model.maxTokens,
+          system,
+          messages,
+        });
+        text =
+          fallback.content
+            .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+            .map((block) => block.text)
+            .join('\n')
+            .trim() || 'Perdón, se me cruzaron los cables. ¿Me repites tu pregunta?';
+      }
+
       const offeredNow =
         state.hasOffered || (scheduler.provider !== 'none' && offerPattern.test(text));
 
