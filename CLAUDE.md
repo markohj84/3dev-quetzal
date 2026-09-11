@@ -43,6 +43,16 @@ El motor no debe poder averiguar por qué canal llegó un mensaje.
 Next.js 15 (App Router), TypeScript, SDK de Anthropic, Zod, Vercel.
 El sitio de 3dev es un repositorio aparte y solo consume el widget por embed.
 
+## Evals de voz y conocimiento
+
+`clients/3dev/evals.ts` corre casos de humo contra `/api/chat` real (no
+inventa datos, una sola oferta de agendar, enrutamiento correcto a cada
+oferta, nunca nombra al equipo, no promete memoria persistente). Correr con
+`npm run dev` en una terminal y `npm run eval:3dev` en otra, después de
+cualquier cambio a `voice.md`, `knowledge/` o `assistant.config.ts`. Usa
+Anthropic real (cuesta unos centavos) y dos sesiones prefijadas `eval-` que
+quedan en Redis — se pueden limpiar a mano, no son datos de cliente real.
+
 ## Registro de conversaciones
 
 Cada turno se guarda en Redis (`core/store/session-store.ts`,
