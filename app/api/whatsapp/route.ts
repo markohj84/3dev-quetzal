@@ -7,6 +7,7 @@ import {
   createRateLimiter,
   createConversationLog,
 } from '../../../core/store/session-store';
+import { createLeadNotifier } from '../../../core/notify';
 
 const sessions = createSessionStore();
 const inboundClock = createInboundClock();
@@ -68,6 +69,14 @@ export async function POST(request: Request) {
       assistantText: result.reply.text,
       at: new Date(),
     });
+
+    if (!state.hasOffered && result.state.hasOffered) {
+      await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        transcript: result.state.history,
+      });
+    }
   } catch (error) {
     console.error(`[${config.id}] whatsapp failed`, error);
   }

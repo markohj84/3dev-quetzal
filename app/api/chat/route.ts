@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
 import { createSessionStore, createRateLimiter, createConversationLog } from '../../../core/store/session-store';
+import { createLeadNotifier } from '../../../core/notify';
 
 const adapter = createWebAdapter();
 const sessions = createSessionStore();
@@ -34,6 +35,14 @@ export async function POST(request: Request) {
       assistantText: result.reply.text,
       at: new Date(),
     });
+
+    if (!state.hasOffered && result.state.hasOffered) {
+      await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+        channel: 'web',
+        contactId: inbound.contactId,
+        transcript: result.state.history,
+      });
+    }
 
     return NextResponse.json({
       text: result.reply.text,

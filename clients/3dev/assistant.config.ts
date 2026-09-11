@@ -39,6 +39,11 @@ export default AssistantConfig.parse({
     },
   },
 
+  notify: {
+    email: 'contacto@3dev.mx',
+    fromEmail: 'Quetzal <notificaciones@3dev.mx>',
+  },
+
   outOfScope: [
     'Detalles de clientes bajo confidencialidad',
     'Metodología interna de trabajo',

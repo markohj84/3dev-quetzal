@@ -39,6 +39,13 @@ export const ChannelConfig = z.object({
   }),
 });
 
+export const NotifyConfig = z.object({
+  /** Address that receives a lead alert. Unset disables notifications. */
+  email: z.string().email().optional(),
+  /** "From" header for that alert — must be on a domain Resend has verified. */
+  fromEmail: z.string().optional(),
+});
+
 export const ModelConfig = z.object({
   /**
    * Haiku by default: same anti-fabrication behaviour at a fraction of the
@@ -67,6 +74,7 @@ export const AssistantConfig = z.object({
   scheduling: SchedulingConfig,
   channels: ChannelConfig,
   model: ModelConfig.default({}),
+  notify: NotifyConfig.default({}),
 
   /**
    * Topics the assistant must decline. Declarative on purpose — never

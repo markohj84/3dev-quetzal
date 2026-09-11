@@ -53,6 +53,17 @@ cualquier cambio a `voice.md`, `knowledge/` o `assistant.config.ts`. Usa
 Anthropic real (cuesta unos centavos) y dos sesiones prefijadas `eval-` que
 quedan en Redis — se pueden limpiar a mano, no son datos de cliente real.
 
+## Notificación de leads
+
+Cuando `hasOffered` pasa de `false` a `true` en un turno (la señal de "esta
+conversación llegó al punto de interés real"), `core/notify.ts` manda un
+correo con la transcripción vía la API de Resend — una sola vez por
+conversación, no en cada turno. Configurado por cliente en
+`assistant.config.ts` (`notify.email`, `notify.fromEmail`); sin
+`RESEND_API_KEY` en el entorno, no truena — solo avisa por log y sigue
+respondiendo normal. Requiere que el dominio del `fromEmail` esté verificado
+en la cuenta de Resend.
+
 ## Registro de conversaciones
 
 Cada turno se guarda en Redis (`core/store/session-store.ts`,
@@ -84,8 +95,10 @@ es peor que no tener el dato:
   RAG). Hoy solo hay Redis (sesión + el log de 90 días).
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
-- Dashboard de cliente, panel de administración para 3dev, flujos n8n reales,
-  handoff en vivo a un humano con notificación al dueño del negocio.
+- Dashboard de cliente, panel de administración para 3dev, flujos n8n
+  reales, handoff **en vivo** a un humano (transferir la charla mientras
+  ocurre). La notificación asíncrona por correo cuando hay un lead
+  interesado sí está construida — ver "Notificación de leads" abajo.
 
 ## Estilo
 
