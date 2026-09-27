@@ -74,13 +74,14 @@ export function createWhatsAppAdapter(opts: {
     },
 
     async deliver(to, message) {
+      const recipient = toMetaRecipient(to);
       const body = toWhatsAppMarkup(message.text);
       const chips = (message.chips ?? []).slice(0, 3);
 
       const payload = chips.length
         ? {
             messaging_product: 'whatsapp',
-            to,
+            to: recipient,
             type: 'interactive',
             interactive: {
               type: 'button',
@@ -126,6 +127,14 @@ function toWhatsAppMarkup(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, '*$1*')
     .replace(/^[-*]\s+/gm, '• ')
     .trim();
+}
+
+/**
+ * WhatsApp reports Mexican mobiles as 521XXXXXXXXXX (legacy "1"),
+ * but the Cloud API only delivers to 52XXXXXXXXXX. Normalize before sending.
+ */
+function toMetaRecipient(waId: string): string {
+  return /^521\d{10}$/.test(waId) ? `52${waId.slice(3)}` : waId;
 }
 
 // Self-check: `node core/channels/whatsapp.ts`
