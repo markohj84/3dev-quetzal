@@ -34,7 +34,7 @@ export default AssistantConfig.parse({
       ],
     },
     whatsapp: {
-      enabled: false,
+      enabled: true,
       phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
     },
   },
