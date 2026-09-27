@@ -94,13 +94,12 @@ export function createWhatsAppAdapter(opts: {
               },
             },
           }
-        : {
-            messaging_product: 'whatsapp',
-            to,
-            type: 'text',
-            text: { body },
-          };
-
+     : {
+      messaging_product: 'whatsapp',
+      to: recipient,      // ← antes decía solo "to,"
+      type: 'text',
+      text: { body },
+    };
       const res = await fetch(
         `https://graph.facebook.com/v21.0/${opts.phoneNumberId}/messages`,
         {
