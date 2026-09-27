@@ -148,5 +148,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.ok(!verifySignature(secret, body, 'not-sha256=abc'), 'wrong prefix should fail');
   assert.ok(!verifySignature('other-secret', body, goodSig), 'wrong secret should fail');
 
+  assert.equal(toMetaRecipient('5212223334455'), '522223334455', 'legacy 521 should drop the 1');
+  assert.equal(toMetaRecipient('522223334455'), '522223334455', 'plain 52 should pass through');
+  assert.equal(toMetaRecipient('14155552671'), '14155552671', 'non-MX should pass through');
+
   console.log('whatsapp.ts self-check passed');
 }
