@@ -95,7 +95,7 @@ export default function PrivacidadPage() {
 
         <h2 style={styles.h2}>6. Cuánto tiempo los conservamos</h2>
         <p>
-          Conservamos las conversaciones 12 meses o mientras sea necesario para darte seguimiento. Después las
+          Conservamos las conversaciones durante 12 meses o mientras sea necesario para darte seguimiento. Después las
           eliminamos o anonimizamos.
         </p>
 
