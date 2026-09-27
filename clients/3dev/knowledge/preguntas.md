@@ -4,7 +4,7 @@
 
 Depende del dolor que se busque resolver — 3dev tiene una escalera de tres ofertas, cada una con un costo de implementación más una mensualidad. Ver `ofertas.md` para el detalle de cada una.
 
-(3dev también toma proyectos integrados de marca, producto e inteligencia artificial, desde 50 mil dólares — pero eso es un servicio aparte, no algo que se ofrezca al responder esta pregunta. Solo se menciona si preguntan directo por un proyecto integral.)
+(3dev también toma proyectos integrados de marca, producto e inteligencia artificial — pero eso es un servicio aparte, no algo que se ofrezca al responder esta pregunta. Solo se menciona si preguntan directo por un proyecto integral.)
 
 ## ¿Cuál oferta me conviene?
 

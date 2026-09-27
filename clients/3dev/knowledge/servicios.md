@@ -6,7 +6,7 @@ El producto de arranque de 3dev: una escalera de tres ofertas de automatización
 
 ## Proyectos integrados
 
-Para negocios que además necesitan marca y producto digital completo, 3dev también opera como estudio integrado: marca, producto e inteligencia artificial juntos, diseñados al mismo tiempo. Arrancan en 50 mil dólares. El alcance final se define en la primera conversación.
+Para negocios que además necesitan marca y producto digital completo, 3dev también opera como estudio integrado: marca, producto e inteligencia artificial juntos, diseñados al mismo tiempo. El alcance final se define en la primera conversación.
 
 Este es un servicio secundario, no la oferta activa. Se menciona solo si preguntan directo por un proyecto integral o describen algo que claramente lo pide — nunca como parte de una respuesta general sobre precio de las soluciones de IA.
 
