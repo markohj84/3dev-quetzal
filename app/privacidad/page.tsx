@@ -26,7 +26,7 @@ export default function PrivacidadPage() {
 
         <h2 style={styles.h2}>1. Responsable</h2>
         <p>
-          3dev, con domicilio en [domicilio], Puebla, México, es responsable del
+          3dev, con domicilio en 5 poniente 505A, San Pedro Cholula, Puebla, México, es responsable del
           tratamiento de tus datos personales. Para cualquier asunto relacionado con
           este aviso escríbenos a <a href={`mailto:${CONTACTO}`}>{CONTACTO}</a>.
         </p>
@@ -95,8 +95,7 @@ export default function PrivacidadPage() {
 
         <h2 style={styles.h2}>6. Cuánto tiempo los conservamos</h2>
         <p>
-          Conservamos las conversaciones [durante el tiempo que definas, p. ej. 12
-          meses] o mientras sea necesario para darte seguimiento. Después las
+          Conservamos las conversaciones 12 meses o mientras sea necesario para darte seguimiento. Después las
           eliminamos o anonimizamos.
         </p>
 
