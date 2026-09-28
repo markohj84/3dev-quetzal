@@ -21,7 +21,6 @@ export default AssistantConfig.parse({
     // Must match voice.md's exact offer line ("¿Quieres platicar con
     // nosotros?") or hasOffered never flips and the one-offer rule stops
     // being state-enforced.
-    offerPattern: 'platicar con nosotros|agendar|calendly|cal\\.com|schedule|booking',
   },
 
   channels: {

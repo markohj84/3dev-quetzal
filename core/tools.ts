@@ -27,3 +27,29 @@ export const captureLeadTool: Anthropic.Tool = {
     required: ['nombre', 'contacto'],
   },
 };
+
+/**
+ * Making the invitation — not handing over the link. The distinction matters:
+ * the invitation and the link live in different turns ("¿quieres platicar?"
+ * now, the link once they say yes), and "offered once" is a rule about the
+ * invitation. Firing this at link time would leave the state false through
+ * the turn where the person is deciding, and the assistant would invite
+ * again. The engine only offers this tool while hasOffered is false, so the
+ * second invitation stops being a rule the model may ignore and becomes a
+ * door that is no longer there.
+ */
+export const offerMeetingTool: Anthropic.Tool = {
+  name: 'offer_meeting',
+  description:
+    'Llámala en el momento en que vas a invitar a la persona a platicar con el equipo — antes de escribir la invitación, no después. Es la única forma de hacer esa invitación, y solo puede pasar una vez por conversación. Devuelve el link para agendar: compártelo únicamente si la persona acepta, y nunca escribas un link de agenda de memoria.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      motivo: {
+        type: 'string',
+        description: 'En una frase, qué mostró la persona que hace que este sea el momento',
+      },
+    },
+    required: [],
+  },
+};

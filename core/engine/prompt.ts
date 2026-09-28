@@ -51,8 +51,10 @@ export function buildSystemPrompt(input: PromptInput): string {
         ? `HARD CONSTRAINT: you already offered the meeting once this conversation. Do not offer it again under any wording — no "¿quieres agendar?", no "¿te gustaría platicar?", nothing that invites scheduling, even if the person asks how to start or shows strong interest again. Just answer what they asked. Only mention the meeting if they explicitly ask for the link or ask to schedule themselves — then share: ${scheduler.bookingUrl()}`
         : [
             `When the person shows real interest, offer a ${config.scheduling.durationMinutes}-minute`,
-            'conversation with the team exactly once. Never name a specific person. If they accept,',
-            `share this link: ${scheduler.bookingUrl()}`,
+            'conversation with the team exactly once. Never name a specific person. Call the',
+            '`offer_meeting` tool at the moment you make that invitation, before writing it — it is',
+            'the only way to invite, and it returns the only valid link. Never write a scheduling',
+            'link from memory, and never guess one from the knowledge base.',
             'If they decline or ignore it, never bring it up again.',
           ].join(' ');
 
