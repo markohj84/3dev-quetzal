@@ -21,7 +21,6 @@ Chatbot con la voz del negocio, para atender clientes por web y WhatsApp.
 - Responde desde la información curada del negocio.
 - Captura datos de quien pregunta y dice cuándo hace falta hablar con una persona.
 - Canal web desde el arranque; WhatsApp se suma sin costo adicional.
-- Dashboard con métricas básicas y agenda.
 
 Implementación: $7,900 MXN. Mensualidad: $2,490 MXN.
 
