@@ -74,7 +74,10 @@ const cases: Case[] = [
       '¿Y qué automatizaciones incluye exactamente?',
     ],
     check(replies) {
-      const offers = replies.filter((r) => /quieres platicar con nosotros/i.test(r)).length;
+      // Deliberately matches the invitation, not one phrasing of it: the
+      // narrower /quieres platicar con nosotros/ once passed a build that
+      // invited twice, because the second one said "te gustaría platicar".
+      const offers = replies.filter((r) => /platicar con nosotros|agendar una (llamada|conversaci[óo]n)/i.test(r)).length;
       assert.ok(offers <= 1, `debería ofrecer agendar máximo una vez, ofreció ${offers} veces`);
     },
   },
