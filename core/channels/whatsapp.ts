@@ -152,5 +152,34 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(toMetaRecipient('522223334455'), '522223334455', 'plain 52 should pass through');
   assert.equal(toMetaRecipient('14155552671'), '14155552671', 'non-MX should pass through');
 
+  const adapter = createWhatsAppAdapter({
+    phoneNumberId: '1',
+    accessToken: 'x',
+    lastInboundAt: async () => null,
+  });
+  const inbound = (msg: unknown) => ({ entry: [{ changes: [{ value: { messages: [msg] } }] }] });
+
+  const texto = adapter.parse(inbound({ from: '5212223334455', text: { body: 'hola' }, timestamp: '1790000000' }));
+  assert.equal(texto?.text, 'hola');
+  assert.equal(texto?.contactId, '5212223334455', 'el contactId conserva el wa_id tal cual');
+  assert.equal(texto?.receivedAt.getTime(), 1790000000 * 1000, 'el timestamp de Meta viene en segundos');
+
+  // Los chips regresan por interactive, no por text: si esto se rompe, el
+  // asistente deja de oír justo a quien le contestó con un botón.
+  assert.equal(
+    adapter.parse(inbound({ from: '52', interactive: { button_reply: { title: 'Sí, agendar' } }, timestamp: '1' }))?.text,
+    'Sí, agendar',
+  );
+  assert.equal(
+    adapter.parse(inbound({ from: '52', interactive: { list_reply: { title: 'Oferta 1' } }, timestamp: '1' }))?.text,
+    'Oferta 1',
+  );
+
+  assert.equal(adapter.parse({ entry: [{ changes: [{ value: { statuses: [{}] } }] }] }), null, 'un acuse no es mensaje');
+  assert.equal(adapter.parse(inbound({ from: '52', image: {}, timestamp: '1' })), null, 'una imagen sin texto no es turno');
+  assert.equal(adapter.parse(null), null);
+
+  assert.equal(toWhatsAppMarkup('## Título\n**negritas**\n- uno'), 'Título\n*negritas*\n• uno');
+
   console.log('whatsapp.ts self-check passed');
 }
