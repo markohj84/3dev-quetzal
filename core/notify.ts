@@ -1,5 +1,6 @@
 import type { Turn } from './engine';
 import type { CapturedLead } from './tools';
+import type { Booking } from './scheduling/calendly-webhook';
 
 export interface LeadAlert {
   channel: string;
@@ -7,6 +8,8 @@ export interface LeadAlert {
   transcript: Turn[];
   /** Set when capture_lead was called this turn — puts real contact info front and center. */
   captured?: CapturedLead;
+  /** Set when the alert is a confirmed booking rather than interest. */
+  booking?: Booking;
 }
 
 export interface LeadNotifier {
@@ -33,6 +36,20 @@ export function createLeadNotifier(to: string | undefined, from: string | undefi
         .map((t) => `${t.role === 'user' ? 'Prospecto' : 'Asistente'}: ${t.content}`)
         .join('\n\n');
 
+      // A booking arrives from the calendar, not from a conversation: there is
+      // no transcript to attach and nothing for the reader to decide.
+      const booking = alert.booking
+        ? [
+            `Nombre: ${alert.booking.nombre}`,
+            `Correo: ${alert.booking.email}`,
+            alert.booking.evento ? `Evento: ${alert.booking.evento}` : '',
+            alert.booking.inicia ? `Cuándo: ${alert.booking.inicia}` : '',
+            alert.booking.cancelUrl ? `Cancelar: ${alert.booking.cancelUrl}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n')
+        : '';
+
       const header = alert.captured
         ? `Nombre: ${alert.captured.nombre}\nContacto: ${alert.captured.contacto}` +
           (alert.captured.necesidad ? `\nNecesidad: ${alert.captured.necesidad}` : '') +
@@ -48,10 +65,12 @@ export function createLeadNotifier(to: string | undefined, from: string | undefi
         body: JSON.stringify({
           from,
           to: [to],
-          subject: alert.captured
-            ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
-            : `Nuevo interés — canal ${alert.channel}`,
-          text: header + transcript,
+          subject: alert.booking
+            ? `Cita agendada — ${alert.booking.nombre}`
+            : alert.captured
+              ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
+              : `Nuevo interés — canal ${alert.channel}`,
+          text: booking || header + transcript,
         }),
       });
 
