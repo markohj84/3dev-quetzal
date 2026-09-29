@@ -25,6 +25,8 @@ export default AssistantConfig.parse({
     eventTypeUri: 'https://api.calendly.com/event_types/75bc1470-d8ac-459d-bba7-a5bd7454c744',
     timeZone: 'America/Mexico_City',
     timeZoneLabel: 'hora del centro de México',
+    earliestHour: 9,
+    latestHour: 18,
   },
 
   channels: {

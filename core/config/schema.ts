@@ -29,6 +29,9 @@ export const SchedulingConfig = z.object({
   timeZone: z.string().optional(),
   /** How to say that zone out loud, e.g. "hora del centro de México". */
   timeZoneLabel: z.string().optional(),
+  /** Earliest/latest hour, in the business's own time, the assistant may propose. */
+  earliestHour: z.number().int().min(0).max(23).optional(),
+  latestHour: z.number().int().min(1).max(24).optional(),
 });
 
 export const ChannelConfig = z.object({

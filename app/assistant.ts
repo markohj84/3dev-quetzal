@@ -27,6 +27,8 @@ async function build() {
           eventTypeUri: config.scheduling.eventTypeUri,
           timeZone: config.scheduling.timeZone,
           locale: config.locale,
+          earliestHour: config.scheduling.earliestHour,
+          latestHour: config.scheduling.latestHour,
         })
       : createNullScheduler();
 
