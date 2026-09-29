@@ -4,7 +4,7 @@ import type { ChannelAdapter, OutboundMessage } from '../channels/types';
 import type { Scheduler } from '../scheduling/types';
 import type { Corpus } from './knowledge';
 import { buildSystemPrompt } from './prompt';
-import { captureLeadTool, type CapturedLead } from '../tools';
+import { captureLeadTool, checkAvailabilityTool, type CapturedLead } from '../tools';
 
 export interface Turn {
   role: 'user' | 'assistant';
@@ -41,6 +41,31 @@ export function createEngine(deps: EngineDeps) {
     );
   }
 
+  /**
+   * Never hands back an empty answer: if the calendar cannot be reached the
+   * model is told to fall back to the link, because the one thing it must not
+   * do is make a time up.
+   */
+  async function availabilityText(): Promise<string> {
+    const link = `Si la persona elige uno, compártele este link para confirmarlo: ${scheduler.bookingUrl()}`;
+    const zone = config.scheduling.timeZoneLabel;
+
+    try {
+      const slots = await scheduler.availability!();
+      if (!slots.length) {
+        return `No hay horarios libres en los próximos días. No inventes ninguno. ${link}`;
+      }
+      return [
+        zone ? `Horarios libres (dilos siempre en ${zone}):` : 'Horarios libres:',
+        ...slots.map((s) => `- ${s}`),
+        link,
+      ].join('\n');
+    } catch (error) {
+      console.error(`[${config.id}] availability lookup failed`, error);
+      return `No se pudo consultar el calendario. No inventes horarios. ${link}`;
+    }
+  }
+
   return {
     async respond(
       state: ConversationState,
@@ -71,13 +96,18 @@ export function createEngine(deps: EngineDeps) {
       let messages: Anthropic.MessageParam[] = history.map((t) => ({ role: t.role, content: t.content }));
       let text = '';
       let capturedLead: CapturedLead | undefined;
+      let proposedTimes = false;
+
+      const tools = scheduler.availability
+        ? [captureLeadTool, checkAvailabilityTool]
+        : [captureLeadTool];
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const response = await client.messages.create({
           model: config.model.model,
           max_tokens: config.model.maxTokens,
           system,
-          tools: [captureLeadTool],
+          tools,
           messages,
         });
 
@@ -93,18 +123,28 @@ export function createEngine(deps: EngineDeps) {
 
         if (response.stop_reason !== 'tool_use' || toolUses.length === 0) break;
 
+        const results: Anthropic.ToolResultBlockParam[] = [];
+        for (const block of toolUses) {
+          if (block.name === 'capture_lead') {
+            capturedLead = block.input as CapturedLead;
+          }
+          if (block.name === 'check_availability') {
+            // Proposing times is the offer, whatever words wrap them.
+            proposedTimes = true;
+            results.push({
+              type: 'tool_result',
+              tool_use_id: block.id,
+              content: await availabilityText(),
+            });
+            continue;
+          }
+          results.push({ type: 'tool_result', tool_use_id: block.id, content: 'ok' });
+        }
+
         messages = [
           ...messages,
           { role: 'assistant', content: response.content },
-          {
-            role: 'user',
-            content: toolUses.map((block) => {
-              if (block.name === 'capture_lead') {
-                capturedLead = block.input as CapturedLead;
-              }
-              return { type: 'tool_result' as const, tool_use_id: block.id, content: 'ok' };
-            }),
-          },
+          { role: 'user', content: results },
         ];
       }
 
@@ -128,7 +168,9 @@ export function createEngine(deps: EngineDeps) {
       }
 
       const offeredNow =
-        state.hasOffered || (scheduler.provider !== 'none' && offerPattern.test(text));
+        state.hasOffered ||
+        proposedTimes ||
+        (scheduler.provider !== 'none' && offerPattern.test(text));
 
       return {
         reply: { text },

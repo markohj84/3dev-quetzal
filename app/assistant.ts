@@ -22,7 +22,12 @@ async function build() {
 
   const scheduler =
     config.scheduling.provider === 'calendly' && config.scheduling.url
-      ? createCalendlyScheduler(config.scheduling.url)
+      ? createCalendlyScheduler(config.scheduling.url, {
+          token: process.env.CALENDLY_API_TOKEN,
+          eventTypeUri: config.scheduling.eventTypeUri,
+          timeZone: config.scheduling.timeZone,
+          locale: config.locale,
+        })
       : createNullScheduler();
 
   const engine = createEngine({

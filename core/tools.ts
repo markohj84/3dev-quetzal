@@ -27,3 +27,17 @@ export const captureLeadTool: Anthropic.Tool = {
     required: ['nombre', 'contacto'],
   },
 };
+
+/**
+ * Real open times. Unlike the scheduling link, this is information the model
+ * genuinely does not have — it is nowhere in voice.md or the knowledge base —
+ * so the tool is the only way to answer, and that is what makes it get
+ * called. Times are returned already worded, anchored to the business's
+ * timezone, because the assistant cannot know the reader's.
+ */
+export const checkAvailabilityTool: Anthropic.Tool = {
+  name: 'check_availability',
+  description:
+    'Consulta los horarios reales libres para la conversación con el equipo. Llámala antes de proponer cualquier horario. Nunca inventes fechas ni horas, ni las deduzcas de la base de conocimiento: si no llamaste esta herramienta, no tienes horarios. Devuelve los horarios ya redactados — compártelos tal cual, sin convertirlos a otra zona horaria.',
+  input_schema: { type: 'object', properties: {}, required: [] },
+};

@@ -23,6 +23,12 @@ export const SchedulingConfig = z.object({
    * state-enforced and falls back to hoping the model doesn't repeat itself.
    */
   offerPattern: z.string().default('calendly|cal\\.com|agendar|agendo|schedule|booking'),
+  /** Provider URI of the event type whose availability the assistant reads. */
+  eventTypeUri: z.string().url().optional(),
+  /** IANA zone the business speaks its times in, e.g. America/Mexico_City. */
+  timeZone: z.string().optional(),
+  /** How to say that zone out loud, e.g. "hora del centro de México". */
+  timeZoneLabel: z.string().optional(),
 });
 
 export const ChannelConfig = z.object({

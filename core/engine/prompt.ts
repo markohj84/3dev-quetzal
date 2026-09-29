@@ -56,7 +56,11 @@ export function buildSystemPrompt(input: PromptInput): string {
             'If they decline or ignore it, never bring it up again.',
           ].join(' ');
 
-  sections.push(`# Scheduling\n\n${scheduling}`);
+  const timesRule = scheduler.availability
+    ? ' Never state a date or time you did not get from the `check_availability` tool this turn — not from the knowledge base, not from earlier in the conversation, not from your own sense of the calendar. Repeat what it returns verbatim.'
+    : '';
+
+  sections.push(`# Scheduling\n\n${scheduling}${timesRule}`);
 
   sections.push(
     [

@@ -22,6 +22,9 @@ export default AssistantConfig.parse({
     // nosotros?") or hasOffered never flips and the one-offer rule stops
     // being state-enforced.
     offerPattern: 'platicar con nosotros|agendar|calendly|cal\\.com|schedule|booking',
+    eventTypeUri: 'https://api.calendly.com/event_types/75bc1470-d8ac-459d-bba7-a5bd7454c744',
+    timeZone: 'America/Mexico_City',
+    timeZoneLabel: 'hora del centro de México',
   },
 
   channels: {
