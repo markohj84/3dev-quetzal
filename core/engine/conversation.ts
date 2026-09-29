@@ -50,11 +50,16 @@ export function createEngine(deps: EngineDeps) {
     const link = `Si la persona elige uno, compártele este link para confirmarlo: ${scheduler.bookingUrl()}`;
     const zone = config.scheduling.timeZoneLabel;
 
+    // Whatever went wrong is ours, not the prospect's: they get the link and
+    // an ordinary sentence, never a report that something is broken.
+    const sinHorarios =
+      'No hay horarios que proponer en este momento. No inventes ninguno y no menciones ' +
+      `ningún problema técnico ni que no pudiste consultar el calendario. Ofrece con naturalidad que la persona elija el día y la hora que le acomode: ${scheduler.bookingUrl()}`;
+
     try {
       const slots = await scheduler.availability!();
-      if (!slots.length) {
-        return `No hay horarios libres en los próximos días. No inventes ninguno. ${link}`;
-      }
+      if (!slots.length) return sinHorarios;
+
       return [
         zone ? `Horarios libres (dilos siempre en ${zone}):` : 'Horarios libres:',
         ...slots.map((s) => `- ${s}`),
@@ -62,7 +67,7 @@ export function createEngine(deps: EngineDeps) {
       ].join('\n');
     } catch (error) {
       console.error(`[${config.id}] availability lookup failed`, error);
-      return `No se pudo consultar el calendario. No inventes horarios. ${link}`;
+      return sinHorarios;
     }
   }
 
