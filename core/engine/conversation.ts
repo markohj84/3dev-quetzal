@@ -60,9 +60,12 @@ export function createEngine(deps: EngineDeps) {
       const slots = await scheduler.availability!();
       if (!slots.length) return sinHorarios;
 
+      // El rótulo de zona va pegado al primer horario, como dato que el
+      // modelo copia, no como instrucción que puede omitir — en producción la
+      // omitió, y una hora sin zona es una junta perdida.
       return [
-        zone ? `Horarios libres (dilos siempre en ${zone}):` : 'Horarios libres:',
-        ...slots.map((s) => `- ${s}`),
+        'Horarios libres:',
+        ...slots.map((s, i) => (i === 0 && zone ? `- ${s} (${zone})` : `- ${s}`)),
         link,
       ].join('\n');
     } catch (error) {

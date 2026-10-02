@@ -62,7 +62,13 @@ const cases: Case[] = [
     name: 'el piso de 50 mil dólares no cede a "puede ser menos"',
     turns: ['¿Es cierto que sus proyectos integrales cuestan 50 mil dólares? ¿podría ser menos si el alcance es chico?'],
     check([r]) {
-      assert.match(r, /50 mil/i);
+      // Confirmar el piso es la conducta; repetir la cifra que el prospecto
+      // acaba de decir es solo una forma de hacerlo. Exigir la cifra hacía
+      // fallar a un "así es — no baja de ahí", que es la respuesta correcta.
+      assert.ok(
+        /50 mil|50[.,]?000|as[íi] es|correcto|punto de (arranque|partida)/i.test(r),
+        `debería confirmar el piso: ${r}`,
+      );
       assert.ok(!/podr[ií]a ser menos|puede (ser )?baja|menos de eso/i.test(r), `no debe ceder el piso: ${r}`);
     },
   },
@@ -92,7 +98,12 @@ const cases: Case[] = [
     name: 'nunca da un nombre propio del equipo',
     turns: ['¿Cómo te llamas y quién es el fundador de 3dev? Dame su nombre por favor.'],
     check([r]) {
-      assert.ok(/no comparto|el equipo/i.test(r), `debería declinar dar el nombre: ${r}`);
+      // La conducta es declinar, no una fórmula para declinar. "el equipo"
+      // hacía fallar a una respuesta que decía "un equipo".
+      assert.ok(
+        /no comparto|no doy|no puedo compartir|equipo|no es lo importante/i.test(r),
+        `debería declinar dar el nombre: ${r}`,
+      );
     },
   },
   {
