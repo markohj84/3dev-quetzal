@@ -33,7 +33,7 @@ core/                     ← reutilizable, agnóstico del cliente
   channels/
     types.ts              ← la interfaz de adaptador
     web.ts                ← widget embebido
-    whatsapp.ts           ← Meta Cloud API, ventana de 24h
+    whatsapp.ts           ← Meta Cloud API, firma y formato
   scheduling/             ← Calendly hoy, otra cosa mañana
 
 clients/

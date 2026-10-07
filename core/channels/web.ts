@@ -1,7 +1,7 @@
 import type { ChannelAdapter, InboundMessage } from './types';
 
 /**
- * The embedded widget. No send window, richer formatting, chips render
+ * The embedded widget. Richer formatting, chips render
  * as inline pills. Delivery is a no-op because the HTTP response is the
  * transport — the route returns the reply directly.
  */
@@ -12,7 +12,6 @@ export function createWebAdapter(): ChannelAdapter {
     capabilities: {
       maxLength: 4000,
       maxChips: 4,
-      hasSendWindow: false,
       markup: 'html',
     },
 
@@ -22,10 +21,6 @@ export function createWebAdapter(): ChannelAdapter {
         return null;
       }
       return { contactId: sessionId, text: text.trim(), receivedAt: new Date() };
-    },
-
-    async canSendFreely() {
-      return true;
     },
 
     async deliver() {

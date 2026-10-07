@@ -3,8 +3,8 @@
  * understands, and translate the engine's reply back out.
  *
  * The engine must never learn which channel it is serving. Anything
- * channel-specific — WhatsApp's 24h window, template approval, message
- * length ceilings, markup dialect — is handled here.
+ * channel-specific — message length ceilings, markup dialect — is
+ * handled here.
  */
 
 export interface InboundMessage {
@@ -25,8 +25,6 @@ export interface ChannelCapabilities {
   maxLength: number;
   /** How many quick-reply options the channel renders. Zero disables chips. */
   maxChips: number;
-  /** True when the channel restricts unsolicited outbound messages. */
-  hasSendWindow: boolean;
   markup: 'html' | 'whatsapp' | 'plain';
 }
 
@@ -39,10 +37,4 @@ export interface ChannelAdapter {
 
   /** Render an engine reply into the platform's own format and deliver it. */
   deliver(to: string, message: OutboundMessage): Promise<void>;
-
-  /**
-   * True when the assistant may send freely right now. Channels without a
-   * send window always return true.
-   */
-  canSendFreely(contactId: string): Promise<boolean>;
 }

@@ -94,21 +94,3 @@ export function createLeadStore(clientId: string): LeadStore {
     },
   };
 }
-
-/** Tracks last-inbound timestamps per contact, e.g. for a channel's send-window check. */
-export interface InboundClock {
-  get(contactId: string): Promise<Date | null>;
-  set(contactId: string, at: Date): Promise<void>;
-}
-
-export function createInboundClock(): InboundClock {
-  return {
-    async get(contactId) {
-      const iso = await kv.get<string>(`last-inbound:${contactId}`);
-      return iso ? new Date(iso) : null;
-    },
-    async set(contactId, at) {
-      await kv.set(`last-inbound:${contactId}`, at.toISOString(), { ex: SESSION_TTL_SECONDS });
-    },
-  };
-}

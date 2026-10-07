@@ -3,7 +3,6 @@ import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter, verifySignature } from '../../../core/channels/whatsapp';
 import {
   createSessionStore,
-  createInboundClock,
   createRateLimiter,
   createConversationLog,
   createLeadStore,
@@ -11,14 +10,12 @@ import {
 import { createLeadNotifier } from '../../../core/notify';
 
 const sessions = createSessionStore();
-const inboundClock = createInboundClock();
 // contactId here is Meta's own phone number id, not caller-supplied — safe to key on directly.
 const rateLimiter = createRateLimiter(20, 60);
 
 const adapter = createWhatsAppAdapter({
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
   accessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
-  lastInboundAt: (id) => inboundClock.get(id),
 });
 
 /** Meta verifies the webhook with a GET before it will send anything. */
@@ -56,7 +53,6 @@ export async function POST(request: Request) {
     return new Response('ok', { status: 200 });
   }
 
-  await inboundClock.set(inbound.contactId, inbound.receivedAt);
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
 
   try {

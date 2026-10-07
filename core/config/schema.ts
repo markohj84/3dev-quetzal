@@ -43,8 +43,6 @@ export const ChannelConfig = z.object({
   whatsapp: z.object({
     enabled: z.boolean().default(false),
     phoneNumberId: z.string().optional(),
-    /** Approved Meta template used to reopen a conversation past 24h. */
-    reengagementTemplate: z.string().optional(),
   }),
 });
 

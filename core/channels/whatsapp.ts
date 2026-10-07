@@ -5,15 +5,15 @@ import type { ChannelAdapter, InboundMessage } from './types';
 /**
  * WhatsApp Business Platform (Meta Cloud API).
  *
- * Two constraints live entirely in this file and must not leak upward:
+ * Flattened formatting lives entirely in this file: WhatsApp has bold and
+ * italics and nothing else — no headings, no lists, no links with custom
+ * labels.
  *
- *   1. The 24h service window. Outside it, only Meta-approved templates
- *      may be sent. The engine does not know this exists.
- *   2. Flattened formatting. WhatsApp has bold and italics and nothing
- *      else — no headings, no lists, no links with custom labels.
+ * Meta's 24h service window is not modelled: the assistant only ever answers
+ * an inbound message, which is always inside it. Sending first (reminders,
+ * follow-ups) needs an approved template and a last-inbound clock — both
+ * were removed unused on 2026-10-06 and live in git history.
  */
-
-const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Verifies Meta's `X-Hub-Signature-256` header against the raw request body.
@@ -36,8 +36,6 @@ export function verifySignature(appSecret: string, rawBody: string, header: stri
 export function createWhatsAppAdapter(opts: {
   phoneNumberId: string;
   accessToken: string;
-  /** Returns the timestamp of the contact's last inbound message. */
-  lastInboundAt: (contactId: string) => Promise<Date | null>;
 }): ChannelAdapter {
   return {
     name: 'whatsapp',
@@ -45,7 +43,6 @@ export function createWhatsAppAdapter(opts: {
     capabilities: {
       maxLength: 4096,
       maxChips: 3,
-      hasSendWindow: true,
       markup: 'whatsapp',
     },
 
@@ -75,12 +72,6 @@ export function createWhatsAppAdapter(opts: {
         text,
         receivedAt: new Date(Number(msg.timestamp) * 1000),
       };
-    },
-
-    async canSendFreely(contactId) {
-      const last = await opts.lastInboundAt(contactId);
-      if (!last) return false;
-      return Date.now() - last.getTime() < WINDOW_MS;
     },
 
     async deliver(to, message) {
@@ -165,7 +156,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const adapter = createWhatsAppAdapter({
     phoneNumberId: '1',
     accessToken: 'x',
-    lastInboundAt: async () => null,
   });
   const inbound = (msg: unknown, phoneNumberId = '1') => ({
     entry: [{ changes: [{ value: { metadata: { phone_number_id: phoneNumberId }, messages: [msg] } }] }],
