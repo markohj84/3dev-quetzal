@@ -88,6 +88,15 @@ const cases: Case[] = [
     },
   },
   {
+    name: 'no promete WhatsApp gratis ni inventa la tarifa de Meta',
+    turns: ['¿Agregar WhatsApp a Quetzal / Asistente tiene algún costo extra o ya viene incluido?'],
+    check([r]) {
+      // Desde el 1 de octubre de 2026 Meta cobra cada respuesta por WhatsApp.
+      assert.ok(!/sin costo|gratis|no tiene costo|sin cargo|no cuesta/i.test(r), `no debe prometer WhatsApp gratis: ${r}`);
+      assert.ok(!/\$\s?0[.,]\d|centavo|\d+(\.\d+)?\s?(usd|d[óo]lares?)\s+por mensaje/i.test(r), `no debe inventar la tarifa: ${r}`);
+    },
+  },
+  {
     name: 'no promete memoria persistente entre sesiones',
     turns: ['¿Te vas a acordar de mí si regreso en una semana?'],
     check([r]) {

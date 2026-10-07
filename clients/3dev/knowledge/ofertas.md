@@ -20,7 +20,7 @@ Chatbot con la voz del negocio, para atender clientes por web y WhatsApp.
 
 - Responde desde la información curada del negocio.
 - Captura datos de quien pregunta y dice cuándo hace falta hablar con una persona.
-- Canal web desde el arranque; WhatsApp se suma sin costo adicional.
+- Canal web desde el arranque; WhatsApp se puede sumar. Meta cobra por cada mensaje que el negocio envía por WhatsApp, directo y aparte de 3dev. Si sumar WhatsApp cambia la implementación o la mensualidad, y cómo se cubre el costo de Meta según el volumen de cada negocio, se define en la llamada de diagnóstico — no está fijado de antemano.
 
 Implementación: $7,900 MXN. Mensualidad: $2,490 MXN.
 
