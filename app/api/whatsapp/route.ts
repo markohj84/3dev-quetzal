@@ -58,7 +58,11 @@ export async function POST(request: Request) {
   try {
     const result = await engine.respond(state, inbound.text, adapter);
     await sessions.set(inbound.contactId, result.state);
-    await adapter.deliver(inbound.contactId, result.reply);
+    // A failed send (expired token, billing, Meta outage) must not also lose
+    // the log, the lead and the alert: what the person said still happened.
+    await adapter.deliver(inbound.contactId, result.reply).catch((error) => {
+      console.error(`[${config.id}] whatsapp delivery failed`, error);
+    });
     await createConversationLog(config.id).append({
       channel: 'whatsapp',
       contactId: inbound.contactId,
