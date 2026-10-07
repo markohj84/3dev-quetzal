@@ -21,7 +21,9 @@ import type { ChannelAdapter, InboundMessage } from './types';
  * match byte-for-byte and would always fail.
  */
 export function verifySignature(appSecret: string, rawBody: string, header: string | null): boolean {
-  if (!header?.startsWith('sha256=')) return false;
+  // An unset secret would make an empty-key HMAC the valid one, and anyone can
+  // compute that. A deploy missing it must reject everything, not accept forgeries.
+  if (!appSecret || !header?.startsWith('sha256=')) return false;
 
   const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
   const given = header.slice('sha256='.length);
@@ -148,6 +150,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.ok(!verifySignature(secret, body, null), 'missing header should fail');
   assert.ok(!verifySignature(secret, body, 'not-sha256=abc'), 'wrong prefix should fail');
   assert.ok(!verifySignature('other-secret', body, goodSig), 'wrong secret should fail');
+  const emptyKeySig = 'sha256=' + createHmac('sha256', '').update(body).digest('hex');
+  assert.ok(!verifySignature('', body, emptyKeySig), 'an unset secret should reject even a matching empty-key signature');
 
   assert.equal(toMetaRecipient('5212223334455'), '522223334455', 'legacy 521 should drop the 1');
   assert.equal(toMetaRecipient('522223334455'), '522223334455', 'plain 52 should pass through');
