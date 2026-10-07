@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
-import { createWhatsAppAdapter, verifySignature } from '../../../core/channels/whatsapp';
+import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import {
   createSessionStore,
   createRateLimiter,
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     await adapter.deliver(inbound.contactId, result.reply).catch((error) => {
       console.error(`[${config.id}] whatsapp delivery failed`, error);
     });
+    const reachAt = `https://wa.me/${toMetaRecipient(inbound.contactId)}`;
     await createConversationLog(config.id).append({
       channel: 'whatsapp',
       contactId: inbound.contactId,
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
+        reachAt,
       });
     }
 
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
         contactId: inbound.contactId,
         transcript: result.state.history,
         captured: result.capturedLead,
+        reachAt,
       });
     }
   } catch (error) {

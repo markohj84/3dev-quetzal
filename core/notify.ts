@@ -10,6 +10,11 @@ export interface LeadAlert {
   captured?: CapturedLead;
   /** Set when the alert is a confirmed booking rather than interest. */
   booking?: Booking;
+  /**
+   * A way to reach the person on the channel they wrote from, when the channel
+   * has one. A WhatsApp sender's id is their phone; a web session id is not.
+   */
+  reachAt?: string;
 }
 
 export interface LeadNotifier {
@@ -50,6 +55,10 @@ export function createLeadNotifier(to: string | undefined, from: string | undefi
             .join('\n')
         : '';
 
+      // On WhatsApp this is often the only contact there is: someone can show
+      // interest, or say "call me on this number", without typing a number.
+      const reach = alert.reachAt ? `Contactar por ${alert.channel}: ${alert.reachAt}\n\n` : '';
+
       const header = alert.captured
         ? `Nombre: ${alert.captured.nombre}\nContacto: ${alert.captured.contacto}` +
           (alert.captured.necesidad ? `\nNecesidad: ${alert.captured.necesidad}` : '') +
@@ -70,7 +79,7 @@ export function createLeadNotifier(to: string | undefined, from: string | undefi
             : alert.captured
               ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
               : `Nuevo interés — canal ${alert.channel}`,
-          text: booking || header + transcript,
+          text: booking || reach + header + transcript,
         }),
       });
 
