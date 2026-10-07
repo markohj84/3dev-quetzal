@@ -54,6 +54,16 @@ export function createWhatsAppAdapter(opts: {
       const msg = value?.messages?.[0];
       if (!msg) return null;
 
+      // One Meta app hears every number subscribed to it, but deliver() always
+      // answers from opts.phoneNumberId. A message to any other number would
+      // get its reply from ours, in a separate chat — so each deployment
+      // speaks only for its own number and leaves the rest alone.
+      const to = value?.metadata?.phone_number_id;
+      if (opts.phoneNumberId && to && to !== opts.phoneNumberId) {
+        console.warn(`[whatsapp] ignorado: llegó al número ${to}, este despliegue atiende ${opts.phoneNumberId}`);
+        return null;
+      }
+
       const text =
         msg.text?.body ??
         msg.interactive?.button_reply?.title ??
@@ -157,7 +167,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     accessToken: 'x',
     lastInboundAt: async () => null,
   });
-  const inbound = (msg: unknown) => ({ entry: [{ changes: [{ value: { messages: [msg] } }] }] });
+  const inbound = (msg: unknown, phoneNumberId = '1') => ({
+    entry: [{ changes: [{ value: { metadata: { phone_number_id: phoneNumberId }, messages: [msg] } }] }],
+  });
 
   const texto = adapter.parse(inbound({ from: '5212223334455', text: { body: 'hola' }, timestamp: '1790000000' }));
   assert.equal(texto?.text, 'hola');
@@ -178,6 +190,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(adapter.parse({ entry: [{ changes: [{ value: { statuses: [{}] } }] }] }), null, 'un acuse no es mensaje');
   assert.equal(adapter.parse(inbound({ from: '52', image: {}, timestamp: '1' })), null, 'una imagen sin texto no es turno');
   assert.equal(adapter.parse(null), null);
+
+  // Otro número de la misma app: no es nuestro turno. Si contestáramos, la
+  // respuesta saldría de nuestro número en un chat aparte.
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  assert.equal(
+    adapter.parse(inbound({ from: '52', text: { body: 'hola' }, timestamp: '1' }, 'otro-numero')),
+    null,
+    'un mensaje a otro número de la app se ignora',
+  );
+  console.warn = originalWarn;
+  assert.equal(
+    adapter.parse({ entry: [{ changes: [{ value: { messages: [{ from: '52', text: { body: 'hola' }, timestamp: '1' }] } }] }] })?.text,
+    'hola',
+    'sin metadata no se descarta: solo un desacuerdo explícito bloquea',
+  );
 
   assert.equal(toWhatsAppMarkup('## Título\n**negritas**\n- uno'), 'Título\n*negritas*\n• uno');
 
