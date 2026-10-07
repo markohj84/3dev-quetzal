@@ -53,7 +53,15 @@ otra, después de cualquier cambio a `voice.md`, `knowledge/`,
 `assistant.config.ts` o al tool-calling del motor. Usa Anthropic real
 (cuesta unos centavos), necesita `KV_REST_API_URL`/`TOKEN` en el entorno
 (las carga `--env-file=.env.local`), y limpia sus propias sesiones y leads
-de prueba (prefijo `eval-`) al terminar.
+de prueba (prefijo `eval-`) al terminar. Las entradas del log de
+conversaciones se quedan: al medir uso real, excluir los contactIds `eval-`.
+
+Los casos marcados `channel: 'whatsapp'` pasan por `/api/whatsapp` real:
+firman el payload con `WHATSAPP_APP_SECRET` y leen la respuesta de la
+sesión. En local sirve cualquier valor, siempre que el dev server y el eval
+vean el mismo (ponerlo en `.env.local`); sin él, esos casos se saltan con
+aviso. `deliver()` sí le pega a Meta, pero el contacto de prueba no tiene
+dígitos y Meta lo rechaza (`131009`): no sale ningún mensaje.
 
 ## Tool-calling
 

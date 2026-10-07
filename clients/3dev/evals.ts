@@ -8,8 +8,14 @@
  *
  * Goes through the real HTTP route, so it writes a few test entries to the
  * Redis session store, conversation log and leads store under session ids
- * prefixed "eval-" — the script deletes those at the end of a run.
+ * prefixed "eval-" — the script deletes the sessions and leads at the end of
+ * a run; log entries stay, so leave out "eval-" contactIds when measuring use.
  * Requires KV_REST_API_URL/TOKEN in the environment (same as the app).
+ *
+ * Cases with `channel: 'whatsapp'` post a signed, Meta-shaped payload to
+ * /api/whatsapp and read the reply back from the session. They need
+ * WHATSAPP_APP_SECRET in .env.local — locally any value works, as long as
+ * the dev server sees the same one — and are skipped without it.
  *
  * LLM output varies between runs, so checks are pattern-based smoke tests,
  * not exact-match assertions — they catch regressions in the rules that
@@ -17,14 +23,18 @@
  * not wording drift.
  */
 import assert from 'node:assert';
+import { createHmac } from 'node:crypto';
 import { Redis } from '@upstash/redis';
 
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
 const CLIENT_ID = 'quetzal-3dev';
 const kv = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
+const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET;
 
 interface Case {
   name: string;
+  /** Web widget unless set. */
+  channel?: 'whatsapp';
   turns: string[];
   check(replies: string[], contactId: string): void | Promise<void>;
 }
@@ -128,6 +138,38 @@ const cases: Case[] = [
       assert.match(found!.nombre, /juan/i);
     },
   },
+  {
+    name: 'por WhatsApp: compartir nombre y contacto se registra con capture_lead',
+    channel: 'whatsapp',
+    turns: [
+      '¿Tienen algo para clínicas dentales?',
+      'Soy Juan Pérez, mi correo es juan.perez@ejemplo.com, prefiero que me escriban ahí',
+    ],
+    async check(_replies, contactId) {
+      // Meta rejects the send to a test contact, so this also proves a failed
+      // delivery no longer takes the lead down with it.
+      const leads = await kv.lrange<{ contactId: string; channel: string }>(`leads:${CLIENT_ID}`, 0, -1);
+      const found = leads.find((l) => l.contactId === contactId);
+      assert.ok(found, 'debería haber quedado un lead capturado para esta conversación');
+      assert.equal(found!.channel, 'whatsapp');
+    },
+  },
+  {
+    // hasOffered lives in the WhatsApp session, keyed by the sender's number,
+    // and the offer is detected from text written under WhatsApp's plain-text
+    // format rule — neither is exercised by the web case.
+    name: 'por WhatsApp: agendar se ofrece a lo más una vez en la conversación',
+    channel: 'whatsapp',
+    turns: [
+      'Quiero un asistente de IA para mi negocio, ¿cómo empiezo?',
+      '¿Cuánto cuesta la oferta más completa?',
+      '¿Y qué automatizaciones incluye exactamente?',
+    ],
+    check(replies) {
+      const offers = replies.filter((r) => /platicar con nosotros|agendar una (llamada|conversaci[óo]n)/i.test(r)).length;
+      assert.ok(offers <= 1, `debería ofrecer agendar máximo una vez, ofreció ${offers} veces`);
+    },
+  },
 ];
 
 async function sendTurn(sessionId: string, text: string): Promise<string> {
@@ -139,6 +181,44 @@ async function sendTurn(sessionId: string, text: string): Promise<string> {
   if (!res.ok) throw new Error(`/api/chat respondió ${res.status}`);
   const data = (await res.json()) as { text: string };
   return data.text;
+}
+
+/**
+ * The real webhook route end to end: signature, parse, session, tools, lead
+ * capture. deliver() does post the reply to Meta, which turns it down, so the
+ * reply is read back from the session instead.
+ */
+async function sendWhatsAppTurn(contactId: string, text: string): Promise<string> {
+  const body = JSON.stringify({
+    entry: [{ changes: [{ value: {
+      metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID },
+      messages: [{ from: contactId, timestamp: String(Math.floor(Date.now() / 1000)), text: { body: text } }],
+    } }] }],
+  });
+  const res = await fetch(`${BASE_URL}/api/whatsapp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Hub-Signature-256': 'sha256=' + createHmac('sha256', WHATSAPP_APP_SECRET!).update(body).digest('hex'),
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`/api/whatsapp respondió ${res.status} — ¿el dev server tiene el mismo WHATSAPP_APP_SECRET?`);
+
+  // The route answers 200 even when the engine fails, so check this very
+  // turn landed in the session rather than trusting the last reply there.
+  const session = await kv.get<{ history: { role: string; content: string }[] }>(`session:${contactId}`);
+  const [asked, answer] = session?.history.slice(-2) ?? [];
+  if (asked?.content !== text || answer?.role !== 'assistant') {
+    throw new Error('la ruta de WhatsApp no dejó respuesta en la sesión; revisa el log del dev server');
+  }
+  return answer.content;
+}
+
+/** No digits: deliver() really posts this id to Meta as the recipient, and
+ * with no digits there is nothing in it Meta could take for a phone number. */
+function letters(n: number): string {
+  return Array.from({ length: n }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
 }
 
 async function cleanup(sessionIds: string[]) {
@@ -155,14 +235,21 @@ async function cleanup(sessionIds: string[]) {
 
 async function run() {
   let failed = 0;
+  let skipped = 0;
   const sessionIds: string[] = [];
   for (const [i, c] of cases.entries()) {
-    const sessionId = `eval-${i}-${Date.now()}`;
+    if (c.channel === 'whatsapp' && !WHATSAPP_APP_SECRET) {
+      skipped++;
+      console.log(`\x1b[33m–\x1b[0m ${c.name} (saltado: falta WHATSAPP_APP_SECRET)`);
+      continue;
+    }
+    const sessionId = c.channel === 'whatsapp' ? `eval-wa-${letters(12)}` : `eval-${i}-${Date.now()}`;
     sessionIds.push(sessionId);
+    const send = c.channel === 'whatsapp' ? sendWhatsAppTurn : sendTurn;
     const replies: string[] = [];
     try {
       for (const turn of c.turns) {
-        replies.push(await sendTurn(sessionId, turn));
+        replies.push(await send(sessionId, turn));
       }
       await c.check(replies, sessionId);
       console.log(`\x1b[32m✓\x1b[0m ${c.name}`);
@@ -174,7 +261,8 @@ async function run() {
 
   await cleanup(sessionIds);
 
-  console.log(`\n${cases.length - failed}/${cases.length} passed`);
+  const ran = cases.length - skipped;
+  console.log(`\n${ran - failed}/${ran} passed${skipped ? `, ${skipped} saltados` : ''}`);
   if (failed) process.exitCode = 1;
 }
 
