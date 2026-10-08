@@ -38,6 +38,26 @@ El motor no debe poder averiguar por qué canal llegó un mensaje.
    Contienen precios internos y criterios de calificación que no pueden
    salir por boca del asistente. El conocimiento se cura a mano.
 
+## De dónde sale la oferta de 3dev
+
+La estrategia y el catálogo de precios **no viven aquí**. Su fuente es el
+repositorio del sitio (`markohj84/3dev`):
+`docs/strategy/estrategia-marca-v2.md` (el porqué) y
+`docs/strategy/oferta.json` (nombres y precios, canónico). Este repo guarda
+una copia exacta en `clients/3dev/offer.lock.json`.
+
+- `npm run check:offer` (corre también en `prebuild`) falla si un nombre o
+  precio activo del lock no aparece en `clients/3dev/knowledge/` o
+  `voice.md`.
+- `npm run check:offer -- --remote` además compara el lock con el canónico
+  publicado; si difiere, sigue `docs/strategy/propagacion.md` de ese repo:
+  copia el canónico, actualiza el conocimiento a mano, ajusta `voice.md`
+  si cambió la prioridad comercial, y corre `npm run eval:3dev`.
+
+El lock nunca entra al prompt (el corpus solo carga `.md`), y la regla 4 de
+arriba sigue en pie: el conocimiento se escribe a mano, no se genera del
+catálogo.
+
 ## Stack
 
 Next.js 15 (App Router), TypeScript, SDK de Anthropic, Zod, Vercel.
@@ -98,7 +118,10 @@ mover a un datastore real en vez de seguir creciendo este esquema de keys.
 
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
-El modelo de negocio vigente es una escalera de tres ofertas — Oferta 0
+La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web
+Esencial, Web Completa, Tienda en línea — `knowledge/sitios-web.md`) y la
+escalera de IA. Los paquetes web son solo conocimiento: Quetzal los explica,
+no construye sitios. La escalera de IA es Oferta 0
 (automatización puntual, sin chatbot), Oferta 1 "Quetzal / Asistente"
 (web + WhatsApp) y Oferta 2 "Quetzal / Flujos" (el asistente + automatización
 real) — reflejada en `clients/3dev/knowledge/` y `voice.md`. Eso ya está

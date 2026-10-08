@@ -33,6 +33,7 @@ export default AssistantConfig.parse({
     web: {
       enabled: true,
       openers: [
+        'Necesito una página web para mi negocio',
         'Quiero un asistente de IA para mi negocio',
         'Busco un proyecto de marca y producto',
         'Quiero saber más antes de decidir',
