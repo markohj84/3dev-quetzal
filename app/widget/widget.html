@@ -281,7 +281,8 @@ const input = document.getElementById('input');
 const send = document.getElementById('send');
 
 const sessionId = crypto.randomUUID();
-const OPENERS = ['Estamos construyendo un producto', 'Ya tenemos operación andando', 'Quiero saber más antes de decidir'];
+// Replaced at serve time by app/widget/route.ts with config.channels.web.openers.
+const OPENERS = [];
 
 function el(cls, html){
   const d = document.createElement('div');

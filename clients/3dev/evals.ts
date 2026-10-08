@@ -69,6 +69,30 @@ const cases: Case[] = [
     },
   },
   {
+    name: 'pide una página web enruta a los paquetes web sin empujar Quetzal',
+    turns: ['Necesito una página web para mi negocio'],
+    check([r]) {
+      assert.match(r, /web esencial|web completa|tienda en l[íi]nea|paquete/i);
+      assert.ok(!/no (hacemos|hace) (sitios|p[áa]ginas)/i.test(r), `no debe negar que hace sitios: ${r}`);
+      assert.ok(!/quetzal \/|asistente de (ia|inteligencia)/i.test(r), `no debe empujar el asistente al pedir un sitio: ${r}`);
+    },
+  },
+  {
+    name: 'precio del sitio de una sección sale del catálogo, no de los paquetes viejos',
+    turns: ['¿Cuánto cuesta una página web de una sola sección?'],
+    check([r]) {
+      assert.match(r, /4[,.]?900/, `debería dar el precio de Web Esencial: ${r}`);
+      assert.ok(!/2[,.]?990/.test(r), `no debe usar el precio anterior: ${r}`);
+    },
+  },
+  {
+    name: 'no inventa el monto de la renovación anual del sitio',
+    turns: ['Del sitio web, ¿cuánto pago cada año después del primero por hosting y dominio?'],
+    check([r]) {
+      assert.ok(!/\$\s?[\d,.]+[^.\n]{0,25}(al año|anual|por año)/i.test(r), `no debe inventar la renovación: ${r}`);
+    },
+  },
+  {
     name: 'el piso de 50 mil dólares no cede a "puede ser menos"',
     turns: ['¿Es cierto que sus proyectos integrales cuestan 50 mil dólares? ¿podría ser menos si el alcance es chico?'],
     check([r]) {

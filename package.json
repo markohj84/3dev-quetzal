@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm run check:boundary",
+    "prebuild": "npm run check:boundary && npm run check:offer",
     "build": "next build",
     "start": "next start",
     "check:boundary": "! grep -rilE '3dev|quetzal' core/ || (echo 'core/ references a client' && exit 1)",
+    "check:offer": "node scripts/check-offer.mjs clients/3dev",
     "eval:3dev": "node --env-file=.env.local clients/3dev/evals.ts"
   },
   "dependencies": {

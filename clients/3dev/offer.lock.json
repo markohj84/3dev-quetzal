@@ -1,0 +1,92 @@
+{
+  "$comment": "Catálogo canónico de la oferta de 3dev. Fuente de verdad de precios y nombres. Cambiar aquí primero, luego seguir docs/strategy/propagacion.md. Lo valida `npm run check:strategy` en este repo y `npm run check:offer` en 3dev-quetzal (contra su copia clients/3dev/offer.lock.json).",
+  "version": "2.0.0",
+  "canonicalUrl": "https://raw.githubusercontent.com/markohj84/3dev/main/docs/strategy/oferta.json",
+  "updated": "2026-10-07",
+  "strategy": "docs/strategy/estrategia-marca-v2.md",
+  "lines": [
+    {
+      "id": "web",
+      "name": "3dev Web",
+      "status": "activa",
+      "currency": "MXN",
+      "items": [
+        {
+          "id": "web-esencial",
+          "name": "Web Esencial",
+          "setup": 4900,
+          "monthly": null,
+          "summary": "Sitio de una sola sección",
+          "includes": [
+            "Hospedaje y dominio .com / .com.mx el primer año",
+            "Galería de hasta 5 fotos",
+            "Formulario de contacto, enlaces a redes y botón de WhatsApp",
+            "Diseño adaptable a celular, tableta y computadora",
+            "Mapa de ubicación",
+            "5 cuentas de correo"
+          ],
+          "delivery": "5 días hábiles"
+        },
+        {
+          "id": "web-completa",
+          "name": "Web Completa",
+          "setup": 8900,
+          "monthly": null,
+          "summary": "Sitio de hasta 10 secciones o páginas",
+          "includes": [
+            "Hospedaje y dominio .com / .com.mx el primer año",
+            "Galería de hasta 10 fotos",
+            "Formulario de contacto, enlaces a redes y botón de WhatsApp",
+            "Diseño adaptable a celular, tableta y computadora",
+            "Mapa de ubicación",
+            "10 cuentas de correo"
+          ],
+          "delivery": "10 días hábiles"
+        },
+        {
+          "id": "tienda-en-linea",
+          "name": "Tienda en línea",
+          "setup": 12900,
+          "monthly": null,
+          "summary": "Sitio de hasta 10 secciones con catálogo de productos",
+          "includes": [
+            "Hospedaje especializado y dominio .com / .com.mx el primer año",
+            "Catálogo de productos",
+            "Formulario de contacto, enlaces a redes y botón de WhatsApp",
+            "Diseño adaptable a celular, tableta y computadora",
+            "Mapa de ubicación",
+            "Cuentas de correo ilimitadas"
+          ],
+          "delivery": "10 días hábiles"
+        }
+      ],
+      "renewal": {
+        "covers": "Hospedaje, dominio y mantenimiento",
+        "period": "anual",
+        "price": null
+      },
+      "payment": "50% de anticipo para iniciar, 50% al entregar contra factura"
+    },
+    {
+      "id": "ai",
+      "name": "3dev AI · Quetzal",
+      "status": "activa",
+      "currency": "MXN",
+      "items": [
+        { "id": "oferta-0", "name": "Oferta 0 — El primer flujo", "setup": 3900, "monthly": 990, "summary": "Un flujo automatizado puntual, sin chatbot", "delivery": "días" },
+        { "id": "oferta-1", "name": "Oferta 1 — Quetzal / Asistente", "setup": 7900, "monthly": 2490, "summary": "Asistente con la voz del negocio para web y WhatsApp", "delivery": "2 a 3 semanas" },
+        { "id": "oferta-2", "name": "Oferta 2 — Quetzal / Flujos", "setup": 19900, "monthly": 4990, "summary": "El asistente más automatización conectada al negocio", "delivery": "2 a 3 semanas" }
+      ],
+      "payment": "50% de la implementación para iniciar; mensualidad al activar producción"
+    },
+    {
+      "id": "estudio",
+      "name": "Estudio integrado",
+      "status": "reactiva",
+      "currency": "USD",
+      "items": [
+        { "id": "integrado", "name": "Proyecto integrado Brand · Product · AI", "from": 50000, "summary": "Marca, producto e IA diseñados juntos; se menciona sólo si el prospecto lo pide", "delivery": "8 a 16 semanas" }
+      ]
+    }
+  ]
+}
