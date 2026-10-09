@@ -46,6 +46,7 @@ export function createWhatsAppAdapter(opts: {
       maxLength: 4096,
       maxChips: 3,
       markup: 'whatsapp',
+      stableContactId: true,
     },
 
     parse(payload: unknown): InboundMessage | null {
@@ -73,6 +74,7 @@ export function createWhatsAppAdapter(opts: {
         contactId: msg.from,
         text,
         receivedAt: new Date(Number(msg.timestamp) * 1000),
+        displayName: value?.contacts?.[0]?.profile?.name || undefined,
       };
     },
 
@@ -169,6 +171,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(texto?.text, 'hola');
   assert.equal(texto?.contactId, '5212223334455', 'el contactId conserva el wa_id tal cual');
   assert.equal(texto?.receivedAt.getTime(), 1790000000 * 1000, 'el timestamp de Meta viene en segundos');
+  assert.equal(texto?.displayName, undefined, 'sin contacts no hay nombre de perfil');
+  assert.equal(
+    adapter.parse({ entry: [{ changes: [{ value: {
+      metadata: { phone_number_id: '1' },
+      contacts: [{ profile: { name: 'Laura' }, wa_id: '52' }],
+      messages: [{ from: '52', text: { body: 'hola' }, timestamp: '1' }],
+    } }] }] })?.displayName,
+    'Laura',
+    'Meta manda el nombre de perfil en contacts, no en messages',
+  );
 
   // Los chips regresan por interactive, no por text: si esto se rompe, el
   // asistente deja de oír justo a quien le contestó con un botón.

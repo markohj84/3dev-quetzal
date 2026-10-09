@@ -94,3 +94,36 @@ export function createLeadStore(clientId: string): LeadStore {
     },
   };
 }
+
+/**
+ * What survives a conversation: enough to greet someone by name and pick up
+ * the thread, not the transcript. The session still dies at 24h — carrying
+ * the whole history for weeks would make every reply pricier and keep the
+ * one-offer rule tripped long after it stopped meaning anything.
+ */
+export interface ContactProfile {
+  name?: string;
+  interest?: string;
+  leftContact?: boolean;
+  lastSeenAt: string;
+}
+
+export interface ProfileStore {
+  get(contactId: string): Promise<ContactProfile | null>;
+  set(contactId: string, profile: ContactProfile): Promise<void>;
+}
+
+// ponytail: one Redis key per contact. Moves to the Postgres profile table
+// when the roadmap's datastore lands.
+const PROFILE_TTL_SECONDS = 60 * 60 * 24 * 90;
+
+export function createProfileStore(clientId: string): ProfileStore {
+  return {
+    async get(contactId) {
+      return (await kv.get<ContactProfile>(`profile:${clientId}:${contactId}`)) ?? null;
+    },
+    async set(contactId, profile) {
+      await kv.set(`profile:${clientId}:${contactId}`, profile, { ex: PROFILE_TTL_SECONDS });
+    },
+  };
+}

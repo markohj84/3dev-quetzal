@@ -41,3 +41,26 @@ export const checkAvailabilityTool: Anthropic.Tool = {
     'Consulta los horarios reales libres para la conversación con el equipo. Llámala antes de proponer cualquier horario. Nunca inventes fechas ni horas, ni las deduzcas de la base de conocimiento: si no llamaste esta herramienta, no tienes horarios. Devuelve los horarios ya redactados — compártelos tal cual, sin convertirlos a otra zona horaria.',
   input_schema: { type: 'object', properties: {}, required: [] },
 };
+
+export interface RememberedContact {
+  nombre?: string;
+  interes?: string;
+}
+
+/**
+ * Only offered on channels where the contact id outlives the conversation —
+ * remembering someone the next page load forgets is a wasted round-trip.
+ */
+export const rememberContactTool: Anthropic.Tool = {
+  name: 'remember_contact',
+  description:
+    'Guarda lo mínimo para reconocer a esta persona si vuelve a escribir otro día: su nombre de pila, si lo dijo, y en pocas palabras qué le interesa (un servicio o el problema que quiere resolver). Llámala cuando aprendas cualquiera de los dos o cuando cambie. No guardes datos sensibles, precios ni el resto de la conversación. No reemplaza a capture_lead: esta herramienta no avisa al equipo, así que si la persona dejó un contacto, llama también capture_lead.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      nombre: { type: 'string', description: 'Nombre de pila que dijo la persona' },
+      interes: { type: 'string', description: 'Qué le interesa, en menos de diez palabras' },
+    },
+    required: [],
+  },
+};

@@ -1,3 +1,4 @@
+import assert from 'node:assert';
 import type { AssistantConfig } from '../config/schema';
 import type { ChannelCapabilities } from '../channels/types';
 import type { Corpus } from './knowledge';
@@ -78,4 +79,50 @@ export function buildSystemPrompt(input: PromptInput): string {
   );
 
   return sections.join('\n\n---\n\n');
+}
+
+export interface KnownContact {
+  name?: string;
+  interest?: string;
+  leftContact?: boolean;
+  /** Platform display name — a hint, not something the person told us. */
+  displayName?: string;
+}
+
+/**
+ * Kept out of buildSystemPrompt on purpose: that prompt is cached and shared
+ * by every person talking to this client, and this note is one person's.
+ */
+export function buildContactNote(contact: KnownContact): string | null {
+  const facts: string[] = [];
+  if (contact.name) facts.push(`- Name: ${contact.name}`);
+  if (contact.interest) facts.push(`- Interested in: ${contact.interest}`);
+  if (contact.leftContact) facts.push('- Already left contact details for the team.');
+
+  if (!facts.length) {
+    return contact.displayName
+      ? `# This person\n\nTheir messaging profile name is "${contact.displayName}". People choose that themselves: it can be a nickname or a business name. Use it only if it reads as a person's first name, and never insist on it.`
+      : null;
+  }
+
+  return [
+    '# This person',
+    '',
+    'What you know about them, possibly from an earlier conversation you no longer have in full:',
+    ...facts,
+    '',
+    'Call them by name naturally. If this conversation just started, you may pick their interest back up once; do not recite this list. If they ask whether you remember them, be truthful: you remember their name and what they were interested in, not the whole conversation.',
+  ].join('\n');
+}
+
+// Self-check: `node core/engine/prompt.ts`
+if (import.meta.url === `file://${process.argv[1]}`) {
+  assert.equal(buildContactNote({}), null, 'sin datos no hay nota');
+  assert.match(buildContactNote({ displayName: '🌮 Tacos Lalo' })!, /only if it reads as a person's first name/);
+  const note = buildContactNote({ name: 'Laura', interest: 'tienda en línea', displayName: 'Lau ✨' })!;
+  assert.match(note, /Name: Laura/);
+  assert.match(note, /tienda en línea/);
+  assert.ok(!note.includes('Lau ✨'), 'lo que la persona dijo gana sobre el nombre de perfil');
+
+  console.log('prompt.ts self-check passed');
 }

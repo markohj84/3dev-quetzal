@@ -98,6 +98,11 @@ export default function PrivacidadPage() {
           Conservamos las conversaciones durante 12 meses o mientras sea necesario para darte seguimiento. Después las
           eliminamos o anonimizamos.
         </p>
+        <p>
+          Si nos escribes por WhatsApp, el asistente guarda tu nombre y el tema que te interesó durante 90 días desde
+          tu último mensaje, para reconocerte si vuelves a escribir. Puedes pedir que lo borremos en cualquier momento
+          (ver sección 7).
+        </p>
 
         <h2 style={styles.h2}>7. Tus derechos (ARCO)</h2>
         <p>

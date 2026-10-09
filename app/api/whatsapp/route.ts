@@ -6,6 +6,7 @@ import {
   createRateLimiter,
   createConversationLog,
   createLeadStore,
+  createProfileStore,
 } from '../../../core/store/session-store';
 import { createLeadNotifier } from '../../../core/notify';
 
@@ -54,9 +55,14 @@ export async function POST(request: Request) {
   }
 
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
+  const profiles = createProfileStore(config.id);
 
   try {
-    const result = await engine.respond(state, inbound.text, adapter);
+    const profile = await profiles.get(inbound.contactId);
+    const result = await engine.respond(state, inbound.text, adapter, {
+      ...profile,
+      displayName: inbound.displayName,
+    });
     await sessions.set(inbound.contactId, result.state);
     // A failed send (expired token, billing, Meta outage) must not also lose
     // the log, the lead and the alert: what the person said still happened.
@@ -71,6 +77,18 @@ export async function POST(request: Request) {
       assistantText: result.reply.text,
       at: new Date(),
     });
+
+    // Only someone we learned something about gets a profile; after that,
+    // every message keeps it alive for another 90 days.
+    const { remembered, capturedLead } = result;
+    if (profile || remembered || capturedLead) {
+      await profiles.set(inbound.contactId, {
+        name: remembered?.nombre || capturedLead?.nombre || profile?.name,
+        interest: remembered?.interes || capturedLead?.necesidad || profile?.interest,
+        leftContact: profile?.leftContact || !!capturedLead,
+        lastSeenAt: new Date().toISOString(),
+      });
+    }
 
     if (!state.hasOffered && result.state.hasOffered) {
       await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({

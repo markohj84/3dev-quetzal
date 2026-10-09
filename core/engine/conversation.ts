@@ -3,8 +3,14 @@ import type { AssistantConfig } from '../config/schema';
 import type { ChannelAdapter, OutboundMessage } from '../channels/types';
 import type { Scheduler } from '../scheduling/types';
 import type { Corpus } from './knowledge';
-import { buildSystemPrompt } from './prompt';
-import { captureLeadTool, checkAvailabilityTool, type CapturedLead } from '../tools';
+import { buildContactNote, buildSystemPrompt, type KnownContact } from './prompt';
+import {
+  captureLeadTool,
+  checkAvailabilityTool,
+  rememberContactTool,
+  type CapturedLead,
+  type RememberedContact,
+} from '../tools';
 
 export interface Turn {
   role: 'user' | 'assistant';
@@ -79,7 +85,13 @@ export function createEngine(deps: EngineDeps) {
       state: ConversationState,
       userText: string,
       adapter: ChannelAdapter,
-    ): Promise<{ reply: OutboundMessage; state: ConversationState; capturedLead?: CapturedLead }> {
+      contact: KnownContact = {},
+    ): Promise<{
+      reply: OutboundMessage;
+      state: ConversationState;
+      capturedLead?: CapturedLead;
+      remembered?: RememberedContact;
+    }> {
       const history: Turn[] = [...state.history, { role: 'user', content: userText }];
 
       const systemPrompt = buildSystemPrompt({
@@ -91,7 +103,7 @@ export function createEngine(deps: EngineDeps) {
         hasOffered: state.hasOffered,
       });
 
-      const system = [
+      const system: Anthropic.TextBlockParam[] = [
         // Cached as one block: voice + knowledge dominate the token count and
         // are identical across every turn and every user of this client, so
         // caching the whole prompt still captures most of the saving without
@@ -100,15 +112,22 @@ export function createEngine(deps: EngineDeps) {
         // the cache; every turn after it hits again.
         { type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } },
       ];
+      const remembers = adapter.capabilities.stableContactId;
+      const contactNote = remembers ? buildContactNote(contact) : null;
+      // After the cache breakpoint, so the shared prefix still hits.
+      if (contactNote) system.push({ type: 'text', text: contactNote });
 
       let messages: Anthropic.MessageParam[] = history.map((t) => ({ role: t.role, content: t.content }));
       let text = '';
       let capturedLead: CapturedLead | undefined;
+      let remembered: RememberedContact | undefined;
       let proposedTimes = false;
 
-      const tools = scheduler.availability
-        ? [captureLeadTool, checkAvailabilityTool]
-        : [captureLeadTool];
+      const tools = [
+        captureLeadTool,
+        ...(scheduler.availability ? [checkAvailabilityTool] : []),
+        ...(remembers ? [rememberContactTool] : []),
+      ];
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const response = await client.messages.create({
@@ -135,6 +154,9 @@ export function createEngine(deps: EngineDeps) {
         for (const block of toolUses) {
           if (block.name === 'capture_lead') {
             capturedLead = block.input as CapturedLead;
+          }
+          if (block.name === 'remember_contact') {
+            remembered = { ...remembered, ...(block.input as RememberedContact) };
           }
           if (block.name === 'check_availability') {
             // Proposing times is the offer, whatever words wrap them.
@@ -187,6 +209,7 @@ export function createEngine(deps: EngineDeps) {
           hasOffered: offeredNow,
         },
         capturedLead,
+        remembered,
       };
     },
   };

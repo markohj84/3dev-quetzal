@@ -96,6 +96,23 @@ sin vencimiento en `leads:<clientId>` (`createLeadStore`,
 estructurados. Nuevos tools van en `core/tools.ts` si son genéricos —
 un tool con lógica específica de un cliente no debe vivir en `core/`.
 
+`check_availability` consulta horarios reales de Calendly (solo si hay
+token). `remember_contact` guarda nombre e interés en la ficha de contacto
+(ver abajo) y solo se ofrece en canales con `stableContactId: true`.
+
+## Ficha de contacto
+
+La sesión sigue muriendo a las 24h. Lo que sobrevive es una ficha corta por
+contacto en `profile:<clientId>:<contactId>` (`createProfileStore`): nombre,
+interés, si ya dejó datos y `lastSeenAt`, con 90 días de vida que se renuevan
+con cada mensaje. Solo existe en canales cuyo `contactId` es estable entre
+conversaciones (`ChannelCapabilities.stableContactId`): WhatsApp sí, la web
+no (el widget estrena id por carga de página). La ruta de WhatsApp la lee
+antes de `respond()` y la escribe con lo que regresó `remembered` o
+`capturedLead`. El nombre de perfil de WhatsApp (`displayName`) entra solo
+como pista, nunca se guarda. La ficha va en un segundo bloque de sistema,
+después del breakpoint de caché, para no romper el caché compartido.
+
 ## Notificación de leads
 
 Se dispara en dos momentos distintos, que pueden no coincidir: (1) cuando
@@ -138,9 +155,9 @@ otras piezas de ingeniería que **no existen todavía**. No meterlas en el
 prompt del asistente hasta que estén construidas — prometer una capacidad
 que no existe es peor que no tener el dato:
 
-- **Memoria persistente entre sesiones** ("Quetzal recuerda quién eres días
-  después"). Hoy la sesión expira a las 24h (`SESSION_TTL_SECONDS`); no hay
-  perfil de contacto que sobreviva entre conversaciones.
+- **Memoria persistente completa entre sesiones**. Hay ficha de contacto
+  (nombre + interés, 90 días, solo WhatsApp — ver "Ficha de contacto"), pero
+  no historial ni memoria en la web. No vender más que eso.
 - **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes").
   Hoy `app/assistant.ts` tiene el cliente hardcodeado (`CLIENT_DIR`) — cambiar
   de cliente es swap + redeploy, un deploy por cliente.

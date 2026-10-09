@@ -13,6 +13,7 @@ export function createWebAdapter(): ChannelAdapter {
       maxLength: 4000,
       maxChips: 4,
       markup: 'html',
+      stableContactId: false,
     },
 
     parse(payload: unknown): InboundMessage | null {

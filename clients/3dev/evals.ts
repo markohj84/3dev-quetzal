@@ -220,6 +220,20 @@ const cases: Case[] = [
       assert.ok(!/\p{Extended_Pictographic}/u.test(r), `no debe usar emoji: ${r}`);
     },
   },
+  {
+    // The session dies at 24h; the profile is what lets a returning person
+    // be greeted by name. Dropping the session here stands in for that day.
+    name: 'por WhatsApp: si vuelve otro día, lo saluda por su nombre',
+    channel: 'whatsapp',
+    turns: ['Hola, soy Laura. Me interesa una tienda en línea para mi negocio'],
+    async check(_replies, contactId) {
+      const profile = await kv.get<{ name?: string }>(`profile:${CLIENT_ID}:${contactId}`);
+      assert.match(profile?.name ?? '', /laura/i, `no guardó el nombre en la ficha: ${JSON.stringify(profile)}`);
+      await kv.del(`session:${contactId}`);
+      const r = await sendWhatsAppTurn(contactId, 'Hola');
+      assert.match(r, /laura/i, `no la reconoció al volver: ${r}`);
+    },
+  },
 ];
 
 async function sendTurn(sessionId: string, text: string): Promise<string> {
@@ -273,7 +287,7 @@ function letters(n: number): string {
 
 async function cleanup(sessionIds: string[]) {
   for (const id of sessionIds) {
-    await kv.del(`session:${id}`);
+    await kv.del(`session:${id}`, `profile:${CLIENT_ID}:${id}`);
   }
   const leads = await kv.lrange<{ contactId: string }>(`leads:${CLIENT_ID}`, 0, -1);
   const keep = leads.filter((l) => !sessionIds.includes(l.contactId));

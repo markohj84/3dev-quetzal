@@ -12,6 +12,9 @@ export interface InboundMessage {
   contactId: string;
   text: string;
   receivedAt: Date;
+  /** The name the platform shows for this person, if any. Self-chosen:
+   * it can be a nickname, an emoji or a business name. */
+  displayName?: string;
 }
 
 export interface OutboundMessage {
@@ -26,6 +29,10 @@ export interface ChannelCapabilities {
   /** How many quick-reply options the channel renders. Zero disables chips. */
   maxChips: number;
   markup: 'html' | 'whatsapp' | 'plain';
+  /** True when contactId names the same person across conversations (a
+   * phone number), false when it is minted per visit. Remembering a contact
+   * only makes sense on the first kind. */
+  stableContactId: boolean;
 }
 
 export interface ChannelAdapter {
