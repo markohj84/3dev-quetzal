@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     if (!state.hasOffered && result.state.hasOffered) {
-      await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+      await createLeadNotifier(config.notify).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         contactId: inbound.contactId,
         at: new Date().toISOString(),
       });
-      await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+      await createLeadNotifier(config.notify).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,

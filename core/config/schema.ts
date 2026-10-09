@@ -51,6 +51,19 @@ export const NotifyConfig = z.object({
   email: z.string().email().optional(),
   /** "From" header for that alert — must be on a domain Resend has verified. */
   fromEmail: z.string().optional(),
+  /**
+   * Same alert on WhatsApp, sent from the client's own number. The assistant
+   * writes first, so Meta only lets it through as an approved template with
+   * four body variables: kind of alert, name, contact, detail.
+   */
+  whatsapp: z
+    .object({
+      /** Recipient in Meta's format, e.g. 52 + ten digits. Unset disables it. */
+      to: z.string().optional(),
+      template: z.string(),
+      language: z.string().default('es_MX'),
+    })
+    .optional(),
 });
 
 export const ModelConfig = z.object({
@@ -92,3 +105,4 @@ export const AssistantConfig = z.object({
 
 export type AssistantConfig = z.infer<typeof AssistantConfig>;
 export type SchedulingConfig = z.infer<typeof SchedulingConfig>;
+export type NotifyConfig = z.infer<typeof NotifyConfig>;

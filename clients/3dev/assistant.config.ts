@@ -48,6 +48,8 @@ export default AssistantConfig.parse({
   notify: {
     email: 'contacto@3dev.mx',
     fromEmail: 'Quetzal <notificaciones@3dev.mx>',
+    // The number lives in the environment: this repository is public.
+    whatsapp: { to: process.env.NOTIFY_WHATSAPP_TO, template: 'aviso_lead' },
   },
 
   outOfScope: [

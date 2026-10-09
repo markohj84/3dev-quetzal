@@ -125,6 +125,14 @@ transcripción vía la API de Resend. Configurado por cliente en
 respondiendo normal. Requiere que el dominio del `fromEmail` esté verificado
 en la cuenta de Resend.
 
+El mismo aviso sale también por WhatsApp desde el número del cliente si
+`notify.whatsapp.to` tiene valor (en 3dev viene de `NOTIFY_WHATSAPP_TO`,
+solo en Vercel: el repo es público). Como el asistente escribe primero, va
+como plantilla aprobada por Meta (`aviso_lead`, cuatro variables: tipo de
+aviso, nombre, contacto, detalle). Cada canal falla por su cuenta: si Meta
+rechaza el envío, el correo sale igual. No poner `NOTIFY_WHATSAPP_TO` en
+`.env.local`, o cada eval que capture un lead mandará un WhatsApp real.
+
 ## Registro de conversaciones
 
 Cada turno se guarda en Redis (`core/store/session-store.ts`,

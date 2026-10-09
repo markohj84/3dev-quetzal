@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const { config } = await getAssistant();
 
   try {
-    await createLeadNotifier(config.notify.email, config.notify.fromEmail).notify({
+    await createLeadNotifier(config.notify).notify({
       channel: 'calendly',
       contactId: booking.email,
       transcript: [],
