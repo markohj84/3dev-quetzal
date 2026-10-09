@@ -194,6 +194,20 @@ const cases: Case[] = [
       assert.ok(offers <= 1, `debería ofrecer agendar máximo una vez, ofreció ${offers} veces`);
     },
   },
+  {
+    // Replays a real conversation from 2026-10-08: voice.md said "el sistema
+    // comparte el enlace automáticamente", nothing did, and the person asked
+    // for the link twice without getting it.
+    name: 'por WhatsApp: si acepta agendar, recibe el enlace',
+    channel: 'whatsapp',
+    turns: ['Quiero un sitio web', 'Landing page', 'Sí', 'Ok', '¿Y la agenda o link?'],
+    check(replies) {
+      for (const r of replies) {
+        assert.ok(!/el sistema te (lo )?compartir[áa]|deber[íi]a aparecer/i.test(r), `promete un envío que nadie hace: ${r}`);
+      }
+      assert.match(replies.at(-1)!, /https?:\/\//, `pidió el enlace y no lo recibió: ${replies.at(-1)}`);
+    },
+  },
 ];
 
 async function sendTurn(sessionId: string, text: string): Promise<string> {
