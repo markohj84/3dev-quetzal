@@ -208,6 +208,18 @@ const cases: Case[] = [
       assert.match(replies.at(-1)!, /https?:\/\//, `pidió el enlace y no lo recibió: ${replies.at(-1)}`);
     },
   },
+  {
+    // The session keeps the reply before the adapter turns "**" and "- "
+    // into WhatsApp's "*" and "•", so this checks the markdown form.
+    name: 'por WhatsApp: comparar los paquetes web sale en lista, sin emoji',
+    channel: 'whatsapp',
+    turns: ['Quiero más información de los planes de sitio web'],
+    check([r]) {
+      assert.match(r, /^- /m, `debería listar los paquetes: ${r}`);
+      assert.match(r, /\*\*[^*]+\*\*/, `debería resaltar nombres o precios: ${r}`);
+      assert.ok(!/\p{Extended_Pictographic}/u.test(r), `no debe usar emoji: ${r}`);
+    },
+  },
 ];
 
 async function sendTurn(sessionId: string, text: string): Promise<string> {

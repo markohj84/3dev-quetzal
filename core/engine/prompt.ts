@@ -71,7 +71,7 @@ export function buildSystemPrompt(input: PromptInput): string {
         ? 'This channel has no quick replies.'
         : `This channel renders at most ${capabilities.maxChips} quick replies.`,
       capabilities.markup === 'whatsapp'
-        ? 'Plain text only. No headings, no bullet lists, no tables.'
+        ? 'No headings, no tables. Put offer names and prices in **bold**. When comparing three or more options, use a short "- " list, one option per line, instead of one long paragraph.'
         : 'Short paragraphs. No headings.',
       'Ask at most one question per reply.',
     ].join('\n'),
