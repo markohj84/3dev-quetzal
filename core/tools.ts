@@ -41,7 +41,7 @@ const CONTACT_PATTERN = /[^\s@]+@[^\s@]+\.[a-z]{2,}|\+?\d(?:[\s\-().]*\d){9,}/gi
 export function hasNewContact(text: string, earlierTexts: string[]): boolean {
   const earlier = earlierTexts.join('\n').toLowerCase();
   const earlierDigits = earlier.replace(/\D/g, '');
-  return (text.match(CONTACT_PATTERN) ?? []).some((match) =>
+  return (text.match(CONTACT_PATTERN) ?? ([] as string[])).some((match) =>
     match.includes('@')
       ? !earlier.includes(match.toLowerCase())
       : !earlierDigits.includes(match.replace(/\D/g, '')),
