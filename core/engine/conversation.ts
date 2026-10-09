@@ -143,11 +143,15 @@ export function createEngine(deps: EngineDeps) {
           (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
         );
 
-        text = response.content
+        const roundText = response.content
           .filter((block): block is Anthropic.TextBlock => block.type === 'text')
           .map((block) => block.text)
           .join('\n')
           .trim();
+        // The model often writes its whole answer alongside a side-effect
+        // tool (remember_contact) and then closes the next round with nothing.
+        // That empty round must not erase the answer it already wrote.
+        if (roundText) text = roundText;
 
         if (response.stop_reason !== 'tool_use' || toolUses.length === 0) break;
 
