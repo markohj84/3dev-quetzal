@@ -7,6 +7,7 @@ import { buildContactNote, buildSystemPrompt, type KnownContact } from './prompt
 import {
   captureLeadTool,
   checkAvailabilityTool,
+  hasNewContact,
   rememberContactTool,
   type CapturedLead,
   type RememberedContact,
@@ -195,6 +196,30 @@ export function createEngine(deps: EngineDeps) {
             .map((block) => block.text)
             .join('\n')
             .trim() || 'Perdón, se me cruzaron los cables. ¿Me repites tu pregunta?';
+      }
+
+      const earlierUserTexts = state.history.filter((t) => t.role === 'user').map((t) => t.content);
+      if (!capturedLead && hasNewContact(userText, earlierUserTexts)) {
+        // The model sometimes says "quedamos anotados" without calling the
+        // tool, and the person walks away believing someone will reach them.
+        // Same tools and messages as the loop, so the cached prefix still hits.
+        try {
+          const forced = await client.messages.create({
+            model: config.model.model,
+            max_tokens: config.model.maxTokens,
+            system,
+            tools,
+            tool_choice: { type: 'tool', name: captureLeadTool.name },
+            messages,
+          });
+          const use = forced.content.find(
+            (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
+          );
+          if (use) capturedLead = use.input as CapturedLead;
+        } catch (error) {
+          // The reply is already written; a failed capture must not take it down.
+          console.error(`[${config.id}] forced capture_lead failed`, error);
+        }
       }
 
       const offeredNow =

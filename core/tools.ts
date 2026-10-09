@@ -1,3 +1,4 @@
+import assert from 'node:assert';
 import type Anthropic from '@anthropic-ai/sdk';
 
 export interface CapturedLead {
@@ -27,6 +28,25 @@ export const captureLeadTool: Anthropic.Tool = {
     required: ['nombre', 'contacto'],
   },
 };
+
+const CONTACT_PATTERN = /[^\s@]+@[^\s@]+\.[a-z]{2,}|\+?\d(?:[\s\-().]*\d){9,}/gi;
+
+/**
+ * A correo or teléfono in this turn that the person hadn't already given.
+ * The model sometimes answers "quedamos anotados" without calling
+ * capture_lead; this is what tells the engine to force the call. Contact
+ * already seen in an earlier turn doesn't count, so repeating a number
+ * doesn't notify the team twice.
+ */
+export function hasNewContact(text: string, earlierTexts: string[]): boolean {
+  const earlier = earlierTexts.join('\n').toLowerCase();
+  const earlierDigits = earlier.replace(/\D/g, '');
+  return (text.match(CONTACT_PATTERN) ?? []).some((match) =>
+    match.includes('@')
+      ? !earlier.includes(match.toLowerCase())
+      : !earlierDigits.includes(match.replace(/\D/g, '')),
+  );
+}
 
 /**
  * Real open times. Unlike the scheduling link, this is information the model
@@ -64,3 +84,22 @@ export const rememberContactTool: Anthropic.Tool = {
     required: [],
   },
 };
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  assert.ok(hasNewContact('Soy Juan, mi WhatsApp es 222-555-1234', []));
+  assert.ok(hasNewContact('escríbeme a juan.perez@ejemplo.com', []));
+  assert.ok(hasNewContact('mi cel es +52 (222) 555 1234', []));
+  assert.ok(!hasNewContact('¿Cuánto cuesta la Web Completa?', []), 'sin contacto no hay lead');
+  assert.ok(!hasNewContact('tengo un presupuesto de 15,000 pesos', []), 'un precio no es teléfono');
+  assert.ok(
+    !hasNewContact('sí, al 222 555 1234 como te dije', ['mi WhatsApp es 222-555-1234']),
+    'repetir un número ya dado no vuelve a avisar',
+  );
+  assert.ok(
+    !hasNewContact('Juan.Perez@ejemplo.com', ['escríbeme a juan.perez@ejemplo.com']),
+    'repetir un correo ya dado no vuelve a avisar',
+  );
+  assert.ok(hasNewContact('mejor a mi correo: ana@x.mx', ['mi WhatsApp es 222-555-1234']), 'un contacto distinto sí cuenta');
+
+  console.log('tools.ts self-check passed');
+}
