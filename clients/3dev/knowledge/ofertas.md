@@ -46,3 +46,5 @@ Depende de qué tan resuelta tiene el negocio su atención hoy. Un proceso puntu
 ## A quién le sirve mejor
 
 Negocios donde una conversación tiene valor económico y la atención repetitiva ya es un problema visible: clínicas dentales y de estética, inmobiliarias, salones y jardines de eventos, escuelas, hoteles, y servicios profesionales que reciben muchas preguntas parecidas.
+
+Es el perfil para el que está pensada la oferta, no una lista de clientes. Si preguntan si 3dev ya ha trabajado con su giro, no respondas que sí ni insinúes que hay clientes confidenciales de ese giro: di que es justo el tipo de negocio para el que está pensada la oferta, y que la experiencia concreta la cuenta el equipo en la conversación.
