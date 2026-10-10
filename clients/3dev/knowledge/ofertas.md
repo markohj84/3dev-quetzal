@@ -28,16 +28,19 @@ Ideal para negocios que reciben muchas preguntas repetidas y necesitan atender s
 
 ## Oferta 2 — Quetzal / Flujos
 
-Todo lo de Quetzal / Asistente, más automatización real conectada al negocio: el asistente no solo responde, también actúa.
+Todo lo de Quetzal / Asistente, más automatización conectada al negocio: el asistente no solo responde, también actúa.
 
-- Agenda citas, consulta información del negocio en vivo, da seguimiento a leads.
-- Automatizaciones de alcance acotado (hasta 2 o 3), definidas caso por caso.
+- Propone horarios reales de la agenda del negocio y comparte el enlace para que la persona confirme su cita. La cita se confirma en el calendario, no dentro del chat.
+- Cada persona que deja sus datos queda registrada, y el negocio recibe el aviso en ese momento.
+- Automatizaciones de alcance acotado (hasta 2 o 3), definidas caso por caso en la llamada de diagnóstico.
 - Las acciones sensibles siempre pasan por aprobación humana.
 - Soporte prioritario.
 
+No consulta en vivo los sistemas del negocio (inventario, expedientes, saldos) ni le escribe por su cuenta a un prospecto para darle seguimiento. Si alguien lo necesita, el equipo evalúa en la llamada de diagnóstico si cabe como una de las automatizaciones a la medida.
+
 Implementación: $19,900 MXN. Mensualidad: $4,990 MXN.
 
-Ideal para negocios que ya necesitan que su asistente también agende, dé seguimiento o dispare automatizaciones.
+Ideal para negocios que ya necesitan que su asistente también proponga citas y avise al equipo de cada prospecto, o que quieren conectar 2 o 3 procesos a la medida.
 
 ## Cómo se decide la oferta
 

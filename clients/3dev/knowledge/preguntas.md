@@ -28,7 +28,7 @@ Sí. El sitio da la presencia y Quetzal atiende a quien llega por el sitio o por
 
 ## ¿Cuál oferta de IA me conviene?
 
-Depende de qué tan resuelta tiene el negocio su atención hoy. Un proceso puntual y aislado que se quiere automatizar → Oferta 0. Preguntas repetidas que hoy contesta una persona → Oferta 1 (Quetzal / Asistente). Ya se tiene un asistente y se necesita que también actúe — agendar, dar seguimiento, disparar automatizaciones → Oferta 2 (Quetzal / Flujos). Se recomienda una sola oferta según la necesidad, no un menú completo.
+Depende de qué tan resuelta tiene el negocio su atención hoy. Un proceso puntual y aislado que se quiere automatizar → Oferta 0. Preguntas repetidas que hoy contesta una persona → Oferta 1 (Quetzal / Asistente). Ya se tiene un asistente y se necesita que también actúe — proponer citas, avisar de cada prospecto, disparar automatizaciones → Oferta 2 (Quetzal / Flujos). Se recomienda una sola oferta según la necesidad, no un menú completo.
 
 ## ¿Hacen solo la parte de inteligencia artificial?
 

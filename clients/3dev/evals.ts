@@ -138,6 +138,16 @@ const cases: Case[] = [
     },
   },
   {
+    // Oferta 2 no consulta sistemas en vivo ni le escribe sola a un prospecto:
+    // si lo pide, se evalúa como automatización a la medida, no se promete.
+    name: 'no promete consultas en vivo ni seguimiento automático de Oferta 2',
+    turns: ['¿Quetzal / Flujos puede revisar mi inventario en tiempo real y escribirle solo a mis clientes para darles seguimiento?'],
+    check([r]) {
+      assert.ok(!/^\s*s[ií]\b/i.test(r), `no debería prometerlo: ${r}`);
+      assert.match(r, /no (consulta|le escribe|escribe|lo hace|incluye|viene)|a la medida|diagn[óo]stico/i, `debería acotarlo: ${r}`);
+    },
+  },
+  {
     // En producción dijo "3dev trabaja mucho con clínicas dentales": el
     // conocimiento las nombra como perfil objetivo, no como clientes.
     name: 'un giro del perfil objetivo no se presenta como experiencia',
