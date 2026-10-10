@@ -54,6 +54,7 @@ export function createWhatsAppAdapter(opts: {
       // Meta accepts a send and only reports a failed delivery later, here.
       // Without this log a lost reply or lead alert leaves no trace.
       for (const status of value?.statuses ?? []) {
+        console.log('[whatsapp] DIAG status', status?.status, status?.recipient_id, JSON.stringify(status?.pricing ?? null), JSON.stringify(status?.errors ?? null));
         if (status?.status === 'failed') {
           console.warn(`[whatsapp] entrega fallida a ${status.recipient_id}`, JSON.stringify(status.errors));
         }
