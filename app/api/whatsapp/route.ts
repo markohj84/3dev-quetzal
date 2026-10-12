@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     const result = await engine.respond(state, inbound.text, adapter, {
       ...profile,
       displayName: inbound.displayName,
+      phone: `+${toMetaRecipient(inbound.contactId)}`,
     });
     await sessions.set(inbound.contactId, result.state);
     // A failed send (expired token, billing, Meta outage) must not also lose
@@ -111,6 +112,16 @@ export async function POST(request: Request) {
         contactId: inbound.contactId,
         transcript: result.state.history,
         captured: result.capturedLead,
+        reachAt,
+      });
+    }
+
+    if (result.booked) {
+      await createLeadNotifier(config.notify).notify({
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        transcript: result.state.history,
+        booking: result.booked,
         reachAt,
       });
     }

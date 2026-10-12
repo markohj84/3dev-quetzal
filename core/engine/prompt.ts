@@ -49,7 +49,7 @@ export function buildSystemPrompt(input: PromptInput): string {
     scheduler.provider === 'none'
       ? 'Scheduling is unavailable. Do not offer a meeting.'
       : hasOffered
-        ? `HARD CONSTRAINT: you already offered the meeting once this conversation. Do not offer it again under any wording — no "¿quieres agendar?", no "¿te gustaría platicar?", nothing that invites scheduling, even if the person asks how to start or shows strong interest again. Just answer what they asked. Only mention the meeting if they explicitly ask for the link or ask to schedule themselves — then share: ${scheduler.bookingUrl()}`
+        ? `HARD CONSTRAINT: you already offered the meeting once this conversation. Do not offer it again under any wording — no "¿quieres agendar?", no "¿te gustaría platicar?", nothing that invites scheduling, even if the person asks how to start or shows strong interest again. Just answer what they asked. Only mention the meeting if they explicitly ask for the link or ask to schedule themselves — then share: ${scheduler.bookingUrl()}${scheduler.book ? ' If they pick one of the times you already proposed, book it with `book_meeting`.' : ''}`
         : [
             `When the person shows real interest, offer a ${config.scheduling.durationMinutes}-minute`,
             'conversation with the team exactly once. Never name a specific person. If they accept,',
@@ -58,10 +58,18 @@ export function buildSystemPrompt(input: PromptInput): string {
           ].join(' ');
 
   const timesRule = scheduler.availability
-    ? ' Never state a date or time you did not get from the `check_availability` tool this turn — not from the knowledge base, not from earlier in the conversation, not from your own sense of the calendar. Repeat what it returns verbatim.'
+    ? ' Never state a date or time you did not get from the `check_availability` tool this turn — not from the knowledge base, not from earlier in the conversation, not from your own sense of the calendar. Repeat what it returns verbatim.' +
+      (scheduler.book
+        ? ' The one exception is confirming a booking: say the time exactly as `book_meeting` returned it, and never say a meeting is booked unless that tool confirmed it.'
+        : '')
     : '';
 
-  sections.push(`# Scheduling\n\n${scheduling}${timesRule}`);
+  const linkRule =
+    scheduler.provider === 'none'
+      ? ''
+      : ` Whenever they ask for the link, put ${scheduler.bookingUrl()} in that same reply — never make it wait on their name or contact.`;
+
+  sections.push(`# Scheduling\n\n${scheduling}${timesRule}${linkRule}`);
 
   sections.push(
     [
@@ -87,6 +95,13 @@ export interface KnownContact {
   leftContact?: boolean;
   /** Platform display name — a hint, not something the person told us. */
   displayName?: string;
+  /**
+   * The number the channel already reaches them at, international format.
+   * Their own number on the channel they are writing from — stated plainly,
+   * because a rule that merely says "you have it" did not stop the model
+   * asking for it.
+   */
+  phone?: string;
 }
 
 /**
@@ -98,11 +113,17 @@ export function buildContactNote(contact: KnownContact): string | null {
   if (contact.name) facts.push(`- Name: ${contact.name}`);
   if (contact.interest) facts.push(`- Interested in: ${contact.interest}`);
   if (contact.leftContact) facts.push('- Already left contact details for the team.');
+  // Its own section: under "# This person" it read as "already known" and
+  // the model stopped calling remember_contact for first-time contacts.
+  const reach = contact.phone
+    ? `\n\n# Their number\n\nThis person is writing from ${contact.phone}, so you already have it: never ask for their phone or WhatsApp. It counts as their contact for \`capture_lead\`, and \`book_meeting\` uses it on its own.`
+    : '';
 
   if (!facts.length) {
-    return contact.displayName
-      ? `# This person\n\nTheir messaging profile name is "${contact.displayName}". People choose that themselves: it can be a nickname or a business name. Use it only if it reads as a person's first name, and never insist on it.`
-      : null;
+    if (contact.displayName) {
+      return `# This person\n\nTheir messaging profile name is "${contact.displayName}". People choose that themselves: it can be a nickname or a business name. Use it only if it reads as a person's first name, and never insist on it.${reach}`;
+    }
+    return reach ? reach.trim() : null;
   }
 
   return [
@@ -112,7 +133,7 @@ export function buildContactNote(contact: KnownContact): string | null {
     ...facts,
     '',
     'Call them by name naturally. If this conversation just started, you may pick their interest back up once; do not recite this list. If they ask whether you remember them, be truthful: you remember their name and what they were interested in, not the whole conversation.',
-  ].join('\n');
+  ].join('\n') + reach;
 }
 
 // Self-check: `node core/engine/prompt.ts`

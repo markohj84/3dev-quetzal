@@ -30,16 +30,42 @@ const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
 const CLIENT_ID = 'quetzal-3dev';
 const kv = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
 const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET;
+const CALCOM_API_KEY = process.env.CALCOM_API_KEY;
+/** Attendee name of every booking an eval makes; cleanup cancels them by it. */
+const EVAL_ATTENDEE = 'Eval Agenda';
 
 interface Case {
   name: string;
   /** Web widget unless set. */
   channel?: 'whatsapp';
+  /** Env var the case cannot run without; missing, it is skipped with a notice. */
+  requires?: string;
   turns: string[];
   check(replies: string[], contactId: string): void | Promise<void>;
 }
 
 const cases: Case[] = [
+  {
+    // The one sentence this whole feature must never get wrong: "quedó
+    // agendada" when the calendar has no such meeting. Books for real in
+    // Cal.com and cancels it at the end — and Cal.com emails the organizer
+    // twice per run, so it only runs when asked: EVAL_BOOKING=1.
+    name: 'agenda en el chat y la cita existe de verdad en el calendario',
+    requires: 'EVAL_BOOKING',
+    turns: [
+      'Quiero un asistente de IA para mi clínica, me escriben mucho',
+      'Sí, quiero platicar con ustedes. ¿Qué horarios tienen?',
+      `El primer horario que me diste me sirve. Soy ${EVAL_ATTENDEE}, mi teléfono es +52 222 555 0101`,
+    ],
+    async check(replies) {
+      const last = replies.at(-1)!;
+      const bookings = await evalBookings();
+      if (/agendad|confirmad/i.test(last)) {
+        assert.ok(bookings.length, `dijo que quedó agendada y no hay cita en el calendario: ${last}`);
+      }
+      assert.ok(bookings.length, `debería haber agendado: ${last}`);
+    },
+  },
   {
     name: 'precio genérico no ofrece el proyecto integral por iniciativa propia',
     turns: ['Hola, ¿cuánto cuesta?'],
@@ -307,7 +333,24 @@ function letters(n: number): string {
   return Array.from({ length: n }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
 }
 
+async function evalBookings(): Promise<{ uid: string }[]> {
+  const res = await fetch('https://api.cal.com/v2/bookings?status=upcoming', {
+    headers: { Authorization: `Bearer ${CALCOM_API_KEY}`, 'cal-api-version': '2024-08-13' },
+  });
+  const body = (await res.json()) as { data?: { uid: string; attendees?: { name: string }[] }[] };
+  return (body.data ?? []).filter((b) => b.attendees?.some((a) => a.name === EVAL_ATTENDEE));
+}
+
 async function cleanup(sessionIds: string[]) {
+  if (CALCOM_API_KEY) {
+    for (const { uid } of await evalBookings()) {
+      await fetch(`https://api.cal.com/v2/bookings/${uid}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${CALCOM_API_KEY}`, 'cal-api-version': '2024-08-13', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancellationReason: 'Eval de Quetzal' }),
+      });
+    }
+  }
   for (const id of sessionIds) {
     await kv.del(`session:${id}`, `profile:${CLIENT_ID}:${id}`);
   }
@@ -324,9 +367,10 @@ async function run() {
   let skipped = 0;
   const sessionIds: string[] = [];
   for (const [i, c] of cases.entries()) {
-    if (c.channel === 'whatsapp' && !WHATSAPP_APP_SECRET) {
+    const missing = c.channel === 'whatsapp' && !WHATSAPP_APP_SECRET ? 'WHATSAPP_APP_SECRET' : c.requires && !process.env[c.requires] ? c.requires : null;
+    if (missing) {
       skipped++;
-      console.log(`\x1b[33m–\x1b[0m ${c.name} (saltado: falta WHATSAPP_APP_SECRET)`);
+      console.log(`\x1b[33m–\x1b[0m ${c.name} (saltado: falta ${missing})`);
       continue;
     }
     const sessionId = c.channel === 'whatsapp' ? `eval-wa-${letters(12)}` : `eval-${i}-${Date.now()}`;

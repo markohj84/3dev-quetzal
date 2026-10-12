@@ -11,7 +11,7 @@ import { z } from 'zod';
  */
 
 export const SchedulingConfig = z.object({
-  provider: z.enum(['calendly', 'none']),
+  provider: z.enum(['calendly', 'calcom', 'none']),
   url: z.string().url().optional(),
   durationMinutes: z.number().int().positive().default(30),
   /** Offer the meeting at most this many times per conversation. */
@@ -25,6 +25,8 @@ export const SchedulingConfig = z.object({
   offerPattern: z.string().default('calendly|cal\\.com|agendar|agendo|schedule|booking'),
   /** Provider URI of the event type whose availability the assistant reads. */
   eventTypeUri: z.string().url().optional(),
+  /** Cal.com's numeric event type id, the one its API books against. */
+  eventTypeId: z.number().int().optional(),
   /** IANA zone the business speaks its times in, e.g. America/Mexico_City. */
   timeZone: z.string().optional(),
   /** How to say that zone out loud, e.g. "hora del centro de México". */

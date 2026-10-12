@@ -59,6 +59,15 @@ export async function POST(request: Request) {
       });
     }
 
+    if (result.booked) {
+      await createLeadNotifier(config.notify).notify({
+        channel: 'web',
+        contactId: inbound.contactId,
+        transcript: result.state.history,
+        booking: result.booked,
+      });
+    }
+
     return NextResponse.json({
       text: result.reply.text,
       chips: state.history.length === 0 ? config.channels.web.openers : [],

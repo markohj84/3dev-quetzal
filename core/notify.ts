@@ -61,7 +61,8 @@ async function sendEmail(to: string | undefined, from: string | undefined, alert
   const booking = alert.booking
     ? [
         `Nombre: ${alert.booking.nombre}`,
-        `Correo: ${alert.booking.email}`,
+        alert.booking.email ? `Correo: ${alert.booking.email}` : '',
+        alert.booking.contacto ? `Notas: ${alert.booking.contacto}` : '',
         alert.booking.evento ? `Evento: ${alert.booking.evento}` : '',
         alert.booking.inicia ? `Cuándo: ${alert.booking.inicia}` : '',
         alert.booking.cancelUrl ? `Cancelar: ${alert.booking.cancelUrl}` : '',
@@ -94,7 +95,8 @@ async function sendEmail(to: string | undefined, from: string | undefined, alert
         : alert.captured
           ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
           : `Nuevo interés — canal ${alert.channel}`,
-      text: booking || reach + header + transcript,
+      // A booking made in the chat does have a conversation behind it.
+      text: booking ? [booking, transcript].filter(Boolean).join('\n\n---\n\n') : reach + header + transcript,
     }),
   });
 
@@ -116,7 +118,8 @@ function templateParam(value: string | undefined): string {
 export function whatsAppAlertParams(alert: LeadAlert): string[] {
   if (alert.booking) {
     const { nombre, email, evento, inicia } = alert.booking;
-    return ['cita agendada', nombre, email, [evento, inicia].filter(Boolean).join(' · ')].map(templateParam);
+    const contact = email ?? alert.reachAt ?? 'sin correo';
+    return ['cita agendada', nombre, contact, [evento, inicia].filter(Boolean).join(' · ')].map(templateParam);
   }
   const lastUserTurn = alert.transcript.findLast((t) => t.role === 'user')?.content;
   return [

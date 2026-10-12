@@ -13,7 +13,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export interface Booking {
   nombre: string;
-  email: string;
+  /** Always there from Calendly; a booking made in the chat may not have one. */
+  email?: string;
+  contacto?: string;
   /** Name of the Calendly event type, e.g. "Diagnóstico 30 min". */
   evento?: string;
   /** ISO 8601 start of the meeting, straight from Calendly. */

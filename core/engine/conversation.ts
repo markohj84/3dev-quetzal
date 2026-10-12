@@ -2,13 +2,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { AssistantConfig } from '../config/schema';
 import type { ChannelAdapter, OutboundMessage } from '../channels/types';
 import type { Scheduler } from '../scheduling/types';
+import type { Booking } from '../scheduling/calendly-webhook';
 import type { Corpus } from './knowledge';
 import { buildContactNote, buildSystemPrompt, type KnownContact } from './prompt';
 import {
+  bookMeetingTool,
   captureLeadTool,
   checkAvailabilityTool,
   hasNewContact,
   rememberContactTool,
+  type BookMeetingInput,
   type CapturedLead,
   type RememberedContact,
 } from '../tools';
@@ -54,7 +57,9 @@ export function createEngine(deps: EngineDeps) {
    * do is make a time up.
    */
   async function availabilityText(): Promise<string> {
-    const link = `Si la persona elige uno, compártele este link para confirmarlo: ${scheduler.bookingUrl()}`;
+    const link = scheduler.book
+      ? `Si la persona elige uno, agéndalo con book_meeting. Si ninguno le acomoda, compártele este link para que elija otro: ${scheduler.bookingUrl()}`
+      : `Si la persona elige uno, compártele este link para confirmarlo: ${scheduler.bookingUrl()}`;
     const zone = config.scheduling.timeZoneLabel;
 
     // Whatever went wrong is ours, not the prospect's: they get the link and
@@ -81,6 +86,42 @@ export function createEngine(deps: EngineDeps) {
     }
   }
 
+  /** What the model reads back after book_meeting: the calendar's answer, never a guess. */
+  async function bookingText(input: BookMeetingInput, phone?: string): Promise<{ text: string; booking?: Booking }> {
+    const zone = config.scheduling.timeZoneLabel;
+    try {
+      const outcome = await scheduler.book!(
+        { month: input.mes, day: input.dia, time: input.hora },
+        { nombre: input.nombre, email: input.email, telefono: input.telefono ?? phone, notas: input.notas },
+      );
+      if ('missing' in outcome) {
+        return {
+          text: `NO quedó agendada: el calendario necesita su ${outcome.missing}. No digas que está agendada ni confirmada. Pídele su ${outcome.missing} y vuelve a llamar book_meeting con el mismo horario.`,
+        };
+      }
+      if (!outcome.booked) {
+        return { text: `Ese horario ya no está libre. No lo des por agendado. ${await availabilityText()}` };
+      }
+      const label = zone ? `${outcome.label} (${zone})` : outcome.label;
+      return {
+        text:
+          `Cita confirmada en el calendario: ${label}. ` +
+          (input.email
+            ? 'Le llegará la invitación a su correo. '
+            : 'No dejó correo, así que no recibirá invitación: confírmale aquí el día y la hora. ') +
+          'No prometas recordatorios ni que alguien le escribirá antes de la cita.',
+        booking: { nombre: input.nombre, email: input.email, evento: 'Agendada en el chat', inicia: label, contacto: input.notas },
+      };
+    } catch (error) {
+      console.error(`[${config.id}] booking failed`, error);
+      return {
+        text:
+          'No se pudo agendar. No la des por agendada y no menciones ningún problema técnico: ' +
+          `comparte con naturalidad este link para que elija el horario: ${scheduler.bookingUrl()}`,
+      };
+    }
+  }
+
   return {
     async respond(
       state: ConversationState,
@@ -92,6 +133,7 @@ export function createEngine(deps: EngineDeps) {
       state: ConversationState;
       capturedLead?: CapturedLead;
       remembered?: RememberedContact;
+      booked?: Booking;
     }> {
       const history: Turn[] = [...state.history, { role: 'user', content: userText }];
 
@@ -122,12 +164,17 @@ export function createEngine(deps: EngineDeps) {
       let text = '';
       let capturedLead: CapturedLead | undefined;
       let remembered: RememberedContact | undefined;
+      let booked: Booking | undefined;
       let proposedTimes = false;
 
+      // remember_contact sits before the scheduling tools: listed after
+      // book_meeting, the model stopped calling it on the turn someone says
+      // their name.
       const tools = [
         captureLeadTool,
-        ...(scheduler.availability ? [checkAvailabilityTool] : []),
         ...(remembers ? [rememberContactTool] : []),
+        ...(scheduler.availability ? [checkAvailabilityTool] : []),
+        ...(scheduler.book ? [bookMeetingTool] : []),
       ];
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -162,6 +209,13 @@ export function createEngine(deps: EngineDeps) {
           }
           if (block.name === 'remember_contact') {
             remembered = { ...remembered, ...(block.input as RememberedContact) };
+          }
+          if (block.name === 'book_meeting') {
+            proposedTimes = true;
+            const result = await bookingText(block.input as BookMeetingInput, contact.phone);
+            booked ??= result.booking;
+            results.push({ type: 'tool_result', tool_use_id: block.id, content: result.text });
+            continue;
           }
           if (block.name === 'check_availability') {
             // Proposing times is the offer, whatever words wrap them.
@@ -239,6 +293,7 @@ export function createEngine(deps: EngineDeps) {
         },
         capturedLead,
         remembered,
+        booked,
       };
     },
   };

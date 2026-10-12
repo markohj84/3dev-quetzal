@@ -14,15 +14,15 @@ export default AssistantConfig.parse({
   locale: 'es-MX',
 
   scheduling: {
-    provider: 'calendly',
-    url: process.env.CALENDLY_URL || undefined,
+    provider: 'calcom',
+    url: 'https://cal.com/marcohj/30min',
     durationMinutes: 30,
     maxOffers: 1,
     // Must match voice.md's exact offer line ("¿Quieres platicar con
     // nosotros?") or hasOffered never flips and the one-offer rule stops
     // being state-enforced.
     offerPattern: 'platicar con nosotros|agendar|calendly|cal\\.com|schedule|booking',
-    eventTypeUri: 'https://api.calendly.com/event_types/75bc1470-d8ac-459d-bba7-a5bd7454c744',
+    eventTypeId: 7433964,
     timeZone: 'America/Mexico_City',
     timeZoneLabel: 'hora del centro de México',
     earliestHour: 9,

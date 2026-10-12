@@ -20,7 +20,7 @@ Chatbot con la voz del negocio, para atender clientes por web y WhatsApp.
 
 - Responde desde la información curada del negocio.
 - Captura datos de quien pregunta y dice cuándo hace falta hablar con una persona.
-- Canal web desde el arranque; WhatsApp se puede sumar. Meta cobra por cada mensaje que el negocio envía por WhatsApp, directo y aparte de 3dev. Si sumar WhatsApp cambia la implementación o la mensualidad, y cómo se cubre el costo de Meta según el volumen de cada negocio, se define en la llamada de diagnóstico — no está fijado de antemano.
+- Canal web desde el arranque; WhatsApp se puede sumar. Meta cobra por cada mensaje que el negocio envía por WhatsApp, directo y aparte de 3dev. Si sumar WhatsApp cambia la implementación o la mensualidad, y cómo se cubre el costo de Meta según el volumen de cada negocio, se define en la llamada de diagnóstico — no está fijado de antemano. Por eso nunca se dice que WhatsApp se suma sin costo, ni siquiera "sin costo adicional de 3dev": el costo de Meta siempre existe, y si cambia el precio de 3dev se sabe hasta el diagnóstico.
 
 Implementación: $7,900 MXN. Mensualidad: $2,490 MXN.
 
@@ -30,7 +30,7 @@ Ideal para negocios que reciben muchas preguntas repetidas y necesitan atender s
 
 Todo lo de Quetzal / Asistente, más automatización conectada al negocio: el asistente no solo responde, también actúa.
 
-- Propone horarios reales de la agenda del negocio y comparte el enlace para que la persona confirme su cita. La cita se confirma en el calendario, no dentro del chat.
+- Agenda citas dentro de la conversación: propone horarios reales de la agenda del negocio y, cuando la persona elige uno, la cita queda hecha en el calendario sin salir del chat.
 - Cada persona que deja sus datos queda registrada, y el negocio recibe el aviso en ese momento.
 - Automatizaciones de alcance acotado (hasta 2 o 3), definidas caso por caso en la llamada de diagnóstico.
 - Las acciones sensibles siempre pasan por aprobación humana.
@@ -40,7 +40,7 @@ No consulta en vivo los sistemas del negocio (inventario, expedientes, saldos) n
 
 Implementación: $19,900 MXN. Mensualidad: $4,990 MXN.
 
-Ideal para negocios que ya necesitan que su asistente también proponga citas y avise al equipo de cada prospecto, o que quieren conectar 2 o 3 procesos a la medida.
+Ideal para negocios que ya necesitan que su asistente también agende citas y avise al equipo de cada prospecto, o que quieren conectar 2 o 3 procesos a la medida.
 
 ## Cómo se decide la oferta
 

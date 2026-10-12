@@ -62,6 +62,39 @@ export const checkAvailabilityTool: Anthropic.Tool = {
   input_schema: { type: 'object', properties: {}, required: [] },
 };
 
+export interface BookMeetingInput {
+  mes: number;
+  dia: number;
+  hora: string;
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  notas?: string;
+}
+
+/**
+ * Only offered when the scheduler can actually book. The confirmation comes
+ * back from the calendar, so "quedó agendada" is never the model's guess.
+ */
+export const bookMeetingTool: Anthropic.Tool = {
+  name: 'book_meeting',
+  description:
+    'Agenda la conversación con el equipo en uno de los horarios que te dio check_availability. Llámala en cuanto la persona elija un horario y sepas su nombre, aunque no tengas más datos: si el calendario necesita un teléfono o un correo, la herramienta te dirá cuál pedir. Si la persona ya dio su correo o teléfono, inclúyelos; con correo le llega la invitación. Usa el día, mes y hora tal como los dijiste, en la hora del negocio. Solo di que la cita quedó agendada si esta herramienta lo confirma. No reemplaza a capture_lead.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      mes: { type: 'integer', description: 'Mes del horario elegido, 1 a 12' },
+      dia: { type: 'integer', description: 'Día del mes del horario elegido' },
+      hora: { type: 'string', description: 'Hora elegida en formato 24 h, HH:MM, en la hora del negocio. Ej. "16:30" para 4:30 p.m.' },
+      nombre: { type: 'string', description: 'Nombre de la persona' },
+      email: { type: 'string', description: 'Correo para la invitación, si lo dio' },
+      telefono: { type: 'string', description: 'Teléfono con lada internacional, ej. +522221234567, si lo dio' },
+      notas: { type: 'string', description: 'Qué busca y cómo contactarle, en una o dos frases, para quien atienda la llamada' },
+    },
+    required: ['mes', 'dia', 'hora', 'nombre'],
+  },
+};
+
 export interface RememberedContact {
   nombre?: string;
   interes?: string;
@@ -74,7 +107,7 @@ export interface RememberedContact {
 export const rememberContactTool: Anthropic.Tool = {
   name: 'remember_contact',
   description:
-    'Guarda lo mínimo para reconocer a esta persona si vuelve a escribir otro día: su nombre de pila, si lo dijo, y en pocas palabras qué le interesa (un servicio o el problema que quiere resolver). Llámala cuando aprendas cualquiera de los dos o cuando cambie. No guardes datos sensibles, precios ni el resto de la conversación. No reemplaza a capture_lead: esta herramienta no avisa al equipo, así que si la persona dejó un contacto, llama también capture_lead.',
+    'Guarda lo mínimo para reconocer a esta persona si vuelve a escribir otro día: su nombre de pila, si lo dijo, y en pocas palabras qué le interesa (un servicio o el problema que quiere resolver). Llámala en el mismo turno en que la persona diga su nombre o qué le interesa, aunque también respondas otra cosa, y otra vez si cambia. No guardes datos sensibles, precios ni el resto de la conversación. No reemplaza a capture_lead: esta herramienta no avisa al equipo, así que si la persona dejó un contacto, llama también capture_lead.',
   input_schema: {
     type: 'object',
     properties: {

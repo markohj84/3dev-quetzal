@@ -47,6 +47,7 @@ export function createCalendlyScheduler(url: string, opts: CalendlyOptions = {})
 
     const res = await fetch(`https://api.calendly.com/event_type_available_times?${query}`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!res.ok) {

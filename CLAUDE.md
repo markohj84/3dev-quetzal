@@ -96,9 +96,20 @@ sin vencimiento en `leads:<clientId>` (`createLeadStore`,
 estructurados. Nuevos tools van en `core/tools.ts` si son genéricos —
 un tool con lógica específica de un cliente no debe vivir en `core/`.
 
-`check_availability` consulta horarios reales de Calendly (solo si hay
-token). `remember_contact` guarda nombre e interés en la ficha de contacto
-(ver abajo) y solo se ofrece en canales con `stableContactId: true`.
+`check_availability` consulta horarios reales del calendario (solo si hay
+llave). `book_meeting` agenda la cita dentro del chat: solo existe si el
+scheduler implementa `book()` — hoy Cal.com (`core/scheduling/calcom.ts`);
+la API de Calendly no puede crear citas. Recibe día, mes y hora en la zona
+del negocio, nunca un ISO, y el scheduler vuelve a consultar los horarios
+libres antes de reservar. El modelo solo puede decir "quedó agendada" si el
+tool lo confirmó; el eval de agenda lo verifica contra Cal.com y cancela la
+cita al terminar. Corre solo con `EVAL_BOOKING=1`: cada corrida le manda
+a Marco dos correos de Cal.com (cita creada y cancelada). Cal.com exige correo o teléfono (en 3dev el teléfono es
+obligatorio): en WhatsApp sale solo del remitente (`KnownContact.phone`).
+`remember_contact` guarda nombre e interés en la ficha de contacto (ver
+abajo) y solo se ofrece en canales con `stableContactId: true`; va antes de
+los tools de agenda en la lista, porque detrás de `book_meeting` el modelo
+dejaba de llamarlo.
 
 ## Ficha de contacto
 
@@ -152,11 +163,10 @@ no construye sitios. La escalera de IA es Oferta 0
 real) — reflejada en `clients/3dev/knowledge/` y `voice.md`. Eso ya está
 implementado y probado.
 
-**Oferta 2 ("que actúe") tiene ya la infraestructura de tool-calling
-(ver "Tool-calling" arriba) y un tool real: capturar leads.** Pero eso es
-apenas el primero — "agenda citas" y "consulta información del negocio en
-vivo" siguen sin tool que los resuelva. No digas que Oferta 2 ya cumple su
-promesa completa hasta que existan.
+**Oferta 2 ("que actúe") ya captura leads y agenda citas dentro del chat
+(Cal.com).** Faltan "consulta información del negocio en vivo" y el
+seguimiento automático a leads: `knowledge/ofertas.md` los declara como
+"no hace" — ampliarlo solo cuando existan.
 
 El documento de estrategia que definió esta escalera también da por hechas
 otras piezas de ingeniería que **no existen todavía**. No meterlas en el

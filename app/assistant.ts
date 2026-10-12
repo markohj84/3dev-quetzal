@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import config from '../clients/3dev/assistant.config';
 import { createEngine, loadCorpus } from '../core/engine';
 import { createCalendlyScheduler } from '../core/scheduling/calendly';
+import { createCalcomScheduler } from '../core/scheduling/calcom';
 import { createNullScheduler } from '../core/scheduling/types';
 
 /**
@@ -20,24 +21,38 @@ async function build() {
     loadCorpus(join(CLIENT_DIR, config.knowledgeDir)),
   ]);
 
-  const scheduler =
-    config.scheduling.provider === 'calendly' && config.scheduling.url
-      ? createCalendlyScheduler(config.scheduling.url, {
-          token: process.env.CALENDLY_API_TOKEN,
-          eventTypeUri: config.scheduling.eventTypeUri,
-          timeZone: config.scheduling.timeZone,
+  const { provider, url, timeZone, earliestHour, latestHour } = config.scheduling;
+  const scheduler = !url
+    ? createNullScheduler()
+    : provider === 'calcom'
+      ? createCalcomScheduler(url, {
+          apiKey: process.env.CALCOM_API_KEY,
+          eventTypeId: config.scheduling.eventTypeId,
+          timeZone,
           locale: config.locale,
-          earliestHour: config.scheduling.earliestHour,
-          latestHour: config.scheduling.latestHour,
+          earliestHour,
+          latestHour,
         })
-      : createNullScheduler();
+      : provider === 'calendly'
+        ? createCalendlyScheduler(url, {
+            token: process.env.CALENDLY_API_TOKEN,
+            eventTypeUri: config.scheduling.eventTypeUri,
+            timeZone,
+            locale: config.locale,
+            earliestHour,
+            latestHour,
+          })
+        : createNullScheduler();
 
   const engine = createEngine({
     config,
     voice,
     corpus,
     scheduler,
-    client: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
+    // The SDK's default waits up to 10 minutes per attempt: a stalled call
+    // held a reply for 17 minutes in testing. Better a fast failure the route
+    // can answer than a person staring at "escribiendo…".
+    client: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 30_000, maxRetries: 1 }),
   });
 
   return { config, engine, corpus };
