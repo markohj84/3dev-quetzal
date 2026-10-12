@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import { createSessionStore, createRateLimiter, createConversationLog, createLeadStore } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter, createConversationLog, createLeadStore, createFollowUpStore } from '../../../core/store/session-store';
 import { createLeadNotifier } from '../../../core/notify';
+import { leadPhone } from '../../../core/followup';
 
 const adapter = createWebAdapter();
 const sessions = createSessionStore();
@@ -60,6 +61,12 @@ export async function POST(request: Request) {
     }
 
     if (result.booked) {
+      // Booked people need no follow-up nudge.
+      const phone = leadPhone(
+        { nombre: '', contacto: result.booked.telefono ?? '', channel: 'web', contactId: inbound.contactId, at: '' },
+        config.followUp?.countryCode,
+      );
+      if (phone) await createFollowUpStore(config.id).mark(phone, 'booked');
       await createLeadNotifier(config.notify).notify({
         channel: 'web',
         contactId: inbound.contactId,

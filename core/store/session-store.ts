@@ -81,6 +81,7 @@ export interface StoredLead extends CapturedLead {
 
 export interface LeadStore {
   save(lead: StoredLead): Promise<void>;
+  list(): Promise<StoredLead[]>;
 }
 
 /**
@@ -91,6 +92,32 @@ export function createLeadStore(clientId: string): LeadStore {
   return {
     async save(lead) {
       await kv.rpush(`leads:${clientId}`, JSON.stringify(lead));
+    },
+    async list() {
+      return kv.lrange<StoredLead>(`leads:${clientId}`, 0, -1);
+    },
+  };
+}
+
+/**
+ * Who already got the one follow-up, or booked and needs none. Keyed by the
+ * number Meta delivers to, so the same person reached from web and from
+ * WhatsApp counts once.
+ */
+export interface FollowUpStore {
+  has(phone: string): Promise<boolean>;
+  mark(phone: string, reason: 'sent' | 'booked'): Promise<void>;
+}
+
+const FOLLOW_UP_TTL_SECONDS = 60 * 60 * 24 * 90;
+
+export function createFollowUpStore(clientId: string): FollowUpStore {
+  return {
+    async has(phone) {
+      return (await kv.exists(`followup:${clientId}:${phone}`)) === 1;
+    },
+    async mark(phone, reason) {
+      await kv.set(`followup:${clientId}:${phone}`, reason, { ex: FOLLOW_UP_TTL_SECONDS });
     },
   };
 }

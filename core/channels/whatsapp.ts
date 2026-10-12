@@ -148,6 +148,51 @@ export function toMetaRecipient(waId: string): string {
   return /^521\d{10}$/.test(waId) ? `52${waId.slice(3)}` : waId;
 }
 
+/**
+ * Template variables can't carry newlines, tabs or long runs of spaces, and
+ * Meta rejects an empty one — so every value is flattened and never blank.
+ */
+export function templateParam(value: string | undefined): string {
+  const flat = (value ?? '').replace(/\s+/g, ' ').trim();
+  return flat ? flat.slice(0, 200) : '—';
+}
+
+/**
+ * The only way to write first: a Meta-approved template. Returns the wa_id
+ * Meta resolved the number to — the id a reply will come back from, which
+ * for Mexican mobiles is not the number we sent to.
+ */
+export async function sendTemplate(msg: {
+  to: string;
+  template: string;
+  language: string;
+  params: string[];
+}): Promise<string | undefined> {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneNumberId || !token) throw new Error('WhatsApp no configurado');
+
+  const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: msg.to,
+      type: 'template',
+      template: {
+        name: msg.template,
+        language: { code: msg.language },
+        components: [{ type: 'body', parameters: msg.params.map((p) => ({ type: 'text', text: templateParam(p) })) }],
+      },
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`WhatsApp template ${msg.template} failed: ${res.status} ${await res.text()}`);
+
+  const body = (await res.json()) as { contacts?: { wa_id?: string }[] };
+  return body.contacts?.[0]?.wa_id;
+}
+
 // Self-check: `node core/channels/whatsapp.ts`
 if (import.meta.url === `file://${process.argv[1]}`) {
   const secret = 'test-secret';

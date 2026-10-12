@@ -144,6 +144,21 @@ aviso, nombre, contacto, detalle). Cada canal falla por su cuenta: si Meta
 rechaza el envío, el correo sale igual. No poner `NOTIFY_WHATSAPP_TO` en
 `.env.local`, o cada eval que capture un lead mandará un WhatsApp real.
 
+## Seguimiento automático
+
+Un cron diario (`vercel.json`, 16:00 UTC = 10:00 en México) llama
+`/api/cron/follow-up`, firmado por Vercel con `CRON_SECRET` (sin él, 403).
+Le manda **un solo** WhatsApp a cada lead que dejó teléfono hace entre
+`followUp.afterHours` y +48 h y no agendó: plantilla aprobada por Meta
+(`seguimiento_lead`), porque el negocio escribe primero. La marca
+`followup:<clientId>:<número>` (90 días) se pone **antes** de enviar — una
+caída cuesta un mensaje, nunca manda dos — y también cuando alguien agenda
+en el chat. El texto se escribe en la sesión para que un "sí" tenga
+contexto. Los leads con contactId `eval-` se ignoran siempre. Configurado en
+`assistant.config.ts` (`followUp`); sin esa sección, el cron no hace nada.
+Límite conocido: quien agenda por el enlace de Cal.com (no en el chat) sí
+recibiría el seguimiento.
+
 ## Registro de conversaciones
 
 Cada turno se guarda en Redis (`core/store/session-store.ts`,

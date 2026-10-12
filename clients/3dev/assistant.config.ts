@@ -52,6 +52,13 @@ export default AssistantConfig.parse({
     whatsapp: { to: process.env.NOTIFY_WHATSAPP_TO, template: 'aviso_lead' },
   },
 
+  followUp: {
+    afterHours: 24,
+    template: 'seguimiento_lead',
+    text: 'Hola {nombre}, soy Quetzal de 3dev. ¿Te gustaría que agendemos la llamada de 30 minutos? Contéstame y te paso los horarios.',
+    countryCode: '52',
+  },
+
   outOfScope: [
     'Detalles de clientes bajo confidencialidad',
     'Metodología interna de trabajo',

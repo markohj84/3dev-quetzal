@@ -6,9 +6,11 @@ import {
   createRateLimiter,
   createConversationLog,
   createLeadStore,
+  createFollowUpStore,
   createProfileStore,
 } from '../../../core/store/session-store';
 import { createLeadNotifier } from '../../../core/notify';
+import { leadPhone } from '../../../core/followup';
 
 const sessions = createSessionStore();
 // contactId here is Meta's own phone number id, not caller-supplied — safe to key on directly.
@@ -117,6 +119,12 @@ export async function POST(request: Request) {
     }
 
     if (result.booked) {
+      // Booked people need no follow-up nudge.
+      const phone = leadPhone(
+        { nombre: '', contacto: result.booked.telefono ?? '', channel: 'whatsapp', contactId: inbound.contactId, at: '' },
+        config.followUp?.countryCode,
+      );
+      if (phone) await createFollowUpStore(config.id).mark(phone, 'booked');
       await createLeadNotifier(config.notify).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,

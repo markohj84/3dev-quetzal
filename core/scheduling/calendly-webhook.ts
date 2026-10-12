@@ -16,6 +16,8 @@ export interface Booking {
   /** Always there from Calendly; a booking made in the chat may not have one. */
   email?: string;
   contacto?: string;
+  /** Set when the booking was made in the chat with a phone. */
+  telefono?: string;
   /** Name of the Calendly event type, e.g. "Diagnóstico 30 min". */
   evento?: string;
   /** ISO 8601 start of the meeting, straight from Calendly. */

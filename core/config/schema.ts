@@ -68,6 +68,21 @@ export const NotifyConfig = z.object({
     .optional(),
 });
 
+/**
+ * One WhatsApp message to someone who left a phone and never booked. The
+ * business writes first, so it goes out as an approved template; `text` is
+ * that template's body, written into the session so a reply has context.
+ */
+export const FollowUpConfig = z.object({
+  afterHours: z.number().positive().default(24),
+  template: z.string(),
+  language: z.string().default('es_MX'),
+  /** The template body with {nombre} where its one variable goes. */
+  text: z.string(),
+  /** Prefix for a ten-digit number typed in the web chat, e.g. "52". */
+  countryCode: z.string().optional(),
+});
+
 export const ModelConfig = z.object({
   /**
    * Haiku by default: same anti-fabrication behaviour at a fraction of the
@@ -97,6 +112,7 @@ export const AssistantConfig = z.object({
   channels: ChannelConfig,
   model: ModelConfig.default({}),
   notify: NotifyConfig.default({}),
+  followUp: FollowUpConfig.optional(),
 
   /**
    * Topics the assistant must decline. Declarative on purpose — never

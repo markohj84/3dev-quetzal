@@ -110,7 +110,14 @@ export function createEngine(deps: EngineDeps) {
             ? 'Le llegará la invitación a su correo. '
             : 'No dejó correo, así que no recibirá invitación: confírmale aquí el día y la hora. ') +
           'No prometas recordatorios ni que alguien le escribirá antes de la cita.',
-        booking: { nombre: input.nombre, email: input.email, evento: 'Agendada en el chat', inicia: label, contacto: input.notas },
+        booking: {
+          nombre: input.nombre,
+          email: input.email,
+          telefono: input.telefono ?? phone,
+          evento: 'Agendada en el chat',
+          inicia: label,
+          contacto: input.notas,
+        },
       };
     } catch (error) {
       console.error(`[${config.id}] booking failed`, error);

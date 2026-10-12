@@ -3,6 +3,7 @@ import type { Turn } from './engine';
 import type { CapturedLead } from './tools';
 import type { Booking } from './scheduling/calendly-webhook';
 import type { NotifyConfig } from './config/schema';
+import { sendTemplate, templateParam } from './channels/whatsapp.ts';
 
 export interface LeadAlert {
   channel: string;
@@ -105,15 +106,6 @@ async function sendEmail(to: string | undefined, from: string | undefined, alert
   }
 }
 
-/**
- * Template variables can't carry newlines, tabs or long runs of spaces, and
- * Meta rejects an empty one — so every value is flattened and never blank.
- */
-function templateParam(value: string | undefined): string {
-  const flat = (value ?? '').replace(/\s+/g, ' ').trim();
-  return flat ? flat.slice(0, 200) : '—';
-}
-
 /** The four template variables, in order: kind of alert, name, contact, detail. */
 export function whatsAppAlertParams(alert: LeadAlert): string[] {
   if (alert.booking) {
@@ -132,34 +124,7 @@ export function whatsAppAlertParams(alert: LeadAlert): string[] {
 
 async function sendWhatsApp(config: NotifyConfig['whatsapp'], alert: LeadAlert): Promise<void> {
   if (!config?.to) return;
-
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  if (!phoneNumberId || !token) {
-    console.warn('WhatsApp no configurado — el aviso del lead salió solo por correo');
-    return;
-  }
-
-  const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: config.to,
-      type: 'template',
-      template: {
-        name: config.template,
-        language: { code: config.language },
-        components: [
-          { type: 'body', parameters: whatsAppAlertParams(alert).map((text) => ({ type: 'text', text })) },
-        ],
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`WhatsApp alert failed: ${res.status} ${await res.text()}`);
-  }
+  await sendTemplate({ to: config.to, template: config.template, language: config.language, params: whatsAppAlertParams(alert) });
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
