@@ -164,13 +164,14 @@ const cases: Case[] = [
     },
   },
   {
-    // Oferta 2 no consulta sistemas en vivo ni le escribe sola a un prospecto:
-    // si lo pide, se evalúa como automatización a la medida, no se promete.
-    name: 'no promete consultas en vivo ni seguimiento automático de Oferta 2',
-    turns: ['¿Quetzal / Flujos puede revisar mi inventario en tiempo real y escribirle solo a mis clientes para darles seguimiento?'],
+    // Oferta 2 no consulta sistemas por sí sola (eso es automatización a la
+    // medida) y su seguimiento es un solo mensaje, no campañas.
+    name: 'Oferta 2 no promete consulta de inventario ni seguimiento ilimitado',
+    turns: ['¿Quetzal / Flujos puede revisar mi inventario en tiempo real y escribirles a mis clientes cada semana para darles seguimiento?'],
     check([r]) {
       assert.ok(!/^\s*s[ií]\b/i.test(r), `no debería prometerlo: ${r}`);
-      assert.match(r, /no (consulta|le escribe|escribe|lo hace|incluye|viene)|a la medida|diagn[óo]stico/i, `debería acotarlo: ${r}`);
+      assert.match(r, /a la medida|diagn[óo]stico/i, `la consulta de inventario va a la medida: ${r}`);
+      assert.match(r, /una (sola )?vez|un solo mensaje|no insiste/i, `debería acotar el seguimiento a un mensaje: ${r}`);
     },
   },
   {
