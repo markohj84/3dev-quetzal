@@ -27,6 +27,8 @@ export interface CalendlyOptions {
 const DAYS_AHEAD = 7;
 const MAX_SLOTS = 5;
 const MAX_PER_DAY = 2;
+// Second slot of a day: at least this long after the first, when there is one.
+const MIN_GAP_MS = 3 * 60 * 60 * 1000;
 
 export function createCalendlyScheduler(url: string, opts: CalendlyOptions = {}): Scheduler {
   const { token, eventTypeUri, timeZone = 'UTC', locale = 'es-MX', earliestHour, latestHour } = opts;
@@ -87,25 +89,27 @@ export function withinHours(
 }
 
 /**
- * Calendly returns every open slot in order, so the first five are usually
+ * Calendars return every open slot in order, so the first five are usually
  * the same morning. Offering one Tuesday and one Thursday is worth more to
- * the person reading than five consecutive half hours.
+ * the person reading than five consecutive half hours — and within a day, a
+ * morning and an afternoon beat 9:00 and 9:30.
  */
 export function spreadAcrossDays(times: string[], timeZone: string): string[] {
-  const perDay = new Map<string, number>();
-  const picked: string[] = [];
-
+  const byDay = new Map<string, string[]>();
   for (const iso of times) {
     const day = new Date(iso).toLocaleDateString('en-CA', { timeZone });
-    const used = perDay.get(day) ?? 0;
-    if (used >= MAX_PER_DAY) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), iso]);
+  }
 
-    perDay.set(day, used + 1);
-    picked.push(iso);
+  const picked: string[] = [];
+  for (const slots of byDay.values()) {
+    const first = slots[0];
+    const later = slots.find((t) => Date.parse(t) - Date.parse(first) >= MIN_GAP_MS) ?? slots[1];
+    picked.push(...[first, later].filter(Boolean).slice(0, MAX_PER_DAY));
     if (picked.length >= MAX_SLOTS) break;
   }
 
-  return picked;
+  return picked.slice(0, MAX_SLOTS);
 }
 
 /** "miércoles, 30 de septiembre, 8:00 a.m." — never a bare time. */
@@ -142,6 +146,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(new Set(picked.map((t) => t.slice(0, 10))).size, 3, 'debe abarcar tres días distintos');
 
   assert.deepEqual(spreadAcrossDays([], TZ), [], 'sin horarios no truena');
+
+  // Un día lleno de 9:00 a 17:00: mañana y tarde, no 9:00 y 9:30.
+  const diaLleno = Array.from({ length: 16 }, (_, i) => new Date(Date.parse('2026-10-12T15:00:00Z') + i * 30 * 60_000).toISOString());
+  assert.deepEqual(
+    spreadAcrossDays(diaLleno, TZ),
+    ['2026-10-12T15:00:00.000Z', '2026-10-12T18:00:00.000Z'],
+    '9:00 y 12:00, la primera al menos tres horas después',
+  );
 
   // El corte de día es el de la zona horaria del negocio, no el de UTC:
   // 03:00Z del día 1 sigue siendo la noche del 30 en México.
