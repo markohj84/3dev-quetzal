@@ -25,6 +25,20 @@ Antes de escribir código nuevo, decide de qué lado cae:
 
 El motor no debe poder averiguar por qué canal llegó un mensaje.
 
+## Clientes
+
+Un deploy por cliente: mismo repositorio, un proyecto de Vercel por cliente,
+y la variable `CLIENT` (default `3dev`) elige la carpeta `clients/<cliente>/`
+(`app/assistant.ts`). Todo lo del cliente vive en su carpeta: config, voz,
+conocimiento, `widget.html`, `privacidad.tsx` y `evals.ts`.
+`next.config.js` incluye `clients/` en el paquete porque la ruta se decide en
+tiempo de ejecución. Para dar de alta uno nuevo: copiar `clients/_plantilla/`
+y seguir `docs/nuevo-cliente.md`; `scripts/client-check.ts` revisa que esté
+listo (y crea sus plantillas de Meta). Los evals que todo cliente debe pasar
+viven en `scripts/evals.ts` (`genericCases`); cada `clients/<cliente>/evals.ts`
+agrega los suyos. Las configs importan `schema.ts` con extensión para que
+Node las ejecute directo en scripts y evals.
+
 ## Reglas de producto que no se negocian
 
 1. **El asistente no inventa datos.** Ninguna cifra, duración, nombre o
@@ -196,8 +210,8 @@ que no existe es peor que no tener el dato:
   (nombre + interés, 90 días, solo WhatsApp — ver "Ficha de contacto"), pero
   no historial ni memoria en la web. No vender más que eso.
 - **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes").
-  Hoy `app/assistant.ts` tiene el cliente hardcodeado (`CLIENT_DIR`) — cambiar
-  de cliente es swap + redeploy, un deploy por cliente.
+  Hoy es un deploy por cliente: mismo repo, un proyecto de Vercel por
+  cliente, y `CLIENT` elige la carpeta (ver "Clientes" arriba).
 - **Postgres/Supabase** para conversaciones, leads y memoria (pgvector para
   RAG). Hoy solo hay Redis (sesión + el log de 90 días).
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.

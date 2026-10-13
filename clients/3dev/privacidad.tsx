@@ -56,6 +56,10 @@ export default function PrivacidadPage() {
         <ul>
           <li>Responder tus preguntas sobre los servicios de 3dev.</li>
           <li>Darle seguimiento a tu interés y, si lo pides, agendar una llamada.</li>
+          <li>
+            Si nos dejas tu teléfono y no agendas, enviarte un solo mensaje por WhatsApp al
+            día siguiente para ofrecerte la llamada.
+          </li>
           <li>Mantener el contexto de la conversación para no repetirte preguntas.</li>
           <li>
             Proteger el servicio contra abuso (por ejemplo, limitar la cantidad de
@@ -85,7 +89,7 @@ export default function PrivacidadPage() {
           <li><strong>Vercel</strong>: alojamiento del sitio y del servicio.</li>
           <li><strong>Upstash</strong>: almacenamiento temporal de sesiones y conversaciones.</li>
           <li><strong>Resend</strong>: envío de notificaciones internas por correo.</li>
-          <li><strong>Calendly</strong>: agenda de llamadas, si decides programar una.</li>
+          <li><strong>Cal.com</strong>: agenda de llamadas, si decides programar una.</li>
         </ul>
         <p>
           Algunos de estos proveedores están fuera de México, por lo que tus datos
