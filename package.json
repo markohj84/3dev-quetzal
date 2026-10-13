@@ -11,7 +11,8 @@
     "check:offer": "node scripts/check-offer.mjs clients/3dev",
     "eval:3dev": "node --env-file=.env.local clients/3dev/evals.ts",
     "report:3dev": "node --env-file=.env.local scripts/report.mjs quetzal-3dev",
-    "eval": "node --env-file=.env.local clients/${CLIENT:-3dev}/evals.ts"
+    "eval": "node --env-file=.env.local clients/${CLIENT:-3dev}/evals.ts",
+    "client:check": "node scripts/client-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
