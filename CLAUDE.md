@@ -167,6 +167,10 @@ Cada turno se guarda en Redis (`core/store/session-store.ts`,
 conversaciones a mano, no para búsqueda ni dashboards — si eso hace falta,
 mover a un datastore real en vez de seguir creciendo este esquema de keys.
 
+`npm run report:3dev -- [días]` (default 7) resume el uso real: personas,
+mensajes, leads, citas (de Cal.com), seguimientos. Excluye `eval-*` y los
+números de `REPORT_EXCLUDE` en `.env.local` (el del dueño).
+
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
 La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web

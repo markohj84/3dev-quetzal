@@ -9,7 +9,8 @@
     "start": "next start",
     "check:boundary": "! grep -rilE '3dev|quetzal' core/ || (echo 'core/ references a client' && exit 1)",
     "check:offer": "node scripts/check-offer.mjs clients/3dev",
-    "eval:3dev": "node --env-file=.env.local clients/3dev/evals.ts"
+    "eval:3dev": "node --env-file=.env.local clients/3dev/evals.ts",
+    "report:3dev": "node --env-file=.env.local scripts/report.mjs quetzal-3dev"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
