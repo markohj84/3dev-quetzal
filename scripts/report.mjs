@@ -26,6 +26,14 @@ const turns = (
 
 const people = new Map();
 for (const t of turns) people.set(t.contactId, t.channel);
+
+// De dónde llegó: los enlaces del kit de tráfico abren WhatsApp con
+// "Hola, vengo de <canal>…". Sin esa frase, cuenta como directo.
+const firstText = new Map();
+for (const t of [...turns].sort((a, b) => a.at.localeCompare(b.at))) {
+  if (!firstText.has(t.contactId)) firstText.set(t.contactId, t.userText ?? '');
+}
+const origin = (text) => text.match(/vengo de(?: tu| su)? ([\p{L}]+)/iu)?.[1]?.toLowerCase() ?? 'directo';
 const byChannel = (ids) =>
   [...ids].reduce((acc, ch) => ({ ...acc, [ch]: (acc[ch] ?? 0) + 1 }), {});
 
@@ -70,6 +78,7 @@ if (process.env.CALCOM_API_KEY) {
 const pct = (a, b) => (b ? ` (${Math.round((100 * a) / b)}%)` : '');
 console.log(`\n${clientId} · últimos ${days} días (desde ${since.toISOString().slice(0, 10)})\n`);
 console.log(`Personas que escribieron  ${people.size}  ${JSON.stringify(byChannel(people.values()))}`);
+console.log(`Origen                    ${JSON.stringify(byChannel([...firstText.values()].map(origin)))}`);
 console.log(`Mensajes                  ${turns.length}`);
 console.log(`Leads (dejaron contacto)  ${leads.length}${pct(leads.length, people.size)}  ${JSON.stringify(byChannel(leads.map((l) => l.channel)))}`);
 if (bookings) console.log(`Citas agendadas           ${bookings.vigentes} vigentes, ${bookings.hechas - bookings.vigentes} canceladas`);
