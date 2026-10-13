@@ -1,21 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import config from '../clients/3dev/assistant.config';
 import { createEngine, loadCorpus } from '../core/engine';
 import { createCalendlyScheduler } from '../core/scheduling/calendly';
 import { createCalcomScheduler } from '../core/scheduling/calcom';
 import { createNullScheduler } from '../core/scheduling/types';
 
 /**
- * The only file that names a client. Swapping the import above and the
- * CLIENT_DIR constant points the whole deployment at a different client.
+ * One deployment, one client: CLIENT picks the folder under clients/. Each
+ * client gets its own Vercel project from this same repo, with its own keys,
+ * number and calendar — nothing is shared between them at runtime.
  */
-const CLIENT_DIR = join(process.cwd(), 'clients', '3dev');
+export const CLIENT = process.env.CLIENT || '3dev';
+export const CLIENT_DIR = join(process.cwd(), 'clients', CLIENT);
 
 let cached: Awaited<ReturnType<typeof build>> | null = null;
 
 async function build() {
+  const { default: config } = await import(`../clients/${CLIENT}/assistant.config.ts`);
   const [voice, corpus] = await Promise.all([
     readFile(join(CLIENT_DIR, config.voiceFile), 'utf8'),
     loadCorpus(join(CLIENT_DIR, config.knowledgeDir)),

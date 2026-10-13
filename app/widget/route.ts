@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getAssistant } from '../assistant';
+import { CLIENT_DIR, getAssistant } from '../assistant';
 
-const WIDGET_PATH = join(process.cwd(), 'app', 'widget', 'widget.html');
+// Each client brings its own widget: name, colors and greeting are theirs.
+const WIDGET_PATH = join(CLIENT_DIR, 'widget.html');
 
 let cached: string | null = null;
 

@@ -1,4 +1,4 @@
-import { AssistantConfig } from '../../core/config/schema';
+import { AssistantConfig } from '../../core/config/schema.ts';
 
 /**
  * 3dev — client instance.
