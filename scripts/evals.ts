@@ -35,8 +35,17 @@ export interface Case {
 /**
  * Rules no client is exempt from. `offer` matches the client's invitation to
  * schedule (its voice.md wording), to count how many times it was made.
+ * Pass `whatsapp: false` for a client without that channel.
  */
-export function genericCases({ clientId, offer }: { clientId: string; offer: RegExp }): Case[] {
+export function genericCases({
+  clientId,
+  offer,
+  whatsapp = true,
+}: {
+  clientId: string;
+  offer: RegExp;
+  whatsapp?: boolean;
+}): Case[] {
   const leadFor = async (contactId: string) =>
     (await kv.lrange<{ contactId: string; nombre: string; channel: string }>(`leads:${clientId}`, 0, -1)).find(
       (l) => l.contactId === contactId,
@@ -53,7 +62,7 @@ export function genericCases({ clientId, offer }: { clientId: string; offer: Reg
     '¿Y qué incluye exactamente?',
   ];
 
-  return [
+  const cases: Case[] = [
     {
       // The one sentence booking must never get wrong: "quedó agendada" when
       // the calendar has no such meeting. Books for real and cancels at the
@@ -140,6 +149,7 @@ export function genericCases({ clientId, offer }: { clientId: string; offer: Reg
       },
     },
   ];
+  return whatsapp ? cases : cases.filter((c) => c.channel !== 'whatsapp');
 }
 
 async function sendTurn(sessionId: string, text: string): Promise<string> {

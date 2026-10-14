@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clínica Dental Nogal · Demo de 3dev</title>
+<meta name="description" content="Demo de Quetzal, el asistente de 3dev: una clínica dental de ejemplo donde puedes probar a Lía, su asistente.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Clínica de barrio con buen gusto: blanco, azul profundo, mucho aire. El demo se anuncia arriba y abajo. */
+:root {
+  --bg: #ffffff; --tint: #eef6f9; --ink: #10242c; --muted: #4f646c; --line: #dbe7ec;
+  --accent: #0b4a60; --accent-2: #1789ad; --on-accent: #ffffff; --banner: #10242c; --on-banner: #eef6f9;
+  --display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --body: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+  --r: 10px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 var(--body); }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.12; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+
+.demo-banner { background: var(--banner); color: var(--on-banner); font-size: 0.92rem; }
+.demo-banner .wrap { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-block: 10px; }
+.demo-banner a { color: var(--on-banner); font-weight: 600; }
+
+header.site { border-bottom: 1px solid var(--line); }
+header.site .wrap { display: flex; align-items: center; justify-content: space-between; padding-block: 18px; gap: 16px; }
+.logo { font: 700 1.3rem var(--display); color: var(--accent); letter-spacing: -0.01em; }
+.logo span { color: var(--accent-2); font-weight: 500; }
+.hours-chip { font-size: 0.9rem; color: var(--muted); }
+
+.hero { background: linear-gradient(180deg, var(--tint), var(--bg)); }
+.hero .wrap { display: grid; gap: 24px; padding-block: 64px 56px; }
+.hero h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); font-weight: 700; letter-spacing: -0.02em; max-width: 16ch; }
+.hero p.lead { font-size: 1.2rem; color: var(--muted); max-width: 52ch; }
+.cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn { font: 600 1rem var(--display); background: var(--accent); color: var(--on-accent); border: 0; border-radius: var(--r); padding: 14px 22px; cursor: pointer; }
+.btn:hover { background: var(--accent-2); }
+.btn:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 3px; }
+.hint { color: var(--muted); font-size: 0.95rem; }
+
+section.block .wrap { padding-block: 56px; display: grid; gap: 28px; }
+section.block h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 600; }
+.prices { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.price { background: var(--bg); padding: 20px; display: grid; gap: 6px; align-content: start; }
+.price h3 { font-size: 1.1rem; font-weight: 600; }
+.price .amount { font: 600 1.35rem var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.price p { color: var(--muted); font-size: 0.95rem; }
+.note { color: var(--muted); font-size: 0.92rem; max-width: 70ch; }
+
+.visit { background: var(--tint); }
+.visit dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; margin: 0; }
+.visit dt { font-weight: 600; }
+.visit dd { margin: 0; color: var(--muted); }
+@media (max-width: 560px) { .visit dl { grid-template-columns: 1fr; gap: 2px; } .visit dd { margin-bottom: 10px; } }
+
+footer .wrap { padding-block: 40px; display: grid; gap: 10px; border-top: 1px solid var(--line); }
+footer p { color: var(--muted); font-size: 0.95rem; }
+</style>
+</head>
+<body>
+  <div class="demo-banner" role="note">
+    <div class="wrap">
+      <span>Esta clínica es de ejemplo: es un demo de Quetzal, el asistente que construye 3dev. Pruébalo abajo a la derecha.</span>
+      <a href="https://wa.me/522214100378?text=Hola%2C%20vengo%20de%20demo%20dental.%20Quiero%20un%20asistente%20as%C3%AD%20para%20mi%20negocio." target="_blank" rel="noopener">Quiero uno para mi negocio</a>
+    </div>
+  </div>
+
+  <header class="site">
+    <div class="wrap">
+      <div class="logo">Nogal <span>clínica dental</span></div>
+      <span class="hours-chip">Lun a vie 9:00–19:00 · Sáb 9:00–14:00</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <h1>Tu sonrisa, atendida sin vueltas.</h1>
+        <p class="lead">Odontología general, estética y para niños en Puebla. Pregúntale a Lía por precios y horarios, y agenda tu consulta de valoración en el chat, a cualquier hora.</p>
+        <div class="cta-row">
+          <button class="btn" type="button" id="open-chat">Platicar con Lía</button>
+          <span class="hint">Contesta al momento y agenda en el chat.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <h2>Precios claros</h2>
+        <div class="prices">
+          <div class="price"><h3>Consulta de valoración</h3><span class="amount">$350</span><p>Revisión y plan de tratamiento. Se descuenta si empiezas ese mes.</p></div>
+          <div class="price"><h3>Limpieza dental</h3><span class="amount">$700</span><p>Ultrasonido y pulido, unos 45 minutos.</p></div>
+          <div class="price"><h3>Resinas</h3><span class="amount">desde $900</span><p>Empastes del color del diente, por pieza.</p></div>
+          <div class="price"><h3>Blanqueamiento</h3><span class="amount">$3,800</span><p>Una sesión en consultorio de 90 minutos.</p></div>
+          <div class="price"><h3>Endodoncia</h3><span class="amount">desde $3,500</span><p>Tratamiento de conductos, según la pieza.</p></div>
+          <div class="price"><h3>Ortodoncia</h3><span class="amount">desde $22,000</span><p>Brackets metálicos, tratamiento completo.</p></div>
+        </div>
+        <p class="note">Precios de muestra en pesos mexicanos, IVA incluido. Meses sin intereses con tarjetas participantes en tratamientos desde $5,000.</p>
+      </div>
+    </section>
+
+    <section class="block visit">
+      <div class="wrap">
+        <h2>Visítanos</h2>
+        <dl>
+          <dt>Dirección</dt><dd>Av. Ejemplo 123, Centro, Puebla (dirección de muestra)</dd>
+          <dt>Horario</dt><dd>Lunes a viernes de 9:00 a 19:00 · Sábados de 9:00 a 14:00</dd>
+          <dt>Teléfono</dt><dd>222 000 0000 (número de muestra)</dd>
+          <dt>Estacionamiento</dt><dd>Para pacientes, frente a la clínica</dd>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>Clínica Dental Nogal no existe: es un demo. Lía es Quetzal, el asistente que 3dev configura con la voz, los precios y el calendario de cada negocio.</p>
+      <p><a href="https://3dev.mx" target="_blank" rel="noopener">3dev.mx</a> · <a href="/privacidad">Aviso de privacidad</a></p>
+    </div>
+  </footer>
+
+  <script src="/embed.js" data-accent="#5bbfe0" defer></script>
+  <script>
+    // The launcher belongs to embed.js; this button just presses it.
+    document.getElementById('open-chat').addEventListener('click', () => {
+      document.querySelector('.quetzal-launcher')?.click();
+    });
+  </script>
+</body>
+</html>

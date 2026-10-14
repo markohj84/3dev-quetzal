@@ -2,6 +2,9 @@
   var script = document.currentScript;
   var origin = new URL(script.src).origin;
   var mounted = false;
+  // Each client's launcher wears its own color: <script ... data-accent="#1789ad">.
+  // Only a hex color gets in — it lands inside a stylesheet.
+  var accent = /^#[0-9a-f]{3,8}$/i.test(script.getAttribute('data-accent') || '') ? script.getAttribute('data-accent') : '#5dc4a4';
 
   // Estilos que un :hover o una @keyframes no se pueden expresar con
   // style.cssText — y el reset global del host (button{background:none})
@@ -12,16 +15,16 @@
     '.quetzal-launcher{',
     '  position:fixed;right:24px;bottom:24px;z-index:2147483000;',
     '  border:0;padding:0;cursor:pointer;width:56px;height:56px;border-radius:9999px;',
-    '  background:#5dc4a4;display:flex;align-items:center;justify-content:center;',
-    '  box-shadow:0 4px 24px rgba(93,196,164,.45),0 0 0 1px rgba(255,255,255,.12);',
+    '  background:' + accent + ';display:flex;align-items:center;justify-content:center;',
+    '  box-shadow:0 4px 24px color-mix(in srgb,' + accent + ' 45%,transparent),0 0 0 1px rgba(255,255,255,.12);',
     '  opacity:1;transform:scale(1);pointer-events:auto;',
     '  transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s ease,box-shadow .2s ease;',
     '}',
-    '.quetzal-launcher:hover{transform:scale(1.06);box-shadow:0 6px 28px rgba(93,196,164,.6),0 0 0 1px rgba(255,255,255,.16)}',
+    '.quetzal-launcher:hover{transform:scale(1.06);box-shadow:0 6px 28px color-mix(in srgb,' + accent + ' 60%,transparent),0 0 0 1px rgba(255,255,255,.16)}',
     '.quetzal-launcher.quetzal-hidden{opacity:0;transform:scale(.6);pointer-events:none}',
     '.quetzal-launcher .quetzal-dot{',
     '  position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:9999px;',
-    '  background:#9fe1cb;box-shadow:0 0 6px #5dc4a4;animation:quetzal-pulse 2.4s ease infinite;',
+    '  background:color-mix(in srgb,' + accent + ' 55%,#fff);box-shadow:0 0 6px ' + accent + ';animation:quetzal-pulse 2.4s ease infinite;',
     '}'
   ].join('');
   document.head.appendChild(style);
