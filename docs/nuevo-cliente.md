@@ -114,8 +114,9 @@ cuenta de Resend cuya llave uses. Dos opciones:
 | `NOTIFY_WHATSAPP_TO` | WhatsApp personal del dueño, `52` + 10 dígitos |
 | `CRON_SECRET` | `openssl rand -hex 32` |
 
+   Si copias valores de `.env.local`, quítales las comillas: Vercel las guarda como parte del valor (la URL de Redis con comillas tumba el build).
 5. Dominio: un subdominio del cliente (por ejemplo `asistente.negocio.mx`) en **Settings → Domains**.
-6. El cron del seguimiento (`vercel.json`) se activa solo en cada proyecto.
+6. El cron del seguimiento y el framework (Next.js) vienen en `vercel.json`: aplican solos a cada proyecto.
 
 ---
 
