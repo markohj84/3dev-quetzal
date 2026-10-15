@@ -14,8 +14,9 @@ export default AssistantConfig.parse({
 
   scheduling: {
     provider: 'calcom',
-    // TODO: enlace y eventTypeId del evento "Consulta de valoración" del Cal.com del demo.
-    url: 'https://cal.com/demo/consulta-de-valoracion',
+    // Cuenta de Cal.com aparte (marcoa.hj+demo@gmail.com), sin calendario conectado.
+    url: 'https://cal.com/linica-nogal-demo/consulta-de-valoracion',
+    eventTypeId: 7489693,
     durationMinutes: 30,
     maxOffers: 1,
     // voice.md invita con "¿Te agendo una consulta de valoración?".
