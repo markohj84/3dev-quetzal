@@ -15,7 +15,7 @@ export default AssistantConfig.parse({
   scheduling: {
     provider: 'calcom',
     // Cuenta de Cal.com aparte (marcoa.hj+demo@gmail.com), sin calendario conectado.
-    url: 'https://cal.com/linica-nogal-demo/consulta-de-valoracion',
+    url: 'https://cal.com/clinica-nogal-demo/consulta-de-valoracion',
     eventTypeId: 7489693,
     durationMinutes: 30,
     maxOffers: 1,
