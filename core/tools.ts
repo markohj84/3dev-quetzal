@@ -118,6 +118,21 @@ export const rememberContactTool: Anthropic.Tool = {
   },
 };
 
+/**
+ * The client's description is what gets this called: the model reaches for a
+ * tool when it knows the answer lives there and nowhere else.
+ */
+export function catalogTool(description: string): Anthropic.Tool {
+  return {
+    name: 'lookup_catalog',
+    description:
+      `Consulta los datos vigentes del negocio: ${description}. ` +
+      'Llámala antes de afirmar cualquiera de estos datos, aunque creas saberlos: si no la llamaste en este turno, no los tienes. ' +
+      'Si algo no aparece en lo que regresa, el negocio no lo tiene: dilo así, sin inventarlo.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   assert.ok(hasNewContact('Soy Juan, mi WhatsApp es 222-555-1234', []));
   assert.ok(hasNewContact('escríbeme a juan.perez@ejemplo.com', []));
@@ -133,6 +148,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     'repetir un correo ya dado no vuelve a avisar',
   );
   assert.ok(hasNewContact('mejor a mi correo: ana@x.mx', ['mi WhatsApp es 222-555-1234']), 'un contacto distinto sí cuenta');
+
+  assert.match(catalogTool('promociones del mes').description, /promociones del mes/);
 
   console.log('tools.ts self-check passed');
 }

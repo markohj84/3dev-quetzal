@@ -94,6 +94,20 @@ export const ModelConfig = z.object({
   corpusWarnTokens: z.number().int().positive().default(40_000),
 });
 
+/**
+ * Business data that changes too often for the knowledge base — promotions,
+ * stock, current prices — read live from a Google Sheet published as CSV.
+ * Only public data: anyone with the URL can read a published Sheet.
+ */
+export const CatalogConfig = z.object({
+  /** File → Share → Publish to web → CSV. */
+  url: z.string().url(),
+  /** What the sheet holds, in the business's words. It is what makes the model call the tool. */
+  description: z.string(),
+  /** Rows past this are cut and logged: the sign to filter server-side. */
+  maxRows: z.number().int().positive().default(300),
+});
+
 export const AssistantConfig = z.object({
   /** Slug used for storage keys and logs. */
   id: z.string().regex(/^[a-z0-9-]+$/),
@@ -113,6 +127,7 @@ export const AssistantConfig = z.object({
   model: ModelConfig.default({}),
   notify: NotifyConfig.default({}),
   followUp: FollowUpConfig.optional(),
+  catalog: CatalogConfig.optional(),
 
   /**
    * Topics the assistant must decline. Declarative on purpose — never
@@ -124,3 +139,4 @@ export const AssistantConfig = z.object({
 export type AssistantConfig = z.infer<typeof AssistantConfig>;
 export type SchedulingConfig = z.infer<typeof SchedulingConfig>;
 export type NotifyConfig = z.infer<typeof NotifyConfig>;
+export type CatalogConfig = z.infer<typeof CatalogConfig>;

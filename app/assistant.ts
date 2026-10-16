@@ -5,6 +5,7 @@ import { createEngine, loadCorpus } from '../core/engine';
 import { createCalendlyScheduler } from '../core/scheduling/calendly';
 import { createCalcomScheduler } from '../core/scheduling/calcom';
 import { createNullScheduler } from '../core/scheduling/types';
+import { createCatalog } from '../core/catalog';
 
 /**
  * One deployment, one client: CLIENT picks the folder under clients/. Each
@@ -51,6 +52,7 @@ async function build() {
     voice,
     corpus,
     scheduler,
+    catalog: config.catalog ? createCatalog(config.catalog) : undefined,
     // The SDK's default waits up to 10 minutes per attempt: a stalled call
     // held a reply for 17 minutes in testing. Better a fast failure the route
     // can answer than a person staring at "escribiendo…".

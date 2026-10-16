@@ -12,6 +12,8 @@ export interface PromptInput {
   scheduler: Scheduler;
   /** True once the meeting has already been offered this conversation. */
   hasOffered: boolean;
+  /** True when the client has a live catalog the model can look up. */
+  hasCatalog?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface PromptInput {
  * voice quietly drifts.
  */
 export function buildSystemPrompt(input: PromptInput): string {
-  const { config, voice, corpus, capabilities, scheduler, hasOffered } = input;
+  const { config, voice, corpus, capabilities, scheduler, hasOffered, hasCatalog } = input;
 
   const sections: string[] = [voice];
 
@@ -38,6 +40,20 @@ export function buildSystemPrompt(input: PromptInput): string {
       corpus.text || '(empty — decline all factual questions)',
     ].join('\n'),
   );
+
+  if (hasCatalog) {
+    sections.push(
+      [
+        '# Live catalog',
+        '',
+        'Some business data changes often and lives outside the knowledge base: call `lookup_catalog` to get it.',
+        'Never state a promotion, stock level or current price that `lookup_catalog` did not return this turn.',
+        'If something is not in what it returned, the business does not have it: say so, never invent it.',
+        'A row whose validity date has already passed is no longer current: do not offer it.',
+        'Where the tool and the knowledge base disagree, the tool is current.',
+      ].join('\n'),
+    );
+  }
 
   if (config.outOfScope.length) {
     sections.push(
@@ -144,6 +160,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.match(note, /Name: Laura/);
   assert.match(note, /tienda en línea/);
   assert.ok(!note.includes('Lau ✨'), 'lo que la persona dijo gana sobre el nombre de perfil');
+
+  const base = {
+    config: { outOfScope: [], scheduling: { durationMinutes: 30 } } as any,
+    voice: 'voz',
+    corpus: { text: 'conocimiento', estimatedTokens: 1 } as any,
+    capabilities: { maxLength: 4000, maxChips: 0, markup: 'plain' } as any,
+    scheduler: { provider: 'none', bookingUrl: () => '' } as any,
+    hasOffered: false,
+  };
+  assert.ok(!buildSystemPrompt(base).includes('lookup_catalog'), 'sin catálogo no se menciona el tool');
+  const withCatalog = buildSystemPrompt({ ...base, hasCatalog: true });
+  assert.match(withCatalog, /lookup_catalog/);
+  assert.match(withCatalog, /validity date has already passed/, 'una vigencia vencida ya no aplica');
 
   console.log('prompt.ts self-check passed');
 }

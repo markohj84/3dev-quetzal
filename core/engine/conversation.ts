@@ -8,6 +8,7 @@ import { buildContactNote, buildSystemPrompt, type KnownContact } from './prompt
 import {
   bookMeetingTool,
   captureLeadTool,
+  catalogTool,
   checkAvailabilityTool,
   hasNewContact,
   rememberContactTool,
@@ -15,6 +16,7 @@ import {
   type CapturedLead,
   type RememberedContact,
 } from '../tools';
+import { CATALOG_UNAVAILABLE, describeCatalog, type Catalog } from '../catalog';
 
 export interface Turn {
   role: 'user' | 'assistant';
@@ -38,10 +40,11 @@ export interface EngineDeps {
   corpus: Corpus;
   scheduler: Scheduler;
   client: Anthropic;
+  catalog?: Catalog;
 }
 
 export function createEngine(deps: EngineDeps) {
-  const { config, voice, corpus, scheduler, client } = deps;
+  const { config, voice, corpus, scheduler, client, catalog } = deps;
   const offerPattern = new RegExp(config.scheduling.offerPattern, 'i');
 
   if (corpus.estimatedTokens > config.model.corpusWarnTokens) {
@@ -129,6 +132,19 @@ export function createEngine(deps: EngineDeps) {
     }
   }
 
+  async function catalogText(): Promise<string> {
+    const today = new Intl.DateTimeFormat(config.locale, {
+      dateStyle: 'full',
+      timeZone: config.scheduling.timeZone,
+    }).format(new Date());
+    try {
+      return describeCatalog(await catalog!.lookup(), today);
+    } catch (error) {
+      console.error(`[${config.id}] catalog lookup failed`, error);
+      return CATALOG_UNAVAILABLE;
+    }
+  }
+
   return {
     async respond(
       state: ConversationState,
@@ -151,6 +167,7 @@ export function createEngine(deps: EngineDeps) {
         capabilities: adapter.capabilities,
         scheduler,
         hasOffered: state.hasOffered,
+        hasCatalog: Boolean(catalog && config.catalog),
       });
 
       const system: Anthropic.TextBlockParam[] = [
@@ -180,6 +197,7 @@ export function createEngine(deps: EngineDeps) {
       const tools = [
         captureLeadTool,
         ...(remembers ? [rememberContactTool] : []),
+        ...(catalog && config.catalog ? [catalogTool(config.catalog.description)] : []),
         ...(scheduler.availability ? [checkAvailabilityTool] : []),
         ...(scheduler.book ? [bookMeetingTool] : []),
       ];
@@ -232,6 +250,10 @@ export function createEngine(deps: EngineDeps) {
               tool_use_id: block.id,
               content: await availabilityText(),
             });
+            continue;
+          }
+          if (block.name === 'lookup_catalog') {
+            results.push({ type: 'tool_result', tool_use_id: block.id, content: await catalogText() });
             continue;
           }
           results.push({ type: 'tool_result', tool_use_id: block.id, content: 'ok' });
