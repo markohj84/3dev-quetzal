@@ -32,7 +32,7 @@ export interface ConversationState {
  * tool, gets the result, and answers, without that back-and-forth becoming
  * part of the persisted history. Bounds how many times it can loop before
  * we force it to just answer with whatever text it has. */
-const MAX_TOOL_ROUNDS = 3;
+const MAX_TOOL_ROUNDS = 5;
 
 export interface EngineDeps {
   config: AssistantConfig;
@@ -190,6 +190,8 @@ export function createEngine(deps: EngineDeps) {
       let remembered: RememberedContact | undefined;
       let booked: Booking | undefined;
       let proposedTimes = false;
+      // True while the model's last round asked for tools it hasn't read back yet.
+      let toolsPending = false;
 
       // remember_contact sits before the scheduling tools: listed after
       // book_meeting, the model stopped calling it on the turn someone says
@@ -225,7 +227,8 @@ export function createEngine(deps: EngineDeps) {
         // That empty round must not erase the answer it already wrote.
         if (roundText) text = roundText;
 
-        if (response.stop_reason !== 'tool_use' || toolUses.length === 0) break;
+        toolsPending = response.stop_reason === 'tool_use' && toolUses.length > 0;
+        if (!toolsPending) break;
 
         const results: Anthropic.ToolResultBlockParam[] = [];
         for (const block of toolUses) {
@@ -266,11 +269,13 @@ export function createEngine(deps: EngineDeps) {
         ];
       }
 
-      if (!text) {
+      if (!text || toolsPending) {
         // The model can end a round on a tool_use block with no text — rare,
         // but if it happens on every round up to MAX_TOOL_ROUNDS, the loop
         // exits with nothing to say. Force one plain answer rather than
-        // showing the person an empty message.
+        // showing the person an empty message. Also when the rounds ran out
+        // with tool results unread: a "déjame revisar" from round 0 must not
+        // stand in for the booking confirmation the last tool returned.
         const fallback = await client.messages.create({
           model: config.model.model,
           max_tokens: config.model.maxTokens,
@@ -282,7 +287,9 @@ export function createEngine(deps: EngineDeps) {
             .filter((block): block is Anthropic.TextBlock => block.type === 'text')
             .map((block) => block.text)
             .join('\n')
-            .trim() || 'Perdón, se me cruzaron los cables. ¿Me repites tu pregunta?';
+            .trim() ||
+          text ||
+          'Perdón, se me cruzaron los cables. ¿Me repites tu pregunta?';
       }
 
       const earlierUserTexts = state.history.filter((t) => t.role === 'user').map((t) => t.content);

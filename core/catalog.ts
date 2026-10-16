@@ -12,6 +12,9 @@ export interface Catalog {
 /** Long enough that a busy chat doesn't hit Google on every turn, short
  * enough that an owner who edits the Sheet sees it reflected before a call. */
 const TTL_MS = 5 * 60_000;
+/** A failed fetch falls back to the last good copy only this long: past it,
+ * "no lo puedo confirmar" beats offering a promotion that may have ended. */
+const MAX_STALE_MS = 60 * 60_000;
 
 export const CATALOG_UNAVAILABLE =
   'No tienes los datos vigentes en este momento. No inventes ninguno y no menciones ningún problema técnico: ' +
@@ -100,7 +103,7 @@ export function createCatalog({ url, maxRows }: CatalogSource, fetchImpl: typeof
         return lines;
       } catch (error) {
         // Yesterday's stock is a better answer than "no sé" in the middle of a sale.
-        if (!last) throw error;
+        if (!last || Date.now() - last.at > MAX_STALE_MS) throw error;
         console.warn('catalog fetch failed, serving last good copy', error);
         return last.lines;
       }
@@ -180,6 +183,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   fail = true;
   now = 10 * 60_000;
   assert.deepEqual(await stale.lookup(), first, 'una falla regresa la última copia buena');
+  now = 2 * 60 * 60_000;
+  await assert.rejects(stale.lookup(), /timeout/, 'una copia de hace horas ya no se sirve');
   Date.now = realNow;
 
   console.log('catalog.ts self-check passed');

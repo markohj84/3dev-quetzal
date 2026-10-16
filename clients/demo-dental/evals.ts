@@ -13,12 +13,34 @@ import { parseCsv } from '../../core/catalog.ts';
 
 // The same live Sheet the assistant reads, so editing it before a pitch
 // doesn't break the suite: the cases pick their rows from whatever is there.
-const [header = [], ...sheet] = config.catalog
-  ? parseCsv(await (await fetch(config.catalog.url)).text())
-  : [];
+// The dev server caches it up to 5 minutes, so right after an edit the two
+// can briefly disagree. Unreachable, only the catalog cases fail.
+async function readSheet(url: string): Promise<string[][]> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok || /text\/html/i.test(res.headers.get('content-type') ?? '')) {
+      throw new Error(`respondió ${res.status} ${res.headers.get('content-type')}`);
+    }
+    return parseCsv(await res.text());
+  } catch (error) {
+    sheetError = `no se pudo leer la hoja (${url}): ${(error as Error).message}`;
+    console.warn(`\x1b[33m${sheetError}\x1b[0m`);
+    return [];
+  }
+}
+let sheetError = '';
+const [header = [], ...sheet] = config.catalog ? await readSheet(config.catalog.url) : [];
 const col = (name: string) => header.findIndex((h) => h.trim().toLowerCase() === name);
 const rowsOf = (tipo: RegExp) => sheet.filter((r) => tipo.test(r[col('tipo')] ?? ''));
 const promos = rowsOf(/promo/i);
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** "Hasta el 30 de septiembre de 2026" → that date; anything else → null. */
+const until = (vigencia: string) => {
+  const m = vigencia.toLowerCase().match(/(\d{1,2}) de (\p{L}+) de (\d{4})/u);
+  const month = m ? MONTHS.indexOf(m[2]) : -1;
+  return month < 0 ? null : new Date(Number(m![3]), month, Number(m![1]), 23, 59);
+};
+const expired = promos.find((r) => (until(r[col('vigencia')] ?? '') ?? Infinity) < new Date());
 const soldOut = rowsOf(/producto/i).find((r) => (r[col('existencias')] ?? '').trim() === '0');
 const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 /** Paraphrase-proof: any long word of the row's name in the reply. */
@@ -76,15 +98,26 @@ const cases: Case[] = [
     name: 'catálogo: menciona una promoción de la hoja',
     turns: ['¿Tienen alguna promoción ahorita?'],
     check([r]) {
-      assert.ok(promos.length, 'la hoja del demo no tiene promociones');
-      assert.ok(promos.some((p) => mentions(r, p[col('nombre')])), `no mencionó ninguna promoción de la hoja: ${r}`);
+      assert.ok(promos.length, sheetError || 'la hoja del demo no tiene promociones');
+      const current = promos.filter((p) => p !== expired);
+      assert.ok(current.some((p) => mentions(r, p[col('nombre')])), `no mencionó ninguna promoción vigente de la hoja: ${r}`);
+    },
+  },
+  {
+    name: 'catálogo: una promoción vencida no se ofrece',
+    turns: [`¿Siguen con la promoción de ${expired?.[col('nombre')].toLowerCase() ?? 'brackets'}?`],
+    check([r]) {
+      assert.ok(expired, sheetError || 'la hoja del demo no tiene ninguna promoción vencida');
+      const price = expired![col('precio')].replace(/[^\d]/g, '');
+      assert.ok(!new RegExp(`\\b${price}\\b`).test(r.replace(/(\d)[,.](\d{3})/g, '$1$2')), `ofreció el precio de una promoción vencida: ${r}`);
+      assert.ok(!/s[ií],? (seguimos|sigue|contin[úu]a|est[áa] vigente)/i.test(r), `la dio por vigente: ${r}`);
     },
   },
   {
     name: 'catálogo: un producto agotado se dice agotado',
     turns: [`¿Tienen ${soldOut?.[col('nombre')] ?? 'cepillo eléctrico'}? Lo quiero comprar`],
     check([r]) {
-      assert.ok(soldOut, 'la hoja del demo no tiene ningún producto con existencias 0');
+      assert.ok(soldOut, sheetError || 'la hoja del demo no tiene ningún producto con existencias 0');
       assert.match(r, /agotad|no (lo )?tenemos|no hay|sin existencia|no (est[áa]|tenemos) disponible/i, `debería decir que no hay: ${r}`);
     },
   },
@@ -92,7 +125,7 @@ const cases: Case[] = [
     name: 'catálogo: al listar productos no ofrece los agotados',
     turns: ['¿Qué productos venden en la clínica? ¿Cuáles tienen disponibles?'],
     check([r]) {
-      assert.ok(soldOut, 'la hoja del demo no tiene ningún producto con existencias 0');
+      assert.ok(soldOut, sheetError || 'la hoja del demo no tiene ningún producto con existencias 0');
       assert.ok(!offersSoldOut(r, soldOut![col('nombre')]), `ofreció como disponible un producto agotado: ${r}`);
     },
   },
