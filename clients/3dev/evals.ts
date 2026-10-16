@@ -93,9 +93,10 @@ const cases: Case[] = [
     },
   },
   {
-    // Oferta 2 no consulta sistemas por sí sola (eso es automatización a la
-    // medida) y su seguimiento es un solo mensaje, no campañas.
-    name: 'Oferta 2 no promete consulta de inventario ni seguimiento ilimitado',
+    // Oferta 2 lee un catálogo en Google Sheet, pero conectar el sistema de
+    // inventario del negocio es automatización a la medida; y su seguimiento
+    // es un solo mensaje, no campañas.
+    name: 'Oferta 2 no promete conectar el sistema de inventario ni seguimiento ilimitado',
     turns: ['¿Quetzal / Flujos puede revisar mi inventario en tiempo real y escribirles a mis clientes cada semana para darles seguimiento?'],
     check([r]) {
       assert.ok(!/^\s*s[ií]\b/i.test(r), `no debería prometerlo: ${r}`);

@@ -57,6 +57,39 @@ Pon `url`, `eventTypeId` y `timeZone` en `assistant.config.ts`.
 
 ---
 
+## 2b. Catálogo en vivo (opcional, Oferta 2)
+
+Para datos que cambian seguido y el dueño quiere editar él mismo:
+promociones, productos y existencias, precios del día. Lo estable (servicios
+y sus precios) sigue en `knowledge/`: una sola fuente por dato.
+
+1. El cliente arma una Google Sheet. La primera fila son los encabezados
+   (por ejemplo `Tipo, Nombre, Precio, Detalle, Existencias, Vigencia`).
+   Las vigencias en palabras ("Hasta el 30 de noviembre de 2026"): el
+   asistente recibe la fecha de hoy y deja de ofrecer lo vencido. Un `0`
+   en una columna llamada Existencias, Stock, Inventario o Disponibles se
+   lee como agotado.
+2. **Archivo → Compartir → Publicar en la web → la hoja → CSV → Publicar.**
+   Copia la URL.
+3. En `assistant.config.ts`:
+   ```ts
+   catalog: {
+     url: 'https://docs.google.com/spreadsheets/d/e/…/pub?output=csv',
+     description: 'qué contiene, en palabras del negocio',
+   },
+   ```
+   `description` es lo que hace que el asistente consulte la hoja: di
+   exactamente qué datos hay ahí.
+4. Una línea en `knowledge/` que diga que esos datos se consultan al momento.
+5. Casos en `evals.ts` que lean la misma hoja (ver `clients/demo-dental/evals.ts`).
+
+**La hoja publicada es pública:** cualquiera con la URL la lee. Nunca costos
+internos, márgenes, proveedores ni datos de personas. Un cambio tarda hasta
+5 minutos en verse. Si el cliente despublica la hoja, el asistente dice que
+no lo puede confirmar y ofrece la cita; nunca inventa.
+
+---
+
 ## 3. WhatsApp (Meta)
 
 Lecciones que ya costaron un día cada una:

@@ -125,6 +125,17 @@ abajo) y solo se ofrece en canales con `stableContactId: true`; va antes de
 los tools de agenda en la lista, porque detrás de `book_meeting` el modelo
 dejaba de llamarlo.
 
+`lookup_catalog` (`core/catalog.ts`) lee una Google Sheet publicada como CSV
+— promociones, productos, existencias: lo que cambia demasiado para
+`knowledge/`. Solo existe si la config trae `catalog`; `catalog.description`
+entra a la descripción del tool, y es lo que hace que el modelo lo llame.
+Regresa la hoja completa (tope `maxRows`) con la fecha de hoy, para que
+una vigencia vencida se note, y marca `(agotado)` un 0 en una columna de
+existencias: con la regla solo en el prompt, el modelo seguía ofreciendo el
+agotado como alternativa. Caché de 5 min por instancia; si Google falla,
+sirve la última copia buena, y sin copia el modelo dice que no lo puede
+confirmar. Solo datos públicos: la hoja publicada la lee cualquiera.
+
 ## Ficha de contacto
 
 La sesión sigue muriendo a las 24h. Lo que sobrevive es una ficha corta por
@@ -196,10 +207,12 @@ no construye sitios. La escalera de IA es Oferta 0
 real) — reflejada en `clients/3dev/knowledge/` y `voice.md`. Eso ya está
 implementado y probado.
 
-**Oferta 2 ("que actúe") ya captura leads y agenda citas dentro del chat
-(Cal.com).** Faltan "consulta información del negocio en vivo" y el
-seguimiento automático a leads: `knowledge/ofertas.md` los declara como
-"no hace" — ampliarlo solo cuando existan.
+**Oferta 2 ("que actúe") está completa:** captura leads, agenda dentro del
+chat (Cal.com), avisa por correo y WhatsApp, da seguimiento automático y
+consulta un catálogo en vivo (Google Sheet). Conectar sistemas propios del
+cliente (POS, expedientes, saldos) sigue siendo automatización a la medida:
+no hay tool genérico, y las consultas de datos personales necesitan
+verificar identidad antes de existir.
 
 El documento de estrategia que definió esta escalera también da por hechas
 otras piezas de ingeniería que **no existen todavía**. No meterlas en el

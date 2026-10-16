@@ -33,11 +33,12 @@ Todo lo de Quetzal / Asistente, más automatización conectada al negocio: el as
 - Agenda citas dentro de la conversación: propone horarios reales de la agenda del negocio y, cuando la persona elige uno, la cita queda hecha en el calendario sin salir del chat.
 - Cada persona que deja sus datos queda registrada, y el negocio recibe el aviso en ese momento.
 - Da seguimiento: si alguien deja su teléfono y no agenda, el asistente le escribe una sola vez por WhatsApp al día siguiente para ofrecerle la cita.
+- Consulta al momento un catálogo que el negocio mantiene en una hoja de Google (promociones, productos, existencias).
 - Automatizaciones de alcance acotado (hasta 2 o 3), definidas caso por caso en la llamada de diagnóstico.
 - Las acciones sensibles siempre pasan por aprobación humana.
 - Soporte prioritario.
 
-No consulta por sí solo los sistemas del negocio (inventario, expedientes, saldos): cada negocio los tiene en un lugar distinto, así que conectarlos es una de las automatizaciones a la medida que se definen en la llamada de diagnóstico. El seguimiento es un solo mensaje: no insiste ni manda campañas.
+Consulta al momento un catálogo que el negocio edita en una hoja de Google: promociones, productos, existencias o precios del día. Conectar sistemas propios (un punto de venta, expedientes, saldos de clientes) es una de las automatizaciones a la medida que se definen en la llamada de diagnóstico. El seguimiento es un solo mensaje: no insiste ni manda campañas.
 
 Implementación: $19,900 MXN. Mensualidad: $4,990 MXN.
 
