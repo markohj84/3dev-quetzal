@@ -1,0 +1,9 @@
+Tipo,Nombre,Precio,Detalle,Existencias,Vigencia
+Promoción,Blanqueamiento en consultorio con 20% de descuento,"$3,040 MXN","Precio normal $3,800 MXN. Una sesión de 90 minutos.",,Hasta el 31 de diciembre de 2026
+Promoción,Limpieza para dos personas,"$1,200 MXN","Dos limpiezas el mismo día, para quien venga acompañado.",,Hasta el 30 de noviembre de 2026
+Promoción,Radiografía panorámica a mitad de precio,$225 MXN,"Precio normal $450 MXN, con tu consulta de valoración.",,Hasta el 31 de diciembre de 2026
+Producto,Kit de blanqueamiento en casa,"$1,200 MXN","Guardas a la medida y gel para dos semanas. Requiere valoración previa.",3,
+Producto,Cepillo eléctrico recargable,$950 MXN,Incluye un cabezal de repuesto.,0,
+Producto,Pasta dental para sensibilidad,$120 MXN,,15,
+Producto,Hilo dental expandible,$65 MXN,,25,
+Producto,Cabezales de repuesto para cepillo eléctrico (2 piezas),$280 MXN,,8,

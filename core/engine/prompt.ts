@@ -50,6 +50,8 @@ export function buildSystemPrompt(input: PromptInput): string {
         'Never state a promotion, stock level or current price that `lookup_catalog` did not return this turn.',
         'If something is not in what it returned, the business does not have it: say so, never invent it.',
         'A row whose validity date has already passed is no longer current: do not offer it.',
+        // Without this it listed a product with stock 0 among the ones "que sí tenemos".
+        'A row with zero stock is sold out: never list it as available or suggest it as an alternative; if you name it, say it is sold out.',
         'Where the tool and the knowledge base disagree, the tool is current.',
       ].join('\n'),
     );
@@ -173,6 +175,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const withCatalog = buildSystemPrompt({ ...base, hasCatalog: true });
   assert.match(withCatalog, /lookup_catalog/);
   assert.match(withCatalog, /validity date has already passed/, 'una vigencia vencida ya no aplica');
+  assert.match(withCatalog, /zero stock is sold out/, 'un agotado no se ofrece');
 
   console.log('prompt.ts self-check passed');
 }

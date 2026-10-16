@@ -10,3 +10,4 @@ Es una clínica de ejemplo: forma parte de un demo de Quetzal, el asistente que 
 - **Estacionamiento:** sí, para pacientes, frente a la clínica.
 - **Formas de pago:** efectivo, tarjeta de débito o crédito y transferencia. Meses sin intereses con tarjetas participantes en tratamientos desde $5,000 MXN.
 - **Factura:** sí, se emite factura.
+- **Productos y promociones:** la clínica vende productos de higiene dental en recepción. Qué hay en existencia y qué promociones están vigentes cambia seguido: Lía lo consulta al momento.

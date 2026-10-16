@@ -49,13 +49,23 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((cell) => cell.trim()));
 }
 
+const STOCK_HEADER = /existencia|stock|inventario|disponible/i;
+
 /** One line per row, each value under its header — the model reads
- * "Existencias: 0" unambiguously, where a bare "0" in a table it may not. */
+ * "Existencias: 0" unambiguously, where a bare "0" in a table it may not.
+ * Sold out is spelled out in the data itself: told only in the prompt, the
+ * model still listed a stock-0 product among the ones available. */
 export function formatRows(rows: string[][]): string[] {
   const [headers = [], ...body] = rows;
   return body.map((r) =>
     r
-      .map((cell, i) => (cell.trim() ? `${headers[i]?.trim() || `Columna ${i + 1}`}: ${cell.trim()}` : ''))
+      .map((cell, i) => {
+        const value = cell.trim();
+        if (!value) return '';
+        const header = headers[i]?.trim() || `Columna ${i + 1}`;
+        const soldOut = value === '0' && STOCK_HEADER.test(header) ? ' (agotado)' : '';
+        return `${header}: ${value}${soldOut}`;
+      })
       .filter(Boolean)
       .join(' · '),
   );
@@ -120,6 +130,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ]),
     ['Tipo: Producto · Nombre: Hilo dental · Existencias: 25', 'Tipo: Promoción · Nombre: Limpieza doble'],
   );
+  assert.deepEqual(
+    formatRows([['Nombre', 'Stock'], ['Cepillo', '0'], ['Hilo', '10']]),
+    ['Nombre: Cepillo · Stock: 0 (agotado)', 'Nombre: Hilo · Stock: 10'],
+    'un 0 en una columna de existencias se marca agotado',
+  );
+  assert.deepEqual(formatRows([['Nombre', 'Precio'], ['Valoración', '0']]), ['Nombre: Valoración · Precio: 0'], 'un 0 en otra columna no');
 
   // describeCatalog: la fecha de hoy va en el texto, para que una vigencia pasada se note.
   const described = describeCatalog(['Nombre: Hilo dental'], 'jueves, 15 de octubre de 2026');
@@ -137,7 +153,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     calls++;
     return csv(sheet);
   });
-  assert.deepEqual(await cached.lookup(), ['Nombre: Hilo dental · Existencias: 25', 'Nombre: Cepillo · Existencias: 0']);
+  assert.deepEqual(await cached.lookup(), ['Nombre: Hilo dental · Existencias: 25', 'Nombre: Cepillo · Existencias: 0 (agotado)']);
   await cached.lookup();
   assert.equal(calls, 1, 'el segundo lookup sale del caché');
 

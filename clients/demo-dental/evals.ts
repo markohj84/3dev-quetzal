@@ -9,6 +9,29 @@
 import assert from 'node:assert';
 import config from './assistant.config.ts';
 import { genericCases, runEvals, type Case } from '../../scripts/evals.ts';
+import { parseCsv } from '../../core/catalog.ts';
+
+// The same live Sheet the assistant reads, so editing it before a pitch
+// doesn't break the suite: the cases pick their rows from whatever is there.
+const [header = [], ...sheet] = config.catalog
+  ? parseCsv(await (await fetch(config.catalog.url)).text())
+  : [];
+const col = (name: string) => header.findIndex((h) => h.trim().toLowerCase() === name);
+const rowsOf = (tipo: RegExp) => sheet.filter((r) => tipo.test(r[col('tipo')] ?? ''));
+const promos = rowsOf(/promo/i);
+const soldOut = rowsOf(/producto/i).find((r) => (r[col('existencias')] ?? '').trim() === '0');
+const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/** Paraphrase-proof: any long word of the row's name in the reply. */
+const mentions = (reply: string, name: string) =>
+  plain(name).split(/\W+/).filter((w) => w.length >= 6).some((w) => plain(reply).includes(w));
+/** A clause naming the sold-out product without saying it's out. "Cabezales
+ * para cepillo eléctrico" is a different product and doesn't count. */
+const offersSoldOut = (reply: string, name: string) => {
+  const key = plain(name).split(/\s+/).slice(0, 2).join(' ');
+  return plain(reply)
+    .split(/[,.;\n]/)
+    .some((c) => c.includes(key) && !c.includes(`para ${key}`) && !/agotad|sin (stock|existencia)|no (lo |los )?(tenemos|hay)/.test(c));
+};
 
 const cases: Case[] = [
   ...genericCases({ clientId: config.id, offer: /te agendo|agendemos/i, whatsapp: false }),
@@ -47,6 +70,40 @@ const cases: Case[] = [
     turns: ['¿Esta clínica existe de verdad? ¿Eres un bot?'],
     check([r]) {
       assert.match(r, /demo|ejemplo/i, `debería decir que es un demo: ${r}`);
+    },
+  },
+  {
+    name: 'catálogo: menciona una promoción de la hoja',
+    turns: ['¿Tienen alguna promoción ahorita?'],
+    check([r]) {
+      assert.ok(promos.length, 'la hoja del demo no tiene promociones');
+      assert.ok(promos.some((p) => mentions(r, p[col('nombre')])), `no mencionó ninguna promoción de la hoja: ${r}`);
+    },
+  },
+  {
+    name: 'catálogo: un producto agotado se dice agotado',
+    turns: [`¿Tienen ${soldOut?.[col('nombre')] ?? 'cepillo eléctrico'}? Lo quiero comprar`],
+    check([r]) {
+      assert.ok(soldOut, 'la hoja del demo no tiene ningún producto con existencias 0');
+      assert.match(r, /agotad|no (lo )?tenemos|no hay|sin existencia|no (est[áa]|tenemos) disponible/i, `debería decir que no hay: ${r}`);
+    },
+  },
+  {
+    name: 'catálogo: al listar productos no ofrece los agotados',
+    turns: ['¿Qué productos venden en la clínica? ¿Cuáles tienen disponibles?'],
+    check([r]) {
+      assert.ok(soldOut, 'la hoja del demo no tiene ningún producto con existencias 0');
+      assert.ok(!offersSoldOut(r, soldOut![col('nombre')]), `ofreció como disponible un producto agotado: ${r}`);
+    },
+  },
+  {
+    name: 'catálogo: no inventa un producto que no está en la hoja',
+    turns: ['¿Venden irrigador bucal? ¿Cuánto cuesta?'],
+    check([r]) {
+      assert.ok(!/irrigador[^.\n]{0,40}\$\s?\d|\$\s?\d[\d,]*[^.\n]{0,40}irrigador/i.test(r), `no debe dar precio de irrigador: ${r}`);
+      assert.ok(!/^s[ií]\b|(?<!no )(tenemos|vendemos|manejamos) (el |un )?irrigador/i.test(r.trim()), `no debe decir que lo vende: ${r}`);
+      // Seen 2026-10-15: offering alternatives, it listed the sold-out one.
+      if (soldOut) assert.ok(!offersSoldOut(r, soldOut[col('nombre')]), `ofreció como alternativa un producto agotado: ${r}`);
     },
   },
 ];

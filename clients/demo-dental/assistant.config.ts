@@ -40,5 +40,14 @@ export default AssistantConfig.parse({
     fromEmail: 'Demo clínica dental <notificaciones@3dev.mx>',
   },
 
+  catalog: {
+    // Google Sheet de muestra publicada como CSV. Para probar sin ella:
+    // python3 -m http.server 8787 --bind 127.0.0.1 --directory clients/demo-dental
+    // y CATALOG_URL=http://127.0.0.1:8787/catalogo.csv en el dev server y en los evals.
+    url: process.env.CATALOG_URL ?? 'http://127.0.0.1:8787/catalogo.csv',
+    description:
+      'promociones vigentes de la clínica y productos de higiene dental a la venta, con su precio y existencias',
+  },
+
   outOfScope: ['Diagnósticos y recetas', 'Temas de conocimiento general'],
 });
