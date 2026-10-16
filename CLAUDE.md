@@ -133,8 +133,8 @@ Regresa la hoja completa (tope `maxRows`) con la fecha de hoy, para que
 una vigencia vencida se note, y marca `(agotado)` un 0 en una columna de
 existencias: con la regla solo en el prompt, el modelo seguía ofreciendo el
 agotado como alternativa. Caché de 5 min por instancia; si Google falla,
-sirve la última copia buena, y sin copia el modelo dice que no lo puede
-confirmar. Solo datos públicos: la hoja publicada la lee cualquiera.
+sirve la última copia buena (hasta 1 h), y sin copia el modelo dice que no
+lo puede confirmar. Solo datos públicos: la hoja publicada la lee cualquiera.
 
 ## Ficha de contacto
 
