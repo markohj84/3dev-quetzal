@@ -41,10 +41,12 @@ export default AssistantConfig.parse({
   },
 
   catalog: {
-    // Google Sheet de muestra publicada como CSV. Para probar sin ella:
-    // python3 -m http.server 8787 --bind 127.0.0.1 --directory clients/demo-dental
-    // y CATALOG_URL=http://127.0.0.1:8787/catalogo.csv en el dev server y en los evals.
-    url: process.env.CATALOG_URL ?? 'http://127.0.0.1:8787/catalogo.csv',
+    // Google Sheet de muestra publicada como CSV (cuenta de Marco). Para probar
+    // sin ella: python3 -m http.server 8787 --bind 127.0.0.1 --directory clients/demo-dental
+    // y CATALOG_URL=http://127.0.0.1:8787/catalogo.csv.
+    url:
+      process.env.CATALOG_URL ??
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vSKjOXpYHFUCbpGpHvJmkicAudwdPr-JHPAk7KuE00G-cT26Cx7qHaBA-i9Ya0sg1BVmBVE5ZaPSgob/pub?output=csv',
     description:
       'promociones vigentes de la clínica y productos de higiene dental a la venta, con su precio y existencias',
   },
