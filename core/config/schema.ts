@@ -88,8 +88,17 @@ export const ModelConfig = z.object({
    * Haiku by default: same anti-fabrication behaviour at a fraction of the
    * cost. Move a client to a larger model only if evals show it's needed.
    */
-  model: z.string().default('claude-haiku-4-5-20251001'),
-  maxTokens: z.number().int().positive().default(1024),
+  model: z.string().default('claude-haiku-5-5'),
+  /** Haiku 5.5 thinks by default and that thinking counts here: 1024 left
+   * too little room for a full answer after it. */
+  maxTokens: z.number().int().positive().default(2048),
+  /**
+   * Thinking depth. "low" is enough for a sales chat and keeps replies fast;
+   * evals passed the same as Haiku 4.5 at about 1/7 of the cost. A client
+   * moved back to a model older than Haiku 5.5 sets it to null — those
+   * models reject the parameter.
+   */
+  effort: z.enum(['low', 'medium', 'high']).nullable().default('low'),
   /** Corpus above this token estimate should move to retrieval. */
   corpusWarnTokens: z.number().int().positive().default(40_000),
 });

@@ -46,6 +46,12 @@ export interface EngineDeps {
 export function createEngine(deps: EngineDeps) {
   const { config, voice, corpus, scheduler, client, catalog } = deps;
   const offerPattern = new RegExp(config.scheduling.offerPattern, 'i');
+  const { model, maxTokens, effort } = config.model;
+  const modelParams = {
+    model,
+    max_tokens: maxTokens,
+    ...(effort ? { output_config: { effort } } : {}),
+  };
 
   if (corpus.estimatedTokens > config.model.corpusWarnTokens) {
     console.warn(
@@ -206,8 +212,7 @@ export function createEngine(deps: EngineDeps) {
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const response = await client.messages.create({
-          model: config.model.model,
-          max_tokens: config.model.maxTokens,
+          ...modelParams,
           system,
           tools,
           messages,
@@ -277,8 +282,7 @@ export function createEngine(deps: EngineDeps) {
         // with tool results unread: a "déjame revisar" from round 0 must not
         // stand in for the booking confirmation the last tool returned.
         const fallback = await client.messages.create({
-          model: config.model.model,
-          max_tokens: config.model.maxTokens,
+          ...modelParams,
           system,
           messages,
         });
@@ -299,8 +303,7 @@ export function createEngine(deps: EngineDeps) {
         // Same tools and messages as the loop, so the cached prefix still hits.
         try {
           const forced = await client.messages.create({
-            model: config.model.model,
-            max_tokens: config.model.maxTokens,
+            ...modelParams,
             system,
             tools,
             tool_choice: { type: 'tool', name: captureLeadTool.name },

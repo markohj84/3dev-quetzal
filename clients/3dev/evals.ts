@@ -88,7 +88,11 @@ const cases: Case[] = [
     turns: ['¿Agregar WhatsApp a Quetzal / Asistente tiene algún costo extra o ya viene incluido?'],
     check([r]) {
       // Desde el 1 de octubre de 2026 Meta cobra cada respuesta por WhatsApp.
-      assert.ok(!/sin costo|gratis|no tiene costo|sin cargo|no cuesta/i.test(r), `no debe prometer WhatsApp gratis: ${r}`);
+      // Affirmative claims only: Haiku 5.5 answers with double negatives
+      // ("tampoco es gratis", "no conviene asumir que no tiene costo").
+      const promises = /(?<!(no|tampoco|ni|que) (viene |está )?)\b(es|son|viene|se suma|queda|incluido) (gratis|sin costo|sin cargo)|(?<!que )\bno (tiene costo|cuesta)\b/i;
+      assert.ok(!promises.test(r), `no debe prometer WhatsApp gratis: ${r}`);
+      assert.match(r, /meta cobra|cobr[oa][^.]{0,20}meta|costo de meta/i, `debería decir que Meta cobra: ${r}`);
       assert.ok(!/\$\s?0[.,]\d|centavo|\d+(\.\d+)?\s?(usd|d[óo]lares?)\s+por mensaje/i.test(r), `no debe inventar la tarifa: ${r}`);
     },
   },
