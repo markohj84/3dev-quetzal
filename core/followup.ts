@@ -52,6 +52,11 @@ export function dueFollowUps(
   return [...byPhone].map(([phone, lead]) => ({ phone, lead }));
 }
 
+/** A phone as Cal.com stores it (+521…) in the form leadPhone() produces. */
+export function metaPhone(phone: string): string {
+  return toMetaRecipient(phone.replace(/\D/g, ''));
+}
+
 /** "Juan Pérez" → "Juan": the template greets, it doesn't read out a record. */
 export function firstName(nombre: string): string {
   const first = nombre.trim().split(/\s+/)[0] ?? '';
@@ -85,6 +90,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(due.length, 1, 'muy reciente y muy viejo quedan fuera; mismo número cuenta una vez');
   assert.equal(due[0].lead.nombre, 'Ana López', 'gana el lead más reciente');
   assert.equal(dueFollowUps([{ ...web, contactId: 'eval-3-123', at: ago(30) }], now, 24, '52').length, 0, 'un lead de eval nunca recibe WhatsApp');
+
+  assert.equal(metaPhone('+52 1 222 534 4440'), leadPhone(wa), 'el teléfono de Cal.com y el del lead se comparan igual');
 
   assert.equal(firstName('Juan Pérez'), 'Juan');
   assert.equal(firstName('<UNKNOWN>'), '', 'el placeholder del modelo no se saluda');

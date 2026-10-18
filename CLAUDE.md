@@ -181,8 +181,10 @@ caída cuesta un mensaje, nunca manda dos — y también cuando alguien agenda
 en el chat. El texto se escribe en la sesión para que un "sí" tenga
 contexto. Los leads con contactId `eval-` se ignoran siempre. Configurado en
 `assistant.config.ts` (`followUp`); sin esa sección, el cron no hace nada.
-Límite conocido: quien agenda por el enlace de Cal.com (no en el chat) sí
-recibiría el seguimiento.
+Antes de enviar, el cron le pregunta a Cal.com quién agendó desde el lead más
+viejo de la ventana (`Scheduler.bookedPhones`), así que tampoco le escribe a
+quien agendó por el enlace. Si Cal.com no responde, ese día no sale ningún
+seguimiento (503): la ventana abarca dos corridas y el siguiente día los alcanza.
 
 ## Registro de conversaciones
 

@@ -59,7 +59,7 @@ async function build() {
     client: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 30_000, maxRetries: 1 }),
   });
 
-  return { config, engine, corpus };
+  return { config, engine, corpus, scheduler };
 }
 
 export async function getAssistant() {

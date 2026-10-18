@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../../assistant';
 import { sendTemplate } from '../../../../core/channels/whatsapp';
-import { dueFollowUps, firstName } from '../../../../core/followup';
+import { dueFollowUps, firstName, metaPhone } from '../../../../core/followup';
 import { createFollowUpStore, createLeadStore, createSessionStore } from '../../../../core/store/session-store';
 
 /**
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     return new Response('forbidden', { status: 403 });
   }
 
-  const { config } = await getAssistant();
+  const { config, scheduler } = await getAssistant();
   const followUp = config.followUp;
   if (!followUp) return NextResponse.json({ sent: 0, reason: 'follow-up disabled' });
 
@@ -23,9 +23,27 @@ export async function GET(request: Request) {
   const sessions = createSessionStore();
   const due = dueFollowUps(await createLeadStore(config.id).list(), new Date(), followUp.afterHours, followUp.countryCode);
 
+  // Booking through the link never passes through the chat, so only the
+  // calendar knows. Unreachable, nobody gets a nudge today: the window spans
+  // two runs, and a late nudge beats one to someone who already booked.
+  let booked = new Set<string>();
+  if (due.length && scheduler.bookedPhones) {
+    const since = new Date(Math.min(...due.map(({ lead }) => new Date(lead.at).getTime())));
+    try {
+      booked = new Set((await scheduler.bookedPhones(since)).map(metaPhone));
+    } catch (error) {
+      console.error(`[${config.id}] follow-up skipped: could not read bookings`, error);
+      return NextResponse.json({ due: due.length, sent: 0, reason: 'bookings unavailable' }, { status: 503 });
+    }
+  }
+
   let sent = 0;
   for (const { phone, lead } of due) {
     if (await store.has(phone)) continue;
+    if (booked.has(phone)) {
+      await store.mark(phone, 'booked');
+      continue;
+    }
     // Marked before sending: a crash between the two must cost one nudge,
     // never send two.
     await store.mark(phone, 'sent');

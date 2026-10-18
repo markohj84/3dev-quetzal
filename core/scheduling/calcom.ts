@@ -101,6 +101,19 @@ export function createCalcomScheduler(url: string, opts: CalcomOptions = {}): Sc
     return { booked: true, start, label: describeSlot(start, locale, timeZone) };
   };
 
+  scheduler.bookedPhones = async (since) => {
+    // ponytail: one page of the 100 newest; a calendar with more bookings than
+    // that in the follow-up window (~3 days) needs pagination.
+    const query = new URLSearchParams({ sortCreated: 'desc', take: '100' });
+    const res = await fetch(`${API}/bookings?${query}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, 'cal-api-version': '2024-08-13' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`Cal.com bookings failed: ${res.status} ${await res.text()}`);
+    const body = (await res.json()) as { data?: CalcomBooking[] };
+    return phonesFromBookings(body.data ?? [], since);
+  };
+
   return scheduler;
 }
 
@@ -134,6 +147,21 @@ export function isSlot(iso: string, when: SlotPick, timeZone: string): boolean {
   );
 }
 
+export interface CalcomBooking {
+  status?: string;
+  createdAt?: string;
+  attendees?: { phoneNumber?: string | null }[];
+}
+
+/** Someone who cancelled is left out on purpose: the nudge is still useful to them. */
+export function phonesFromBookings(bookings: CalcomBooking[], since: Date): string[] {
+  return bookings
+    .filter((b) => b.status !== 'cancelled' && b.createdAt && new Date(b.createdAt) >= since)
+    .flatMap((b) => b.attendees ?? [])
+    .map((a) => a.phoneNumber)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0);
+}
+
 // Self-check: `node core/scheduling/calcom.ts`
 if (import.meta.url === `file://${process.argv[1]}`) {
   const TZ = 'America/Mexico_City';
@@ -149,6 +177,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(missingField('{"error":{"message":"responses - {email}error_required_field, "}}'), 'correo');
   assert.equal(missingField('{"message":"responses - {attendeePhoneNumber}error_required_field, "}'), 'teléfono');
   assert.equal(missingField('{"message":"slot not available"}'), null, 'otro 400 no se confunde con un dato faltante');
+
+  const since = new Date('2026-10-10T00:00:00Z');
+  assert.deepEqual(
+    phonesFromBookings(
+      [
+        { status: 'accepted', createdAt: '2026-10-11T20:00:00Z', attendees: [{ phoneNumber: '+5212225344440' }] },
+        { status: 'cancelled', createdAt: '2026-10-11T21:00:00Z', attendees: [{ phoneNumber: '+522225550101' }] },
+        { status: 'accepted', createdAt: '2026-10-01T10:00:00Z', attendees: [{ phoneNumber: '+522225559999' }] },
+        { status: 'accepted', createdAt: '2026-10-12T10:00:00Z', attendees: [{ phoneNumber: null }, {}] },
+      ],
+      since,
+    ),
+    ['+5212225344440'],
+    'solo citas vigentes creadas desde `since`, y solo las que traen teléfono',
+  );
 
   console.log('calcom.ts self-check passed');
 }

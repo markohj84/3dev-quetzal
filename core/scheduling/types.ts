@@ -20,6 +20,12 @@ export interface Scheduler {
    * Optional: a provider whose API cannot book (Calendly) omits it.
    */
   book?(when: SlotPick, attendee: Attendee): Promise<BookingOutcome>;
+  /**
+   * Phones of everyone who booked since then, however they booked — in the
+   * chat or through the link. The follow-up skips them. Optional: without
+   * it, only bookings made in the chat are known.
+   */
+  bookedPhones?(since: Date): Promise<string[]>;
 }
 
 export interface SlotPick {
