@@ -87,7 +87,8 @@ export default function PrivacidadPage() {
           <li><strong>Meta (WhatsApp Business Platform)</strong>: envío y recepción de mensajes de WhatsApp.</li>
           <li><strong>Anthropic</strong>: generación de las respuestas del asistente.</li>
           <li><strong>Vercel</strong>: alojamiento del sitio y del servicio.</li>
-          <li><strong>Upstash</strong>: almacenamiento temporal de sesiones y conversaciones.</li>
+          <li><strong>Upstash</strong>: almacenamiento temporal de la conversación en curso.</li>
+          <li><strong>Supabase</strong>: base de datos donde se guardan las conversaciones y los datos de contacto que compartes.</li>
           <li><strong>Resend</strong>: envío de notificaciones internas por correo.</li>
           <li><strong>Cal.com</strong>: agenda de llamadas, si decides programar una.</li>
         </ul>

@@ -2,7 +2,7 @@
 //   node --env-file=.env.local scripts/migrate-redis.mjs quetzal-3dev demo-dental [--dry-run] [--force]
 // Se salta los eval-*. Las llaves de Redis no se tocan: vencen solas en 90 días.
 import { Redis } from '@upstash/redis';
-import { db, logEntryToMessages, leadToRow } from '../core/store/db.ts';
+import { db, backfillContacts, logEntryToMessages, leadToRow } from '../core/store/db.ts';
 
 const kv = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
 const dry = process.argv.includes('--dry-run');
@@ -95,7 +95,7 @@ for (const clientId of clients) {
   console.log(`${clientId}: ${contacts.size} contactos, ${turns.length} turnos (${messages.length} mensajes), ${leads.length} leads, ${followUps.length} seguimientos`);
   if (dry) continue;
 
-  await insertChunks('contacts', [...contacts.values()], { onConflict: 'client_id,contact_id' });
+  await backfillContacts([...contacts.values()]);
   await insertChunks('messages', messages);
   await insertChunks('leads', leads);
   await insertChunks('follow_ups', followUps, { onConflict: 'client_id,phone', ignoreDuplicates: true });

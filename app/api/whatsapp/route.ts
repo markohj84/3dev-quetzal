@@ -54,7 +54,11 @@ export async function POST(request: Request) {
   const profiles = createProfileStore(config.id);
 
   try {
-    const profile = await profiles.get(inbound.contactId);
+    // No profile is a fine way to start a conversation; no reply is not.
+    const profile = await profiles.get(inbound.contactId).catch((error) => {
+      console.error(`[${config.id}] profile load failed`, error);
+      return null;
+    });
     const result = await engine.respond(state, inbound.text, adapter, {
       ...profile,
       displayName: inbound.displayName,
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
           lastSeenAt: new Date().toISOString(),
         },
         'whatsapp',
-      );
+      ).catch((error) => console.error(`[${config.id}] profile save failed`, error));
     }
 
     if (!state.hasOffered && result.state.hasOffered) {
@@ -128,7 +132,12 @@ export async function POST(request: Request) {
         { nombre: '', contacto: result.booked.telefono ?? '', channel: 'whatsapp', contactId: inbound.contactId, at: '' },
         config.followUp?.countryCode,
       );
-      if (phone) await createFollowUpStore(config.id).mark(phone, 'booked');
+      // The meeting exists either way; worst case is one extra nudge, never a lost alert.
+      if (phone) {
+        await createFollowUpStore(config.id)
+          .mark(phone, 'booked')
+          .catch((error) => console.error(`[${config.id}] follow-up mark failed`, error));
+      }
       await createLeadNotifier(config.notify).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,

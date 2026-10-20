@@ -73,7 +73,12 @@ export async function POST(request: Request) {
         { nombre: '', contacto: result.booked.telefono ?? '', channel: 'web', contactId: inbound.contactId, at: '' },
         config.followUp?.countryCode,
       );
-      if (phone) await createFollowUpStore(config.id).mark(phone, 'booked');
+      // The meeting exists either way; worst case is one extra nudge, never a lost alert.
+      if (phone) {
+        await createFollowUpStore(config.id)
+          .mark(phone, 'booked')
+          .catch((error) => console.error(`[${config.id}] follow-up mark failed`, error));
+      }
       await createLeadNotifier(config.notify).notify({
         channel: 'web',
         contactId: inbound.contactId,

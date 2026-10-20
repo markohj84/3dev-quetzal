@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { CapturedLead } from '../tools';
 
 let client: SupabaseClient | null = null;
+const DB_TIMEOUT_MS = 3_000;
 
 /**
  * Lazy: `next build` imports every route without the env, and a Preview
@@ -13,7 +14,14 @@ export function db(): SupabaseClient {
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
-    client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    client = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      // A database that hangs must cost a log line, not the person's reply:
+      // every caller in a route already treats a failure as non-fatal. The
+      // built-in retries (1 s, 2 s, 4 s on reads) would stretch 3 s into 19 s.
+      db: { retry: false },
+      global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(DB_TIMEOUT_MS) }) },
+    });
   }
   return client;
 }
@@ -207,6 +215,25 @@ export function createConversationLog(clientId: string): ConversationLog {
   };
 }
 
+/**
+ * Older history into contacts without undoing newer writes (the one-time
+ * Redis migration runs after the deploy, so live traffic is already here):
+ * inserts the missing ones; for the rest, only moves first_seen_at back and
+ * fills fields that are still empty.
+ */
+export async function backfillContacts(rows: ContactRow[]): Promise<void> {
+  if (!rows.length) return;
+  await must(db().from('contacts').upsert(rows, { onConflict: 'client_id,contact_id', ignoreDuplicates: true }));
+  for (const row of rows) {
+    const key = { client_id: row.client_id, contact_id: row.contact_id };
+    const contacts = () => db().from('contacts');
+    if (row.first_seen_at) await must(contacts().update({ first_seen_at: row.first_seen_at }).match(key).gt('first_seen_at', row.first_seen_at));
+    if (row.name) await must(contacts().update({ name: row.name }).match(key).is('name', null));
+    if (row.interest) await must(contacts().update({ interest: row.interest }).match(key).is('interest', null));
+    if (row.left_contact) await must(contacts().update({ left_contact: true }).match(key).eq('left_contact', false));
+  }
+}
+
 /** A captured lead is a business record someone has to follow up on: it never expires. */
 export function createLeadStore(clientId: string): LeadStore {
   return {
@@ -309,6 +336,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   const leads = createLeadStore('c');
   await assert.rejects(leads.list(), /SUPABASE_URL/);
+
+  // timeout: a database that accepts the connection and never answers must
+  // not hold the reply until the function dies.
+  const { createServer } = await import('node:http');
+  const hang = createServer(() => {});
+  await new Promise<void>((resolve) => hang.listen(0, '127.0.0.1', resolve));
+  process.env.SUPABASE_URL = `http://127.0.0.1:${(hang.address() as { port: number }).port}`;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test';
+  const started = Date.now();
+  const outcome = await Promise.race([
+    createLeadStore('c').list().then(() => 'answered', () => 'rejected'),
+    new Promise((resolve) => setTimeout(() => resolve('still waiting'), 6000)),
+  ]);
+  hang.closeAllConnections();
+  hang.close();
+  assert.equal(outcome, 'rejected', `a hung database must fail fast (${Date.now() - started} ms)`);
+
   process.env.SUPABASE_URL = saved.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = saved.key;
 

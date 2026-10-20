@@ -15,8 +15,9 @@ const cleanup = async () => {
 await cleanup();
 try {
   await must(sb.from('contacts').insert([
-    { client_id: C, contact_id: 'viejo', channel: 'whatsapp', name: 'Ana', interest: 'web', last_seen_at: ago(100), first_seen_at: ago(400) },
-    { client_id: C, contact_id: 'reciente', channel: 'whatsapp', name: 'Luis', interest: 'tienda', last_seen_at: ago(5), first_seen_at: ago(5) },
+    { client_id: C, contact_id: 'viejo', channel: 'whatsapp', name: 'Ana', interest: 'web', left_contact: true, last_seen_at: ago(100), first_seen_at: ago(400) },
+    { client_id: C, contact_id: 'olvidado', channel: 'whatsapp', name: 'Eva', left_contact: false, last_seen_at: ago(400), first_seen_at: ago(500) },
+    { client_id: C, contact_id: 'reciente', channel: 'whatsapp', name: 'Luis', interest: 'tienda', left_contact: false, last_seen_at: ago(5), first_seen_at: ago(5) },
   ]));
   await must(sb.from('messages').insert([
     { client_id: C, contact_id: 'viejo', role: 'user', content: 'hace más de un año', at: ago(400) },
@@ -29,11 +30,11 @@ try {
 
   await must(sb.rpc('purge_expired'));
 
-  const contacts = await must(sb.from('contacts').select('contact_id, name, interest').eq('client_id', C).order('contact_id'));
+  const contacts = await must(sb.from('contacts').select('contact_id, name, interest, left_contact').eq('client_id', C).order('contact_id'));
   assert.deepEqual(contacts, [
-    { contact_id: 'reciente', name: 'Luis', interest: 'tienda' },
-    { contact_id: 'viejo', name: null, interest: null },
-  ], 'la ficha de 90 días se vacía, la reciente se queda, la fila sobrevive');
+    { contact_id: 'reciente', name: 'Luis', interest: 'tienda', left_contact: false },
+    { contact_id: 'viejo', name: null, interest: null, left_contact: false },
+  ], 'la ficha de 90 días se vacía entera, la reciente se queda; quien no escribe en 12 meses se borra, número incluido');
   const messages = await must(sb.from('messages').select('content').eq('client_id', C));
   assert.deepEqual(messages.map((m) => m.content), ['hace 100 días'], 'solo se borra lo de más de 12 meses');
   const marks = await must(sb.from('follow_ups').select('phone').eq('client_id', C));

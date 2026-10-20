@@ -1,7 +1,7 @@
 // Prueba core/store/db.ts contra la base real con client_id 'eval-db'.
 //   node --env-file=.env.local scripts/check-db.mjs
 import assert from 'node:assert';
-import { db, createConversationLog, createLeadStore, createFollowUpStore, createProfileStore } from '../core/store/db.ts';
+import { db, backfillContacts, createConversationLog, createLeadStore, createFollowUpStore, createProfileStore } from '../core/store/db.ts';
 
 const C = 'eval-db';
 const must = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
@@ -51,6 +51,25 @@ try {
   await must(db().from('follow_ups').insert({ client_id: C, phone: '520000000002', reason: 'sent', at: new Date(Date.now() - 100 * 864e5).toISOString() }));
   assert.ok(!(await marks.has('520000000002')), 'una marca de hace 100 días ya no cuenta');
   assert.ok(!(await marks.has('520000000003')));
+
+  // Backfill (the one-time migration): older history never undoes newer writes.
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+  await profiles.set('5212225550199', { name: 'Nueva', lastSeenAt: new Date().toISOString() }, 'whatsapp');
+  await log.append({ channel: 'web', contactId: 'sin-nombre', userText: 'hola', assistantText: 'ok', at: new Date() });
+  await backfillContacts([
+    { client_id: C, contact_id: '5212225550199', channel: 'whatsapp', name: 'Vieja', interest: 'web', left_contact: true, first_seen_at: weekAgo, last_seen_at: hourAgo },
+    { client_id: C, contact_id: 'sin-nombre', channel: 'web', name: 'Eva', interest: null, left_contact: false, first_seen_at: weekAgo, last_seen_at: hourAgo },
+    { client_id: C, contact_id: 'solo-redis', channel: 'web', name: null, interest: null, left_contact: false, first_seen_at: weekAgo, last_seen_at: hourAgo },
+  ]);
+  const byId = Object.fromEntries((await must(db().from('contacts').select('*').eq('client_id', C))).map((c) => [c.contact_id, c]));
+  const ana = byId['5212225550199'];
+  assert.equal(ana.name, 'Nueva', 'el nombre guardado después del deploy gana');
+  assert.equal(ana.interest, 'web', 'un campo vacío sí se llena con la historia');
+  assert.equal(ana.left_contact, true);
+  assert.equal(new Date(ana.first_seen_at).toISOString(), weekAgo, 'first_seen_at retrocede a la historia');
+  assert.ok(new Date(ana.last_seen_at) > new Date(hourAgo), 'last_seen_at no retrocede');
+  assert.equal(byId['sin-nombre'].name, 'Eva');
+  assert.equal(new Date(byId['solo-redis'].first_seen_at).toISOString(), weekAgo, 'un contacto que solo estaba en Redis se crea');
 
   console.log('check-db: passed');
 } finally {

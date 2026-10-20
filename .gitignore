@@ -9,3 +9,6 @@ next-env.d.ts
 venv/
 .vercel
 .env*
+
+# Supabase CLI: project ref y pooler URL tras `supabase link`
+supabase/.temp/
