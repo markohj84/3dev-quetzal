@@ -1,0 +1,61 @@
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { getAssistant } from '../../assistant';
+import { createPanelClient } from '../supabase';
+import { loginMessage } from '../shape';
+import '../panel.css';
+
+export const metadata: Metadata = { title: 'Entrar al panel', robots: { index: false } };
+
+async function sendCode(form: FormData) {
+  'use server';
+  const email = String(form.get('email') ?? '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) redirect('/panel/entrar?estado=correo');
+  const sb = await createPanelClient();
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  // An email without access errors here too (no signups); the screen says "sent" either way.
+  if (error?.status === 429) redirect('/panel/entrar?estado=espera');
+  redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=enviado`);
+}
+
+async function verifyCode(form: FormData) {
+  'use server';
+  const email = String(form.get('email') ?? '').trim().toLowerCase();
+  const token = String(form.get('token') ?? '').replace(/\D/g, '');
+  const sb = await createPanelClient();
+  const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=${error.status === 429 ? 'espera' : 'codigo'}`);
+  redirect('/panel');
+}
+
+export default async function EntrarPage({ searchParams }: { searchParams: Promise<{ correo?: string; estado?: string }> }) {
+  const { correo, estado } = await searchParams;
+  const { config } = await getAssistant();
+  const message = loginMessage(estado);
+  return (
+    <main className="panel">
+      <header>
+        <div>
+          <h1>{config.organization}</h1>
+          <div className="sub">Panel de {config.name}</div>
+        </div>
+      </header>
+      {message && <p className="notice">{message}</p>}
+      {correo ? (
+        <form action={verifyCode}>
+          <input type="hidden" name="email" value={correo} />
+          <label htmlFor="token">Código que te llegó a {correo}</label>
+          <input id="token" name="token" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required autoFocus />
+          <button type="submit">Entrar</button>
+          <a href="/panel/entrar">Usar otro correo</a>
+        </form>
+      ) : (
+        <form action={sendCode}>
+          <label htmlFor="email">Tu correo</label>
+          <input id="email" name="email" type="email" autoComplete="email" required autoFocus />
+          <button type="submit">Enviarme un código</button>
+        </form>
+      )}
+    </main>
+  );
+}
