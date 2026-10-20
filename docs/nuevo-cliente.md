@@ -134,6 +134,7 @@ cuenta de Resend cuya llave uses. Dos opciones:
 1. **Add New → Project** e importa el mismo repositorio (`markohj84/3dev-quetzal`). Ponle de nombre el del cliente.
 2. Revisa el plan: el plan Hobby de Vercel es para uso personal, no comercial.
 3. Redis: agrega una base de Upstash al proyecto (Marketplace). Una por cliente, para que sus datos no compartan base.
+   **Supabase:** conecta el proyecto nuevo a la base `quetzal` desde Vercel → Storage → la base → **Connect Project** (Production, Preview y Development, sin prefijo). Es una sola base para todos los clientes: el `id` de `assistant.config.ts` separa sus filas, así que debe ser único. `client-check` revisa que responda.
 4. Variables de entorno de **Production**:
 
 | Variable | De dónde sale |

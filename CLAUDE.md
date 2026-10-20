@@ -87,8 +87,8 @@ otra, después de cualquier cambio a `voice.md`, `knowledge/`,
 `assistant.config.ts` o al tool-calling del motor. Usa Anthropic real
 (cuesta unos centavos), necesita `KV_REST_API_URL`/`TOKEN` en el entorno
 (las carga `--env-file=.env.local`), y limpia sus propias sesiones y leads
-de prueba (prefijo `eval-`) al terminar. Las entradas del log de
-conversaciones se quedan: al medir uso real, excluir los contactIds `eval-`.
+de prueba (prefijo `eval-`) al terminar. La limpieza borra también sus
+contactos y mensajes de Postgres; el reporte excluye `eval-*` de todos modos.
 
 Los casos marcados `channel: 'whatsapp'` pasan por `/api/whatsapp` real:
 firman el payload con `WHATSAPP_APP_SECRET` y leen la respuesta de la
@@ -105,8 +105,8 @@ modelo queda dentro de esa llamada, no se persiste en `ConversationState`.
 El único tool hoy es `capture_lead` (`core/tools.ts`): el modelo lo llama
 en cuanto alguien comparte nombre y contacto, sin importar el motivo.
 `respond()` regresa `capturedLead` cuando eso pasa; las rutas lo guardan
-sin vencimiento en `leads:<clientId>` (`createLeadStore`,
-`core/store/session-store.ts`) y disparan `core/notify.ts` con los datos
+sin vencimiento en `leads` (`createLeadStore`,
+`core/store/db.ts`) y disparan `core/notify.ts` con los datos
 estructurados. Nuevos tools van en `core/tools.ts` si son genéricos —
 un tool con lógica específica de un cliente no debe vivir en `core/`.
 
@@ -139,9 +139,9 @@ lo puede confirmar. Solo datos públicos: la hoja publicada la lee cualquiera.
 ## Ficha de contacto
 
 La sesión sigue muriendo a las 24h. Lo que sobrevive es una ficha corta por
-contacto en `profile:<clientId>:<contactId>` (`createProfileStore`): nombre,
-interés, si ya dejó datos y `lastSeenAt`, con 90 días de vida que se renuevan
-con cada mensaje. Solo existe en canales cuyo `contactId` es estable entre
+contacto en `contacts` (`createProfileStore`, `core/store/db.ts`): nombre,
+interés, si ya dejó datos y `lastSeenAt`, con 90 días de vida desde el último
+mensaje (`purge_expired()` la vacía). Solo existe en canales cuyo `contactId` es estable entre
 conversaciones (`ChannelCapabilities.stableContactId`): WhatsApp sí, la web
 no (el widget estrena id por carga de página). La ruta de WhatsApp la lee
 antes de `respond()` y la escribe con lo que regresó `remembered` o
@@ -175,8 +175,8 @@ Un cron diario (`vercel.json`, 16:00 UTC = 10:00 en México) llama
 `/api/cron/follow-up`, firmado por Vercel con `CRON_SECRET` (sin él, 403).
 Le manda **un solo** WhatsApp a cada lead que dejó teléfono hace entre
 `followUp.afterHours` y +48 h y no agendó: plantilla aprobada por Meta
-(`seguimiento_lead`), porque el negocio escribe primero. La marca
-`followup:<clientId>:<número>` (90 días) se pone **antes** de enviar — una
+(`seguimiento_lead`), porque el negocio escribe primero. La marca en
+`follow_ups` (90 días) se pone **antes** de enviar — una
 caída cuesta un mensaje, nunca manda dos — y también cuando alguien agenda
 en el chat. El texto se escribe en la sesión para que un "sí" tenga
 contexto. Los leads con contactId `eval-` se ignoran siempre. Configurado en
@@ -188,11 +188,17 @@ seguimiento (503): la ventana abarca dos corridas y el siguiente día los alcanz
 
 ## Registro de conversaciones
 
-Cada turno se guarda en Redis (`core/store/session-store.ts`,
-`createConversationLog`), en una lista por cliente y día:
-`log:<clientId>:<YYYY-MM-DD>`, con retención de 90 días. Es para revisar
-conversaciones a mano, no para búsqueda ni dashboards — si eso hace falta,
-mover a un datastore real en vez de seguir creciendo este esquema de keys.
+Cada turno se guarda en Postgres (Supabase; `core/store/db.ts`,
+`createConversationLog`): un contacto en `contacts` y dos filas en
+`messages` (`user`, `assistant`), con `client_id` = el `id` de la config.
+Una sola base para todos los clientes. Los plazos del aviso de privacidad
+los aplica la base: `purge_expired()` corre cada noche con `pg_cron`
+(mensajes 12 meses, nombre e interés 90 días sin escribir, marcas de
+seguimiento 90 días). El esquema vive en `supabase/migrations/` y se aplica
+con `npx supabase db push --db-url` (la conexión directa está en
+`POSTGRES_URL_NON_POOLING`, en Vercel). Redis solo guarda la sesión de 24 h
+y el límite de mensajes. Pruebas contra la base real:
+`scripts/check-purge.mjs` y `scripts/check-db.mjs`.
 
 `npm run report:3dev -- [días]` (default 7) resume el uso real: personas,
 mensajes, leads, citas (de Cal.com), seguimientos. Excluye `eval-*` y los
@@ -227,8 +233,8 @@ que no existe es peor que no tener el dato:
 - **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes").
   Hoy es un deploy por cliente: mismo repo, un proyecto de Vercel por
   cliente, y `CLIENT` elige la carpeta (ver "Clientes" arriba).
-- **Postgres/Supabase** para conversaciones, leads y memoria (pgvector para
-  RAG). Hoy solo hay Redis (sesión + el log de 90 días).
+- **Postgres/Supabase** ya guarda conversaciones, leads, fichas y
+  seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
 - Dashboard de cliente, panel de administración para 3dev, flujos n8n
