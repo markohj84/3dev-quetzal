@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAssistant } from '../../../assistant';
 import { sendTemplate } from '../../../../core/channels/whatsapp';
 import { dueFollowUps, firstName, metaPhone } from '../../../../core/followup';
-import { createFollowUpStore, createLeadStore, createSessionStore } from '../../../../core/store/session-store';
+import { createSessionStore } from '../../../../core/store/session-store';
+import { createFollowUpStore, createLeadStore } from '../../../../core/store/db';
 
 /**
  * Daily (vercel.json): one WhatsApp nudge to each lead who left a phone a

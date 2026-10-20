@@ -14,6 +14,7 @@
 import assert from 'node:assert';
 import { createHmac } from 'node:crypto';
 import { Redis } from '@upstash/redis';
+import { db } from '../core/store/db.ts';
 
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
 export const kv = new Redis({ url: process.env.KV_REST_API_URL!, token: process.env.KV_REST_API_TOKEN! });
@@ -46,10 +47,15 @@ export function genericCases({
   offer: RegExp;
   whatsapp?: boolean;
 }): Case[] {
-  const leadFor = async (contactId: string) =>
-    (await kv.lrange<{ contactId: string; nombre: string; channel: string }>(`leads:${clientId}`, 0, -1)).find(
-      (l) => l.contactId === contactId,
-    );
+  const leadFor = async (contactId: string) => {
+    const { data, error } = await db()
+      .from('leads')
+      .select('contact_id, nombre, channel')
+      .eq('client_id', clientId)
+      .eq('contact_id', contactId);
+    if (error) throw error;
+    return data?.[0] ? { contactId: data[0].contact_id, nombre: data[0].nombre, channel: data[0].channel } : undefined;
+  };
   const oneOffer = (replies: string[]) => {
     // Matches the invitation, not one phrasing of it: a narrower pattern once
     // passed a build that invited twice with different words.
@@ -141,8 +147,8 @@ export function genericCases({
       channel: 'whatsapp',
       turns: ['Hola, soy Laura. Me interesa saber de sus servicios para mi negocio'],
       async check(_replies, contactId) {
-        const profile = await kv.get<{ name?: string }>(`profile:${clientId}:${contactId}`);
-        assert.match(profile?.name ?? '', /laura/i, `no guardó el nombre en la ficha: ${JSON.stringify(profile)}`);
+        const { data: row } = await db().from('contacts').select('name').eq('client_id', clientId).eq('contact_id', contactId).maybeSingle();
+        assert.match(row?.name ?? '', /laura/i, `no guardó el nombre en la ficha: ${JSON.stringify(row)}`);
         await kv.del(`session:${contactId}`);
         const r = await sendWhatsAppTurn(contactId, 'Hola');
         assert.match(r, /laura/i, `no la reconoció al volver: ${r}`);
@@ -218,14 +224,12 @@ async function cleanup(clientId: string, sessionIds: string[]) {
       body: JSON.stringify({ cancellationReason: 'Eval de Quetzal' }),
     });
   }
-  for (const id of sessionIds) {
-    await kv.del(`session:${id}`, `profile:${clientId}:${id}`);
-  }
-  const leads = await kv.lrange<{ contactId: string }>(`leads:${clientId}`, 0, -1);
-  const keep = leads.filter((l) => !sessionIds.includes(l.contactId));
-  if (keep.length !== leads.length) {
-    await kv.del(`leads:${clientId}`);
-    if (keep.length) await kv.rpush(`leads:${clientId}`, ...keep.map((l) => JSON.stringify(l)));
+  for (const id of sessionIds) await kv.del(`session:${id}`);
+  if (sessionIds.length) {
+    // Cascades to their messages: an eval leaves no trace in the conversation log.
+    const contacts = await db().from('contacts').delete().eq('client_id', clientId).in('contact_id', sessionIds);
+    const leads = await db().from('leads').delete().eq('client_id', clientId).in('contact_id', sessionIds);
+    if (contacts.error || leads.error) console.error('cleanup de Supabase falló', contacts.error ?? leads.error);
   }
 }
 

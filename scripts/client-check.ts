@@ -62,7 +62,7 @@ if (!config) {
 }
 
 // 3. Variables que esta config necesita
-const needed = ['ANTHROPIC_API_KEY', 'KV_REST_API_URL', 'KV_REST_API_TOKEN'];
+const needed = ['ANTHROPIC_API_KEY', 'KV_REST_API_URL', 'KV_REST_API_TOKEN', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const wa = config.channels.whatsapp.enabled;
 if (wa) needed.push('WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_APP_SECRET', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_WABA_ID');
 if (config.scheduling.provider === 'calcom') needed.push('CALCOM_API_KEY');
@@ -85,6 +85,16 @@ if (env.KV_REST_API_URL && env.KV_REST_API_TOKEN) {
   await step('Redis (Upstash)', async () => {
     const body = await json(await fetch(`${env.KV_REST_API_URL}/ping`, { headers: { Authorization: `Bearer ${env.KV_REST_API_TOKEN}` } }));
     return body.result;
+  });
+}
+
+if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+  await step('Supabase', async () => {
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/contacts?select=client_id&limit=1`, {
+      headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY!, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` },
+    });
+    if (!res.ok) throw new Error(`respondió ${res.status}: ¿se aplicó el esquema? (supabase/migrations)`);
+    return 'esquema aplicado';
   });
 }
 

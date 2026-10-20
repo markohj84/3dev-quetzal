@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
-import {
-  createSessionStore,
-  createRateLimiter,
-  createConversationLog,
-  createLeadStore,
-  createFollowUpStore,
-  createProfileStore,
-} from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
+import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore } from '../../../core/store/db';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
 
@@ -73,24 +67,31 @@ export async function POST(request: Request) {
       console.error(`[${config.id}] whatsapp delivery failed`, error);
     });
     const reachAt = `https://wa.me/${toMetaRecipient(inbound.contactId)}`;
-    await createConversationLog(config.id).append({
-      channel: 'whatsapp',
-      contactId: inbound.contactId,
-      userText: inbound.text,
-      assistantText: result.reply.text,
-      at: new Date(),
-    });
+    // The log is a record, not the reply: a database hiccup must not cost the person their answer.
+    await createConversationLog(config.id)
+      .append({
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        userText: inbound.text,
+        assistantText: result.reply.text,
+        at: new Date(),
+      })
+      .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
 
     // Only someone we learned something about gets a profile; after that,
     // every message keeps it alive for another 90 days.
     const { remembered, capturedLead } = result;
     if (profile || remembered || capturedLead) {
-      await profiles.set(inbound.contactId, {
-        name: remembered?.nombre || capturedLead?.nombre || profile?.name,
-        interest: remembered?.interes || capturedLead?.necesidad || profile?.interest,
-        leftContact: profile?.leftContact || !!capturedLead,
-        lastSeenAt: new Date().toISOString(),
-      });
+      await profiles.set(
+        inbound.contactId,
+        {
+          name: remembered?.nombre || capturedLead?.nombre || profile?.name,
+          interest: remembered?.interes || capturedLead?.necesidad || profile?.interest,
+          leftContact: profile?.leftContact || !!capturedLead,
+          lastSeenAt: new Date().toISOString(),
+        },
+        'whatsapp',
+      );
     }
 
     if (!state.hasOffered && result.state.hasOffered) {
@@ -103,12 +104,15 @@ export async function POST(request: Request) {
     }
 
     if (result.capturedLead) {
-      await createLeadStore(config.id).save({
-        ...result.capturedLead,
-        channel: 'whatsapp',
-        contactId: inbound.contactId,
-        at: new Date().toISOString(),
-      });
+      // The alert below carries the same data: a failed save must not also lose it.
+      await createLeadStore(config.id)
+        .save({
+          ...result.capturedLead,
+          channel: 'whatsapp',
+          contactId: inbound.contactId,
+          at: new Date().toISOString(),
+        })
+        .catch((error) => console.error(`[${config.id}] lead save failed`, error));
       await createLeadNotifier(config.notify).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,

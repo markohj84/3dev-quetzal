@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis';
 import type { ConversationState } from '../engine';
-import type { CapturedLead } from '../tools';
 
 /** Names match what Vercel's Upstash Marketplace integration injects, not @upstash/redis's own convention. */
 const kv = new Redis({
@@ -41,116 +40,6 @@ export function createRateLimiter(limit: number, windowSeconds: number): RateLim
       const count = await kv.incr(bucket);
       if (count === 1) await kv.expire(bucket, windowSeconds);
       return count <= limit;
-    },
-  };
-}
-
-export interface LogEntry {
-  channel: string;
-  contactId: string;
-  userText: string;
-  assistantText: string;
-  at: Date;
-}
-
-export interface ConversationLog {
-  append(entry: LogEntry): Promise<void>;
-}
-
-// ponytail: 90-day retention in a Redis list. Fine for reading back a day's
-// conversations by hand; once someone needs search or dashboards, move this
-// to a real datastore instead of growing this key scheme.
-const LOG_TTL_SECONDS = 60 * 60 * 24 * 90;
-
-export function createConversationLog(clientId: string): ConversationLog {
-  return {
-    async append(entry) {
-      const day = entry.at.toISOString().slice(0, 10);
-      const key = `log:${clientId}:${day}`;
-      await kv.rpush(key, JSON.stringify(entry));
-      await kv.expire(key, LOG_TTL_SECONDS);
-    },
-  };
-}
-
-export interface StoredLead extends CapturedLead {
-  channel: string;
-  contactId: string;
-  at: string;
-}
-
-export interface LeadStore {
-  save(lead: StoredLead): Promise<void>;
-  list(): Promise<StoredLead[]>;
-}
-
-/**
- * A captured lead is a real business record someone has to follow up on,
- * not a debug trace — no TTL, unlike the conversation log.
- */
-export function createLeadStore(clientId: string): LeadStore {
-  return {
-    async save(lead) {
-      await kv.rpush(`leads:${clientId}`, JSON.stringify(lead));
-    },
-    async list() {
-      return kv.lrange<StoredLead>(`leads:${clientId}`, 0, -1);
-    },
-  };
-}
-
-/**
- * Who already got the one follow-up, or booked and needs none. Keyed by the
- * number Meta delivers to, so the same person reached from web and from
- * WhatsApp counts once.
- */
-export interface FollowUpStore {
-  has(phone: string): Promise<boolean>;
-  mark(phone: string, reason: 'sent' | 'booked'): Promise<void>;
-}
-
-const FOLLOW_UP_TTL_SECONDS = 60 * 60 * 24 * 90;
-
-export function createFollowUpStore(clientId: string): FollowUpStore {
-  return {
-    async has(phone) {
-      return (await kv.exists(`followup:${clientId}:${phone}`)) === 1;
-    },
-    async mark(phone, reason) {
-      await kv.set(`followup:${clientId}:${phone}`, reason, { ex: FOLLOW_UP_TTL_SECONDS });
-    },
-  };
-}
-
-/**
- * What survives a conversation: enough to greet someone by name and pick up
- * the thread, not the transcript. The session still dies at 24h — carrying
- * the whole history for weeks would make every reply pricier and keep the
- * one-offer rule tripped long after it stopped meaning anything.
- */
-export interface ContactProfile {
-  name?: string;
-  interest?: string;
-  leftContact?: boolean;
-  lastSeenAt: string;
-}
-
-export interface ProfileStore {
-  get(contactId: string): Promise<ContactProfile | null>;
-  set(contactId: string, profile: ContactProfile): Promise<void>;
-}
-
-// ponytail: one Redis key per contact. Moves to the Postgres profile table
-// when the roadmap's datastore lands.
-const PROFILE_TTL_SECONDS = 60 * 60 * 24 * 90;
-
-export function createProfileStore(clientId: string): ProfileStore {
-  return {
-    async get(contactId) {
-      return (await kv.get<ContactProfile>(`profile:${clientId}:${contactId}`)) ?? null;
-    },
-    async set(contactId, profile) {
-      await kv.set(`profile:${clientId}:${contactId}`, profile, { ex: PROFILE_TTL_SECONDS });
     },
   };
 }

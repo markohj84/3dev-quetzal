@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import { createSessionStore, createRateLimiter, createConversationLog, createLeadStore, createFollowUpStore } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
+import { createConversationLog, createLeadStore, createFollowUpStore } from '../../../core/store/db';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
 
@@ -29,13 +30,16 @@ export async function POST(request: Request) {
   try {
     const result = await engine.respond(state, inbound.text, adapter);
     await sessions.set(inbound.contactId, result.state);
-    await createConversationLog(config.id).append({
-      channel: 'web',
-      contactId: inbound.contactId,
-      userText: inbound.text,
-      assistantText: result.reply.text,
-      at: new Date(),
-    });
+    // The log is a record, not the reply: a database hiccup must not cost the person their answer.
+    await createConversationLog(config.id)
+      .append({
+        channel: 'web',
+        contactId: inbound.contactId,
+        userText: inbound.text,
+        assistantText: result.reply.text,
+        at: new Date(),
+      })
+      .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
 
     if (!state.hasOffered && result.state.hasOffered) {
       await createLeadNotifier(config.notify).notify({
@@ -46,12 +50,15 @@ export async function POST(request: Request) {
     }
 
     if (result.capturedLead) {
-      await createLeadStore(config.id).save({
-        ...result.capturedLead,
-        channel: 'web',
-        contactId: inbound.contactId,
-        at: new Date().toISOString(),
-      });
+      // The alert below carries the same data: a failed save must not also lose it.
+      await createLeadStore(config.id)
+        .save({
+          ...result.capturedLead,
+          channel: 'web',
+          contactId: inbound.contactId,
+          at: new Date().toISOString(),
+        })
+        .catch((error) => console.error(`[${config.id}] lead save failed`, error));
       await createLeadNotifier(config.notify).notify({
         channel: 'web',
         contactId: inbound.contactId,

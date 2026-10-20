@@ -46,13 +46,21 @@ const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').
 /** Paraphrase-proof: any long word of the row's name in the reply. */
 const mentions = (reply: string, name: string) =>
   plain(name).split(/\W+/).filter((w) => w.length >= 6).some((w) => plain(reply).includes(w));
-/** A clause naming the sold-out product without saying it's out. "Cabezales
- * para cepillo eléctrico" is a different product and doesn't count. */
+/** A mention of the sold-out product with no "agotado" near it, on its own
+ * line. "Cabezales para cepillo eléctrico" is a different product. A window,
+ * not sentence splitting: "$950 MXN. Está agotado" is one statement. */
 const offersSoldOut = (reply: string, name: string) => {
+  const text = plain(reply);
   const key = plain(name).split(/\s+/).slice(0, 2).join(' ');
-  return plain(reply)
-    .split(/[,.;\n]/)
-    .some((c) => c.includes(key) && !c.includes(`para ${key}`) && !/agotad|sin (stock|existencia)|no (lo |los )?(tenemos|hay)/.test(c));
+  for (let i = text.indexOf(key); i >= 0; i = text.indexOf(key, i + 1)) {
+    if (text.slice(Math.max(0, i - 5), i).includes('para ')) continue;
+    const lineStart = text.lastIndexOf('\n', i) + 1;
+    const nextBreak = text.indexOf('\n', i);
+    const lineEnd = nextBreak < 0 ? text.length : nextBreak;
+    const near = text.slice(Math.max(lineStart, i - 25), Math.min(lineEnd, i + key.length + 90));
+    if (!/agotad|sin (stock|existencia)|no (lo |los )?(tenemos|hay)/.test(near)) return true;
+  }
+  return false;
 };
 
 const cases: Case[] = [
