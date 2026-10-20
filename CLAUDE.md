@@ -193,11 +193,13 @@ Cada turno se guarda en Postgres (Supabase; `core/store/db.ts`,
 `messages` (`user`, `assistant`), con `client_id` = el `id` de la config.
 Una sola base para todos los clientes. Los plazos del aviso de privacidad
 los aplica la base: `purge_expired()` corre cada noche con `pg_cron`
-(mensajes 12 meses, nombre e interés 90 días sin escribir, marcas de
-seguimiento 90 días). El esquema vive en `supabase/migrations/` y se aplica
+(mensajes y contactos 12 meses sin escribir, ficha —nombre, interés y
+`left_contact`— 90 días, marcas de seguimiento 90 días). El esquema vive en `supabase/migrations/` y se aplica
 con `npx supabase db push --db-url` (la conexión directa está en
 `POSTGRES_URL_NON_POOLING`, en Vercel). Redis solo guarda la sesión de 24 h
-y el límite de mensajes. Pruebas contra la base real:
+y el límite de mensajes. Cada llamada a la base tiene timeout de 3 s y sin
+reintentos, y las rutas tratan sus fallas como no fatales: una base caída
+cuesta una línea de log, nunca la respuesta ni el aviso. Pruebas contra la base real:
 `scripts/check-purge.mjs` y `scripts/check-db.mjs`.
 
 `npm run report:3dev -- [días]` (default 7) resume el uso real: personas,
