@@ -5,6 +5,21 @@ import { metaPhone } from '../../core/followup';
 import { summarizeConversations, type ContactLite, type LeadLite, type MessageLite } from './shape';
 
 const PAGE_SIZE = 50;
+/** Eval runs write to the same database; the report hides them, so does the panel. */
+const EVAL = 'eval%';
+
+/**
+ * Every loader checks access itself, before anything else runs: the layout's
+ * check is skipped when Next renders only the page segment, and Cal.com is
+ * called with the client's key, which RLS can't guard.
+ */
+async function requireAccess(sb: SupabaseClient, clientId: string): Promise<void> {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) throw new Error('panel: no session');
+  const { data, error } = await sb.from('dashboard_users').select('client_id').eq('client_id', clientId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('panel: no access to this client');
+}
 
 export interface Period { days: 7 | 30 | 90; since: Date }
 export const periodOf = (days: 7 | 30 | 90): Period => ({ days, since: new Date(Date.now() - days * 864e5) });
@@ -23,7 +38,7 @@ async function bookedPhones(since: Date): Promise<Set<string> | null> {
 
 async function messagesSince(sb: SupabaseClient, clientId: string, since: Date): Promise<MessageLite[]> {
   return selectAll<MessageLite>((from, to) =>
-    sb.from('messages').select('contact_id, role, content, at').eq('client_id', clientId)
+    sb.from('messages').select('contact_id, role, content, at').eq('client_id', clientId).not('contact_id', 'like', EVAL)
       .gte('at', since.toISOString()).order('at').order('id').range(from, to),
   );
 }
@@ -31,14 +46,14 @@ async function messagesSince(sb: SupabaseClient, clientId: string, since: Date):
 // ponytail: every lead of the client in memory; fine for hundreds, paginate when a client has thousands.
 async function leadsByContact(sb: SupabaseClient, clientId: string): Promise<Map<string, LeadLite>> {
   const rows = await selectAll<LeadLite>((from, to) =>
-    sb.from('leads').select('contact_id, channel, nombre, contacto, necesidad, at').eq('client_id', clientId).order('at').order('id').range(from, to),
+    sb.from('leads').select('contact_id, channel, nombre, contacto, necesidad, at').eq('client_id', clientId).not('contact_id', 'like', EVAL).order('at').order('id').range(from, to),
   );
   return new Map(rows.map((l) => [l.contact_id, l]));
 }
 
 async function contactsSeenSince(sb: SupabaseClient, clientId: string, since: Date): Promise<Map<string, ContactLite>> {
   const rows = await selectAll<ContactLite>((from, to) =>
-    sb.from('contacts').select('contact_id, channel, name, interest, left_contact').eq('client_id', clientId)
+    sb.from('contacts').select('contact_id, channel, name, interest, left_contact').eq('client_id', clientId).not('contact_id', 'like', EVAL)
       .gte('last_seen_at', since.toISOString()).order('contact_id').range(from, to),
   );
   return new Map(rows.map((c) => [c.contact_id, c]));
@@ -46,6 +61,7 @@ async function contactsSeenSince(sb: SupabaseClient, clientId: string, since: Da
 
 export async function loadSummary(sb: SupabaseClient, period: Period) {
   const { config } = await getAssistant();
+  await requireAccess(sb, config.id);
   const [messages, leads, booked] = await Promise.all([
     messagesSince(sb, config.id, period.since),
     leadsByContact(sb, config.id),
@@ -64,6 +80,7 @@ export async function loadSummary(sb: SupabaseClient, period: Period) {
 
 export async function loadConversations(sb: SupabaseClient, period: Period, channel: string | undefined, page: number) {
   const { config } = await getAssistant();
+  await requireAccess(sb, config.id);
   const [messages, contacts, leads, booked] = await Promise.all([
     messagesSince(sb, config.id, period.since),
     contactsSeenSince(sb, config.id, period.since),
@@ -79,6 +96,7 @@ export async function loadConversations(sb: SupabaseClient, period: Period, chan
 
 export async function loadConversation(sb: SupabaseClient, contactId: string) {
   const { config } = await getAssistant();
+  await requireAccess(sb, config.id);
   const [{ data: contact }, { data: lead }, messages] = await Promise.all([
     sb.from('contacts').select('contact_id, channel, name, interest, left_contact').eq('client_id', config.id).eq('contact_id', contactId).maybeSingle(),
     sb.from('leads').select('contact_id, channel, nombre, contacto, necesidad, at').eq('client_id', config.id).eq('contact_id', contactId)
@@ -94,6 +112,7 @@ export async function loadConversation(sb: SupabaseClient, contactId: string) {
 
 export async function loadLeads(sb: SupabaseClient, period: Period) {
   const { config } = await getAssistant();
+  await requireAccess(sb, config.id);
   return [...(await leadsByContact(sb, config.id)).values()]
     .filter((l) => new Date(l.at) >= period.since)
     .sort((a, b) => b.at.localeCompare(a.at));

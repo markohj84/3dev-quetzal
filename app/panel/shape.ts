@@ -83,6 +83,19 @@ export function contactLink(contacto: string, countryCode?: string): { href: str
 }
 
 /** One message for "sent" whether or not the email has access: the screen must not reveal who does. */
+/**
+ * After asking for a code, every email gets the same screen: only emails that
+ * exist hit Supabase's per-user resend limit, so "wait" would reveal them.
+ */
+export function stateAfterSend(_status?: number): 'enviado' {
+  return 'enviado';
+}
+
+/** The code was typed for an email the person already gave, so here a rate limit can be said. */
+export function stateAfterVerify(status?: number): 'espera' | 'codigo' {
+  return status === 429 ? 'espera' : 'codigo';
+}
+
 export function loginMessage(state?: string): string | null {
   switch (state) {
     case 'enviado': return 'Si tu correo tiene acceso, te llegó un código. Escríbelo aquí.';
@@ -142,6 +155,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.deepEqual(contactLink('luis@correo.mx'), { href: 'mailto:luis@correo.mx', label: 'luis@correo.mx' });
   assert.deepEqual(contactLink('222 555 0101', '52'), { href: 'https://wa.me/522225550101', label: '222 555 0101' });
   assert.equal(contactLink('mañana en la tarde'), null);
+
+  // The send step looks the same for every email: a rate limit only hits emails that exist.
+  assert.equal(stateAfterSend(undefined), 'enviado');
+  assert.equal(stateAfterSend(422), 'enviado', 'correo sin acceso');
+  assert.equal(stateAfterSend(429), 'enviado', 'un límite de envíos no delata que el correo existe');
+  assert.equal(stateAfterVerify(429), 'espera');
+  assert.equal(stateAfterVerify(400), 'codigo');
 
   assert.equal(loginMessage(undefined), null);
   assert.equal(loginMessage('enviado'), 'Si tu correo tiene acceso, te llegó un código. Escríbelo aquí.');

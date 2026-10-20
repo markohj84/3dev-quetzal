@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getAssistant } from '../../assistant';
 import { createPanelClient } from '../supabase';
-import { loginMessage } from '../shape';
+import { loginMessage, stateAfterSend, stateAfterVerify } from '../shape';
 import '../panel.css';
 
 export const metadata: Metadata = { title: 'Entrar al panel', robots: { index: false } };
@@ -13,9 +13,7 @@ async function sendCode(form: FormData) {
   if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) redirect('/panel/entrar?estado=correo');
   const sb = await createPanelClient();
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  // An email without access errors here too (no signups); the screen says "sent" either way.
-  if (error?.status === 429) redirect('/panel/entrar?estado=espera');
-  redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=enviado`);
+  redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=${stateAfterSend(error?.status)}`);
 }
 
 async function verifyCode(form: FormData) {
@@ -24,7 +22,7 @@ async function verifyCode(form: FormData) {
   const token = String(form.get('token') ?? '').replace(/\D/g, '');
   const sb = await createPanelClient();
   const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
-  if (error) redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=${error.status === 429 ? 'espera' : 'codigo'}`);
+  if (error) redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=${stateAfterVerify(error.status)}`);
   redirect('/panel');
 }
 
