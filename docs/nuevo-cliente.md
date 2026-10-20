@@ -192,3 +192,8 @@ correos al dueño del calendario).
    ```bash
    node --env-file=.env.<cliente> scripts/report.mjs <id-de-la-config> 7
    ```
+5. Panel: dale acceso al dueño.
+   ```bash
+   node --env-file=.env.local scripts/panel-user.mjs add <correo-del-dueño> <id-de-la-config>
+   ```
+   Entra en `https://<dominio-del-cliente>/panel` con el código que le llega por correo.

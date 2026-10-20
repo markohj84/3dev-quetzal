@@ -206,6 +206,23 @@ cuesta una línea de log, nunca la respuesta ni el aviso. Pruebas contra la base
 mensajes, leads, citas (de Cal.com), seguimientos. Excluye `eval-*` y los
 números de `REPORT_EXCLUDE` en `.env.local` (el del dueño).
 
+
+## Panel del cliente
+
+`/panel` en el dominio de cada cliente (`app/panel/`): el dueño entra con
+un código de 6 dígitos por correo (Supabase Auth, `shouldCreateUser:
+false`) y ve Resumen, Conversaciones y Leads de su negocio, en solo
+lectura. Las páginas leen con la sesión del usuario (`@supabase/ssr`,
+llave pública) y RLS decide qué filas ve: solo los `client_id` que tiene
+en `dashboard_users`; ninguna política permite escribir. El panel nunca
+usa `service_role`. `middleware.ts` solo corre en `/panel/*`. Accesos:
+`node --env-file=.env.local scripts/panel-user.mjs add|remove <correo>
+<clientId>` y `list <clientId>`. Los códigos salen por el SMTP de Resend
+configurado en Supabase. Pruebas: `scripts/check-panel-rls.mjs` (base
+real) y `scripts/check-panel-pages.mjs <clientId>` (contra el dev server,
+con sesión real y sin mandar correos). Las citas del resumen y la
+etiqueta "agendó" salen de Cal.com (`scheduler.bookedPhones`).
+
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
 La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web
@@ -239,7 +256,7 @@ que no existe es peor que no tener el dato:
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
-- Dashboard de cliente, panel de administración para 3dev, flujos n8n
+- Panel de administración para 3dev (el panel del cliente ya existe), flujos n8n
   reales, handoff **en vivo** a un humano (transferir la charla mientras
   ocurre). La notificación asíncrona por correo cuando hay un lead
   interesado sí está construida — ver "Notificación de leads" abajo.
