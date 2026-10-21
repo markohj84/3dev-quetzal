@@ -212,7 +212,7 @@ números de `REPORT_EXCLUDE` en `.env.local` (el del dueño).
 `/panel` en el dominio de cada cliente (`app/panel/`): el dueño entra con
 un código de 6 dígitos por correo (Supabase Auth, `shouldCreateUser:
 false`) y ve Resumen, Conversaciones y Leads de su negocio, en solo
-lectura. Las páginas leen con la sesión del usuario (`@supabase/ssr`,
+lectura salvo el handoff (ver abajo). Las páginas leen con la sesión del usuario (`@supabase/ssr`,
 llave pública) y RLS decide qué filas ve: solo los `client_id` que tiene
 en `dashboard_users`; ninguna política permite escribir. El panel nunca
 usa `service_role`. `middleware.ts` solo corre en `/panel/*`. Accesos:
@@ -222,6 +222,23 @@ configurado en Supabase. Pruebas: `scripts/check-panel-rls.mjs` (base
 real) y `scripts/check-panel-pages.mjs <clientId>` (contra el dev server,
 con sesión real y sin mandar correos). Las citas del resumen y la
 etiqueta "agendó" salen de Cal.com (`scheduler.bookedPhones`).
+
+
+## Handoff en vivo
+
+Solo WhatsApp. En `/panel/conversaciones/<id>` el dueño toma la
+conversación, contesta (sale por el número del negocio con `deliver()`,
+desde una server action) y la devuelve; si no escribe en 4 h, vuelve sola
+(`core/handoff.ts`). Mientras está tomada, la ruta de WhatsApp no llama al
+motor: guarda el mensaje (`appendInbound`) y lo agrega a la sesión, y le
+avisa al dueño por los canales de `notify` como máximo cada 15 min. Lo que
+escribe el dueño queda en `messages` con `role = 'human'` (solo si Meta
+aceptó el envío) y en la sesión como turno del asistente, para que al
+retomarla tenga el contexto. RLS: el dueño solo inserta mensajes `human` y
+toma o devuelve en su cliente. Los avisos de lead e interés traen el enlace
+al panel (`app/panel/links.ts`, `VERCEL_PROJECT_PRODUCTION_URL`). Carrera
+conocida: si toma la conversación mientras el asistente ya está
+contestando, esa respuesta sale una vez.
 
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
@@ -256,10 +273,10 @@ que no existe es peor que no tener el dato:
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
-- Panel de administración para 3dev (el panel del cliente ya existe), flujos n8n
-  reales, handoff **en vivo** a un humano (transferir la charla mientras
-  ocurre). La notificación asíncrona por correo cuando hay un lead
-  interesado sí está construida — ver "Notificación de leads" abajo.
+- Panel de administración para 3dev (el panel del cliente y el handoff en
+  vivo por WhatsApp ya existen), flujos n8n reales. La notificación
+  asíncrona cuando hay un lead interesado sí está construida — ver
+  "Notificación de leads" abajo.
 
 ## Estilo
 

@@ -14,6 +14,7 @@
 import assert from 'node:assert';
 import { createHmac } from 'node:crypto';
 import { Redis } from '@upstash/redis';
+import type { User } from '@supabase/supabase-js';
 import { db } from '../core/store/db.ts';
 
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
@@ -27,11 +28,12 @@ const EVAL_OWNER = 'eval-handoff-owner@3dev.test';
 /** handoffs.taken_by needs a real auth user; one shared by every run, removed in cleanup. */
 async function evalOwner() {
   const { data } = await db().auth.admin.listUsers({ perPage: 1000 });
-  const found = data.users.find((u) => u.email === EVAL_OWNER);
+  const users: User[] = data?.users ?? [];
+  const found = users.find((u) => u.email === EVAL_OWNER);
   if (found) return found;
-  const created = await db().auth.admin.createUser({ email: EVAL_OWNER, email_confirm: true });
-  if (created.error) throw created.error;
-  return created.data.user;
+  const { data: created, error } = await db().auth.admin.createUser({ email: EVAL_OWNER, email_confirm: true });
+  if (error || !created.user) throw error ?? new Error('createUser returned no user');
+  return created.user;
 }
 
 export interface Case {
@@ -286,8 +288,9 @@ async function cleanup(clientId: string, sessionIds: string[]) {
     const leads = await db().from('leads').delete().eq('client_id', clientId).in('contact_id', sessionIds);
     if (contacts.error || leads.error) console.error('cleanup de Supabase falló', contacts.error ?? leads.error);
   }
-  const { data: users } = await db().auth.admin.listUsers({ perPage: 1000 });
-  for (const u of users.users.filter((u) => u.email === EVAL_OWNER)) await db().auth.admin.deleteUser(u.id);
+  const { data: listed } = await db().auth.admin.listUsers({ perPage: 1000 });
+  const owners: User[] = (listed?.users ?? []).filter((u: User) => u.email === EVAL_OWNER);
+  for (const u of owners) await db().auth.admin.deleteUser(u.id);
 }
 
 export async function runEvals({ clientId, cases }: { clientId: string; cases: Case[] }) {
