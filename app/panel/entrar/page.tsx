@@ -43,7 +43,8 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
         <form action={verifyCode}>
           <input type="hidden" name="email" value={correo} />
           <label htmlFor="token">Código que te llegó a {correo}</label>
-          <input id="token" name="token" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required autoFocus />
+          {/* Supabase sets the code length per project (6 here, 8 by default): never cut it short. */}
+          <input id="token" name="token" inputMode="numeric" autoComplete="one-time-code" maxLength={10} required autoFocus />
           <button type="submit">Entrar</button>
           <a href="/panel/entrar">Usar otro correo</a>
         </form>

@@ -79,6 +79,12 @@ try {
   assert.equal(r.status, 200);
   assert.match(await r.text(), /Enviarme un código/);
 
+  // The form must take the whole code Supabase sends, whatever length the project is set to.
+  const otpLength = (await must(admin.auth.admin.generateLink({ type: 'magiclink', email: OWNER }))).properties.email_otp.length;
+  const step2 = await (await get(`/panel/entrar?correo=${encodeURIComponent(OWNER)}&estado=enviado`)).text();
+  const maxLength = Number(step2.match(/name="token"[^>]*maxLength="(\d+)"/i)?.[1] ?? step2.match(/maxLength="(\d+)"[^>]*name="token"/i)?.[1] ?? Infinity);
+  assert.ok(maxLength >= 10, `el campo del código corta a ${maxLength} (Supabase manda ${otpLength}; puede cambiar a 8)`);
+
   const cookie = await sessionCookie(OWNER);
   const page = async (path) => { const res = await get(path, cookie); assert.equal(res.status, 200, `${path}: ${res.status}`); return res.text(); };
   const resumen = await page('/panel?dias=7');
