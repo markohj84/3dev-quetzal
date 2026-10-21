@@ -22,6 +22,12 @@ async function verifyCode(form: FormData) {
   const token = String(form.get('token') ?? '').replace(/\D/g, '');
   const sb = await createPanelClient();
   const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) {
+    // The same code sent twice (autofill plus a tap): the first one already
+    // signed them in, so the second's "used code" is not their problem.
+    const { data: { user } } = await sb.auth.getUser();
+    if (user?.email?.toLowerCase() === email) redirect('/panel');
+  }
   if (error) redirect(`/panel/entrar?correo=${encodeURIComponent(email)}&estado=${stateAfterVerify(error.status)}`);
   redirect('/panel');
 }

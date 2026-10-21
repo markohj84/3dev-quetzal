@@ -99,6 +99,24 @@ try {
   const maxLength = Number(step2.match(/name="token"[^>]*maxLength="(\d+)"/i)?.[1] ?? step2.match(/maxLength="(\d+)"[^>]*name="token"/i)?.[1] ?? Infinity);
   assert.ok(maxLength >= 10, `el campo del código corta a ${maxLength} (Supabase manda ${otpLength}; puede cambiar a 8)`);
 
+  // The same code submitted twice (autofill plus a tap): the second must not say "wrong code".
+  {
+    const otp = (await must(admin.auth.admin.generateLink({ type: 'magiclink', email: OWNER }))).properties.email_otp;
+    const entrar = `/panel/entrar?correo=${encodeURIComponent(OWNER)}&estado=enviado`;
+    const html = await (await get(entrar)).text();
+    const post = async (cookie) => {
+      const body = new FormData();
+      for (const m of html.matchAll(/<input type="hidden" name="([^"]+)"(?: value="([^"]*)")?/g)) body.append(m[1], m[2] ?? '');
+      body.append('token', otp);
+      const res = await fetch(`${BASE}${entrar}`, { method: 'POST', body, redirect: 'manual', headers: { Origin: BASE, ...(cookie ? { cookie } : {}) } });
+      return { location: (res.headers.get('location') ?? '').replace(BASE, ''), cookie: res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ') };
+    };
+    const first = await post();
+    assert.equal(first.location, '/panel', 'el primer envío entra');
+    const second = await post(first.cookie);
+    assert.equal(second.location, '/panel', `el segundo envío del mismo código también entra, no "vencido": ${second.location}`);
+  }
+
   const cookie = await sessionCookie(OWNER);
   const page = async (path) => { const res = await get(path, cookie); assert.equal(res.status, 200, `${path}: ${res.status}`); return res.text(); };
   const resumen = await page('/panel?dias=7');
