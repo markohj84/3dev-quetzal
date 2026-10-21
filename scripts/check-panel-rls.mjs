@@ -20,6 +20,7 @@ async function cleanup() {
     if (id) await admin.auth.admin.deleteUser(id);
   }
   for (const c of [A, B]) {
+    await must(admin.from('handoffs').delete().eq('client_id', c));
     await must(admin.from('leads').delete().eq('client_id', c));
     await must(admin.from('follow_ups').delete().eq('client_id', c));
     await must(admin.from('contacts').delete().eq('client_id', c));
@@ -59,6 +60,28 @@ try {
   assert.ok(del.error || del.data.length === 0, 'A no puede borrar');
   const grant = await a.from('dashboard_users').insert({ user_id: (await a.auth.getUser()).data.user.id, client_id: B });
   assert.ok(grant.error, 'A no se puede dar acceso a otro cliente');
+
+  // Writes the handoff needs, and nothing more.
+  const uidA = (await a.auth.getUser()).data.user.id;
+  const human = await a.from('messages').insert({ client_id: A, contact_id: `eval-${A}`, role: 'human', content: 'te contesto yo' });
+  assert.ok(!human.error, `A escribe como humano en su cliente: ${human.error?.message}`);
+  for (const [row, why] of [
+    [{ client_id: A, contact_id: `eval-${A}`, role: 'assistant', content: 'x' }, 'no puede hacerse pasar por el asistente'],
+    [{ client_id: A, contact_id: `eval-${A}`, role: 'user', content: 'x' }, 'no puede inventar mensajes de la persona'],
+    [{ client_id: B, contact_id: `eval-${B}`, role: 'human', content: 'x' }, 'no escribe en otro cliente'],
+  ]) assert.ok((await a.from('messages').insert(row)).error, `A ${why}`);
+
+  const take = await a.from('handoffs').upsert({ client_id: A, contact_id: `eval-${A}`, taken_by: uidA, taken_by_email: emailA });
+  assert.ok(!take.error, `A toma en su cliente: ${take.error?.message}`);
+  assert.ok((await a.from('handoffs').insert({ client_id: B, contact_id: `eval-${B}`, taken_by: uidA, taken_by_email: emailA })).error, 'A no toma en otro cliente');
+  const uidB = await userId(emailB);
+  await must(admin.from('handoffs').insert({ client_id: B, contact_id: `eval-${B}`, taken_by: uidB, taken_by_email: emailB }));
+  const seen = await must(a.from('handoffs').select('client_id'));
+  assert.deepEqual(seen.map((r) => r.client_id), [A], 'A no ve tomas de otro cliente');
+  const freed = await a.from('handoffs').delete().eq('client_id', B).select();
+  assert.ok(freed.error || freed.data.length === 0, 'A no devuelve tomas de otro cliente');
+  const back = await a.from('handoffs').delete().eq('client_id', A).select();
+  assert.equal(back.data?.length, 1, 'A devuelve la suya');
 
   const anon = await must(anonClient().from('messages').select('client_id').in('client_id', [A, B]));
   assert.equal(anon.length, 0, 'sin sesión no se ve nada');
