@@ -1,11 +1,14 @@
 // Prueba core/store/db.ts contra la base real con client_id 'eval-db'.
 //   node --env-file=.env.local scripts/check-db.mjs
 import assert from 'node:assert';
-import { db, backfillContacts, createConversationLog, createLeadStore, createFollowUpStore, createProfileStore } from '../core/store/db.ts';
+import { db, backfillContacts, createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore } from '../core/store/db.ts';
 
 const C = 'eval-db';
 const must = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
 const cleanup = async () => {
+  await must(db().from('handoffs').delete().eq('client_id', C));
+  const { data: users } = await db().auth.admin.listUsers({ perPage: 1000 });
+  for (const u of users.users.filter((u) => u.email === 'eval-db-owner@3dev.test')) await db().auth.admin.deleteUser(u.id);
   await must(db().from('leads').delete().eq('client_id', C));
   await must(db().from('follow_ups').delete().eq('client_id', C));
   await must(db().from('contacts').delete().eq('client_id', C));
@@ -70,6 +73,23 @@ try {
   assert.ok(new Date(ana.last_seen_at) > new Date(hourAgo), 'last_seen_at no retrocede');
   assert.equal(byId['sin-nombre'].name, 'Eva');
   assert.equal(new Date(byId['solo-redis'].first_seen_at).toISOString(), weekAgo, 'un contacto que solo estaba en Redis se crea');
+
+  // appendInbound: the person's message alone, while the owner has the conversation.
+  await log.appendInbound({ channel: 'whatsapp', contactId: 'tomada', userText: 'sigo aquí', at: new Date() });
+  const inbound = await must(db().from('messages').select('role, content').eq('client_id', C).eq('contact_id', 'tomada'));
+  assert.deepEqual(inbound, [{ role: 'user', content: 'sigo aquí' }], 'sin respuesta del asistente');
+
+  const owner = (await must(db().auth.admin.createUser({ email: 'eval-db-owner@3dev.test', email_confirm: true }))).user;
+  const handoffs = createHandoffStore(C);
+  assert.equal(await handoffs.get('tomada'), null);
+  await must(db().from('handoffs').insert({ client_id: C, contact_id: 'tomada', taken_by: owner.id, taken_by_email: owner.email }));
+  const taken = await handoffs.get('tomada');
+  assert.equal(taken?.taken_by_email, 'eval-db-owner@3dev.test');
+  assert.equal(taken?.notified_at, null);
+  await handoffs.markNotified('tomada');
+  assert.ok((await handoffs.get('tomada'))?.notified_at, 'queda la hora del aviso');
+  await handoffs.release('tomada');
+  assert.equal(await handoffs.get('tomada'), null, 'devuelta');
 
   console.log('check-db: passed');
 } finally {

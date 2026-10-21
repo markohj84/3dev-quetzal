@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { CapturedLead } from '../tools';
+import type { Handoff } from '../handoff';
 
 let client: SupabaseClient | null = null;
 const DB_TIMEOUT_MS = 3_000;
@@ -62,6 +63,8 @@ export interface LogEntry {
 
 export interface ConversationLog {
   append(entry: LogEntry): Promise<void>;
+  /** The person's message with no reply: the owner has the conversation. */
+  appendInbound(entry: Omit<LogEntry, 'assistantText'>): Promise<void>;
 }
 
 export interface StoredLead extends CapturedLead {
@@ -189,28 +192,30 @@ export function contactToProfile(row: ContactRow, now: Date): ContactProfile | n
   };
 }
 
+/** first_seen_at is the first turn's time, set once: insert-or-ignore, then move last_seen_at forward. */
+async function touchContact(clientId: string, contactId: string, channel: string, at: string): Promise<void> {
+  const key = { client_id: clientId, contact_id: contactId };
+  const created = await must(
+    db()
+      .from('contacts')
+      .upsert({ ...key, channel, first_seen_at: at, last_seen_at: at }, { onConflict: 'client_id,contact_id', ignoreDuplicates: true })
+      .select('contact_id'),
+  );
+  if (!created.length) {
+    await must(db().from('contacts').update({ channel, last_seen_at: at }).match(key).lt('last_seen_at', at));
+  }
+}
+
 export function createConversationLog(clientId: string): ConversationLog {
   return {
     async append(entry) {
-      const at = entry.at.toISOString();
-      const key = { client_id: clientId, contact_id: entry.contactId };
-      // first_seen_at is the first turn's time, set once: insert-or-ignore,
-      // then move last_seen_at only when the contact already existed.
-      const created = await must(
-        db()
-          .from('contacts')
-          .upsert({ ...key, channel: entry.channel, first_seen_at: at, last_seen_at: at }, {
-            onConflict: 'client_id,contact_id',
-            ignoreDuplicates: true,
-          })
-          .select('contact_id'),
-      );
-      if (!created.length) {
-        await must(
-          db().from('contacts').update({ channel: entry.channel, last_seen_at: at }).match(key).lt('last_seen_at', at),
-        );
-      }
+      await touchContact(clientId, entry.contactId, entry.channel, entry.at.toISOString());
       await must(db().from('messages').insert(logEntryToMessages(clientId, entry)));
+    },
+    async appendInbound(entry) {
+      const at = entry.at.toISOString();
+      await touchContact(clientId, entry.contactId, entry.channel, at);
+      await must(db().from('messages').insert({ client_id: clientId, contact_id: entry.contactId, role: 'user', content: entry.userText, at }));
     },
   };
 }
@@ -291,6 +296,28 @@ export function createProfileStore(clientId: string): ProfileStore {
       await must(
         db().from('contacts').upsert(profileToContact(clientId, contactId, channel, profile), { onConflict: 'client_id,contact_id' }),
       );
+    },
+  };
+}
+
+export interface HandoffStore {
+  get(contactId: string): Promise<Handoff | null>;
+  release(contactId: string): Promise<void>;
+  markNotified(contactId: string): Promise<void>;
+}
+
+/** The webhook's view of who has a conversation (service_role: the person writing has no session). */
+export function createHandoffStore(clientId: string): HandoffStore {
+  const row = (contactId: string) => db().from('handoffs').select('*').eq('client_id', clientId).eq('contact_id', contactId);
+  return {
+    async get(contactId) {
+      return ((await must(row(contactId).maybeSingle())) as Handoff | null) ?? null;
+    },
+    async release(contactId) {
+      await must(db().from('handoffs').delete().eq('client_id', clientId).eq('contact_id', contactId));
+    },
+    async markNotified(contactId) {
+      await must(db().from('handoffs').update({ notified_at: new Date().toISOString() }).eq('client_id', clientId).eq('contact_id', contactId));
     },
   };
 }
