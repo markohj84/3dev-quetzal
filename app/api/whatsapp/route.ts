@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
-import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore } from '../../../core/store/db';
+import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore } from '../../../core/store/db';
+import { isTaken, shouldNotify } from '../../../core/handoff';
+import { panelUrl } from '../../panel/links';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
 
@@ -52,6 +54,38 @@ export async function POST(request: Request) {
 
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
   const profiles = createProfileStore(config.id);
+
+  // The owner has this conversation: the person is heard, not answered.
+  const handoffs = createHandoffStore(config.id);
+  const handoff = await handoffs.get(inbound.contactId).catch((error) => {
+    // An extra reply beats a person left unanswered.
+    console.error(`[${config.id}] handoff lookup failed`, error);
+    return null;
+  });
+  const now = new Date();
+  if (handoff && isTaken(handoff, now)) {
+    await createConversationLog(config.id)
+      .appendInbound({ channel: 'whatsapp', contactId: inbound.contactId, userText: inbound.text, at: now })
+      .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
+    // In the session too, so the assistant has the whole thread when it takes over again.
+    await sessions.set(inbound.contactId, { ...state, history: [...state.history, { role: 'user', content: inbound.text }] });
+    if (shouldNotify(handoff, now)) {
+      const profile = await profiles.get(inbound.contactId).catch(() => null);
+      await createLeadNotifier(config.notify).notify({
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        transcript: [],
+        reachAt: `https://wa.me/${toMetaRecipient(inbound.contactId)}`,
+        panelUrl: panelUrl(inbound.contactId),
+        inbound: { name: profile?.name ?? `+${toMetaRecipient(inbound.contactId)}`, text: inbound.text },
+      });
+      await handoffs.markNotified(inbound.contactId).catch((error) => console.error(`[${config.id}] handoff notify mark failed`, error));
+    }
+    return new Response('ok', { status: 200 });
+  }
+  if (handoff) {
+    await handoffs.release(inbound.contactId).catch((error) => console.error(`[${config.id}] handoff release failed`, error));
+  }
 
   try {
     // No profile is a fine way to start a conversation; no reply is not.
@@ -104,6 +138,7 @@ export async function POST(request: Request) {
         contactId: inbound.contactId,
         transcript: result.state.history,
         reachAt,
+        panelUrl: panelUrl(inbound.contactId),
       });
     }
 
@@ -123,6 +158,7 @@ export async function POST(request: Request) {
         transcript: result.state.history,
         captured: result.capturedLead,
         reachAt,
+        panelUrl: panelUrl(inbound.contactId),
       });
     }
 
@@ -144,6 +180,7 @@ export async function POST(request: Request) {
         transcript: result.state.history,
         booking: result.booked,
         reachAt,
+        panelUrl: panelUrl(inbound.contactId),
       });
     }
   } catch (error) {

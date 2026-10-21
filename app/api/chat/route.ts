@@ -5,6 +5,7 @@ import { createSessionStore, createRateLimiter } from '../../../core/store/sessi
 import { createConversationLog, createLeadStore, createFollowUpStore } from '../../../core/store/db';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
+import { panelUrl } from '../../panel/links';
 
 const adapter = createWebAdapter();
 const sessions = createSessionStore();
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
+        panelUrl: panelUrl(inbound.contactId),
       });
     }
 
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
+        panelUrl: panelUrl(inbound.contactId),
         captured: result.capturedLead,
       });
     }
@@ -83,6 +86,7 @@ export async function POST(request: Request) {
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
+        panelUrl: panelUrl(inbound.contactId),
         booking: result.booked,
       });
     }

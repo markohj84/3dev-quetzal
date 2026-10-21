@@ -23,6 +23,17 @@ const CALCOM_API_KEY = process.env.CALCOM_API_KEY;
 /** Attendee name of every booking an eval makes; cleanup cancels them by it. */
 const EVAL_ATTENDEE = 'Eval Agenda';
 
+const EVAL_OWNER = 'eval-handoff-owner@3dev.test';
+/** handoffs.taken_by needs a real auth user; one shared by every run, removed in cleanup. */
+async function evalOwner() {
+  const { data } = await db().auth.admin.listUsers({ perPage: 1000 });
+  const found = data.users.find((u) => u.email === EVAL_OWNER);
+  if (found) return found;
+  const created = await db().auth.admin.createUser({ email: EVAL_OWNER, email_confirm: true });
+  if (created.error) throw created.error;
+  return created.data.user;
+}
+
 export interface Case {
   name: string;
   /** Web widget unless set. */
@@ -154,6 +165,45 @@ export function genericCases({
         assert.match(r, /laura/i, `no la reconoció al volver: ${r}`);
       },
     },
+    {
+      // The owner took it in the panel: the assistant stays quiet, the person
+      // is still heard (log + session), and the owner hears about it once.
+      name: 'por WhatsApp: con la conversación tomada, el asistente no contesta',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const owner = await evalOwner();
+        await db().from('contacts').upsert({ client_id: clientId, contact_id: contactId, channel: 'whatsapp', left_contact: false });
+        await db().from('handoffs').insert({ client_id: clientId, contact_id: contactId, taken_by: owner.id, taken_by_email: owner.email });
+        await postWhatsApp(contactId, 'Hola, ¿me atiende una persona?');
+        await postWhatsApp(contactId, '¿Sigue ahí?');
+        const session = await kv.get<{ history: { role: string; content: string }[] }>(`session:${contactId}`);
+        assert.deepEqual(session?.history.map((t) => t.role), ['user', 'user'], `el asistente no debió contestar: ${JSON.stringify(session?.history)}`);
+        const { data: rows } = await db().from('messages').select('role').eq('client_id', clientId).eq('contact_id', contactId);
+        assert.deepEqual(rows?.map((r) => r.role), ['user', 'user'], 'los dos mensajes quedan en la transcripción');
+        const { data: h } = await db().from('handoffs').select('notified_at').eq('client_id', clientId).eq('contact_id', contactId).single();
+        assert.ok(h?.notified_at, 'el dueño recibió un aviso');
+      },
+    },
+    {
+      name: 'por WhatsApp: una toma vencida vuelve al asistente, con lo que dijo el dueño',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const owner = await evalOwner();
+        await db().from('contacts').upsert({ client_id: clientId, contact_id: contactId, channel: 'whatsapp', left_contact: false });
+        const fiveHoursAgo = new Date(Date.now() - 5 * 3600_000).toISOString();
+        await db().from('handoffs').insert({ client_id: clientId, contact_id: contactId, taken_by: owner.id, taken_by_email: owner.email, taken_at: fiveHoursAgo, last_human_at: fiveHoursAgo });
+        await kv.set(`session:${contactId}`, { history: [
+          { role: 'user', content: 'Quiero una cita' },
+          { role: 'assistant', content: 'Claro, soy Marco del equipo. Te escribo mañana con horarios.' },
+        ], hasOffered: true });
+        const r = await sendWhatsAppTurn(contactId, '¿Ya tienen los horarios que me dijo Marco?');
+        assert.ok(r.length > 0, 'el asistente contestó');
+        const { data: still } = await db().from('handoffs').select('contact_id').eq('client_id', clientId).eq('contact_id', contactId);
+        assert.equal(still?.length, 0, 'la toma vencida se borró');
+      },
+    },
   ];
   return whatsapp ? cases : cases.filter((c) => c.channel !== 'whatsapp');
 }
@@ -169,12 +219,8 @@ async function sendTurn(sessionId: string, text: string): Promise<string> {
   return data.text;
 }
 
-/**
- * The real webhook route end to end: signature, parse, session, tools, lead
- * capture. deliver() does post the reply to Meta, which turns it down, so the
- * reply is read back from the session instead.
- */
-export async function sendWhatsAppTurn(contactId: string, text: string): Promise<string> {
+/** The signed webhook POST alone: a taken conversation leaves no reply to read back. */
+export async function postWhatsApp(contactId: string, text: string): Promise<void> {
   const body = JSON.stringify({
     entry: [{ changes: [{ value: {
       metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID },
@@ -190,6 +236,15 @@ export async function sendWhatsAppTurn(contactId: string, text: string): Promise
     body,
   });
   if (!res.ok) throw new Error(`/api/whatsapp respondió ${res.status} — ¿el dev server tiene el mismo WHATSAPP_APP_SECRET?`);
+}
+
+/**
+ * The real webhook route end to end: signature, parse, session, tools, lead
+ * capture. deliver() does post the reply to Meta, which turns it down, so the
+ * reply is read back from the session instead.
+ */
+export async function sendWhatsAppTurn(contactId: string, text: string): Promise<string> {
+  await postWhatsApp(contactId, text);
 
   // The route answers 200 even when the engine fails, so check this very
   // turn landed in the session rather than trusting the last reply there.
@@ -231,6 +286,8 @@ async function cleanup(clientId: string, sessionIds: string[]) {
     const leads = await db().from('leads').delete().eq('client_id', clientId).in('contact_id', sessionIds);
     if (contacts.error || leads.error) console.error('cleanup de Supabase falló', contacts.error ?? leads.error);
   }
+  const { data: users } = await db().auth.admin.listUsers({ perPage: 1000 });
+  for (const u of users.users.filter((u) => u.email === EVAL_OWNER)) await db().auth.admin.deleteUser(u.id);
 }
 
 export async function runEvals({ clientId, cases }: { clientId: string; cases: Case[] }) {
