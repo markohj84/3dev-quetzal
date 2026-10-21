@@ -176,7 +176,9 @@ export function genericCases({
       async check(_replies, contactId) {
         const owner = await evalOwner();
         await db().from('contacts').upsert({ client_id: clientId, contact_id: contactId, channel: 'whatsapp', left_contact: false });
-        await db().from('handoffs').insert({ client_id: clientId, contact_id: contactId, taken_by: owner.id, taken_by_email: owner.email });
+        // Owner quiet for 20 min: the alert is due (no alerts while they're writing).
+        const twentyMinAgo = new Date(Date.now() - 20 * 60_000).toISOString();
+        await db().from('handoffs').insert({ client_id: clientId, contact_id: contactId, taken_by: owner.id, taken_by_email: owner.email, taken_at: twentyMinAgo, last_human_at: twentyMinAgo });
         await postWhatsApp(contactId, 'Hola, ¿me atiende una persona?');
         await postWhatsApp(contactId, '¿Sigue ahí?');
         const session = await kv.get<{ history: { role: string; content: string }[] }>(`session:${contactId}`);

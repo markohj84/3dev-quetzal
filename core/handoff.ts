@@ -25,9 +25,14 @@ export function returnsAt(h: Handoff): Date {
   return new Date(new Date(h.last_human_at).getTime() + HANDOFF_HOURS * HOUR_MS);
 }
 
-/** Each alert is a paid WhatsApp template: one per quarter hour per conversation is enough to bring the owner back. */
+/**
+ * Each alert is a paid WhatsApp template: none while the owner is writing in
+ * the chat, and at most one per quarter hour to bring them back.
+ */
 export function shouldNotify(h: Handoff, now: Date): boolean {
-  return !h.notified_at || now.getTime() - new Date(h.notified_at).getTime() >= NOTIFY_EVERY_MINUTES * 60_000;
+  const quarter = NOTIFY_EVERY_MINUTES * 60_000;
+  const ownerAway = now.getTime() - new Date(h.last_human_at).getTime() >= quarter;
+  return ownerAway && (!h.notified_at || now.getTime() - new Date(h.notified_at).getTime() >= quarter);
 }
 
 /** Meta only lets the business write freely within 24 h of the person's last message. */
@@ -50,9 +55,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(isTaken(h(240), now), false, 'a las 4 h exactas vuelve al asistente');
   assert.equal(returnsAt(h(60)).toISOString(), new Date(now.getTime() + 3 * 3600_000).toISOString());
 
-  assert.equal(shouldNotify(h(5), now), true, 'nunca avisado: avisa');
-  assert.equal(shouldNotify(h(5, 14), now), false, 'avisado hace 14 min: espera');
-  assert.equal(shouldNotify(h(5, 15), now), true, 'a los 15 min vuelve a avisar');
+  assert.equal(shouldNotify(h(5), now), false, 'el dueño escribió hace 5 min: está en el chat, no se le avisa');
+  assert.equal(shouldNotify(h(20), now), true, 'dueño callado 20 min y nunca avisado: avisa');
+  assert.equal(shouldNotify(h(20, 14), now), false, 'avisado hace 14 min: espera');
+  assert.equal(shouldNotify(h(20, 15), now), true, 'a los 15 min vuelve a avisar');
 
   assert.equal(windowOpen(null, now), false, 'sin mensajes de la persona no hay ventana');
   assert.equal(windowOpen(ago(60), now), true);

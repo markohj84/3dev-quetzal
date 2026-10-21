@@ -71,6 +71,14 @@ try {
     [{ client_id: B, contact_id: `eval-${B}`, role: 'human', content: 'x' }, 'no escribe en otro cliente'],
   ]) assert.ok((await a.from('messages').insert(row)).error, `A ${why}`);
 
+  const future = new Date(Date.now() + 3600_000).toISOString();
+  const uidBForSpoof = await userId(emailB);
+  for (const [row, why] of [
+    [{ taken_by: uidBForSpoof, taken_by_email: emailB }, 'no toma a nombre de otra persona'],
+    [{ taken_by: uidA, taken_by_email: 'otro@3dev.test' }, 'no pone otro correo'],
+    [{ taken_by: uidA, taken_by_email: emailA, last_human_at: future }, 'no la deja tomada para siempre'],
+    [{ taken_by: uidA, taken_by_email: emailA, notified_at: future }, 'no silencia los avisos a futuro'],
+  ]) assert.ok((await a.from('handoffs').upsert({ client_id: A, contact_id: `eval-${A}`, ...row })).error, `A ${why}`);
   const take = await a.from('handoffs').upsert({ client_id: A, contact_id: `eval-${A}`, taken_by: uidA, taken_by_email: emailA });
   assert.ok(!take.error, `A toma en su cliente: ${take.error?.message}`);
   assert.ok((await a.from('handoffs').insert({ client_id: B, contact_id: `eval-${B}`, taken_by: uidA, taken_by_email: emailA })).error, 'A no toma en otro cliente');

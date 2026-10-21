@@ -68,7 +68,10 @@ export async function POST(request: Request) {
       .appendInbound({ channel: 'whatsapp', contactId: inbound.contactId, userText: inbound.text, at: now })
       .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
     // In the session too, so the assistant has the whole thread when it takes over again.
-    await sessions.set(inbound.contactId, { ...state, history: [...state.history, { role: 'user', content: inbound.text }] });
+    // A Redis error must still answer 200: Meta's retries would duplicate the row and the alert.
+    await sessions
+      .set(inbound.contactId, { ...state, history: [...state.history, { role: 'user', content: inbound.text }] })
+      .catch((error) => console.error(`[${config.id}] session append failed`, error));
     if (shouldNotify(handoff, now)) {
       const profile = await profiles.get(inbound.contactId).catch(() => null);
       await createLeadNotifier(config.notify).notify({

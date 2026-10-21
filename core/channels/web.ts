@@ -1,3 +1,4 @@
+import assert from 'node:assert';
 import type { ChannelAdapter, InboundMessage } from './types';
 
 /**
@@ -21,6 +22,9 @@ export function createWebAdapter(): ChannelAdapter {
       if (typeof sessionId !== 'string' || typeof text !== 'string' || !text.trim()) {
         return null;
       }
+      // WhatsApp contact ids are phone numbers and share the session and the log:
+      // a web id that is one would read, and write into, that person's thread.
+      if (!sessionId || sessionId.length > 100 || /^\+?\d+$/.test(sessionId)) return null;
       return { contactId: sessionId, text: text.trim(), receivedAt: new Date() };
     },
 
@@ -28,4 +32,17 @@ export function createWebAdapter(): ChannelAdapter {
       /* the route returns the reply in its response */
     },
   };
+}
+
+// Self-check: `node core/channels/web.ts`
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const web = createWebAdapter();
+  assert.equal(web.parse({ sessionId: crypto.randomUUID(), text: 'hola' })?.text, 'hola');
+  assert.equal(web.parse({ sessionId: 'eval-3-1792509490', text: 'hola' })?.contactId, 'eval-3-1792509490');
+  // WhatsApp contact ids are phone numbers: a web id that looks like one would read that person's thread.
+  assert.equal(web.parse({ sessionId: '5212225551234', text: 'hola' }), null, 'un id de puros dígitos es de WhatsApp');
+  assert.equal(web.parse({ sessionId: '+5212225551234', text: 'hola' }), null);
+  assert.equal(web.parse({ sessionId: 'x'.repeat(200), text: 'hola' }), null, 'un id larguísimo no es de un widget');
+  assert.equal(web.parse({ sessionId: '', text: 'hola' }), null);
+  console.log('web.ts self-check passed');
 }

@@ -63,15 +63,29 @@ export async function reply(contactId: string, form: FormData) {
     back(contactId, `No se pudo enviar: ${reason}`);
   }
 
+  // From here on the message is already on the person's phone: a failure must
+  // say "sent but not recorded", never look like the send failed (they'd send it twice).
   const now = new Date().toISOString();
-  await sb.from('messages').insert({ client_id: config.id, contact_id: contactId, role: 'human', content: text, at: now });
-  await sb.from('handoffs').upsert(
+  const problems: string[] = [];
+  const saved = await sb.from('messages').insert({ client_id: config.id, contact_id: contactId, role: 'human', content: text, at: now });
+  if (saved.error) problems.push('la transcripción');
+  const kept = await sb.from('handoffs').upsert(
     { client_id: config.id, contact_id: contactId, taken_by: user.id, taken_by_email: user.email ?? '', last_human_at: now },
     { onConflict: 'client_id,contact_id' },
   );
-  // The business said it: when the assistant takes over again, it sees this as its own side of the thread.
-  const sessions = createSessionStore();
-  const state = (await sessions.get(contactId)) ?? { history: [], hasOffered: false };
-  await sessions.set(contactId, { ...state, history: [...state.history, { role: 'assistant', content: text }] });
+  if (kept.error) problems.push('el plazo de 4 h');
+  try {
+    // The business said it: when the assistant takes over again, it sees this as its own side of the thread.
+    const sessions = createSessionStore();
+    const state = (await sessions.get(contactId)) ?? { history: [], hasOffered: false };
+    await sessions.set(contactId, { ...state, history: [...state.history, { role: 'assistant', content: text }] });
+  } catch (error) {
+    console.error(`[${config.id}] handoff session append failed`, error);
+    problems.push('el contexto del asistente');
+  }
+  if (problems.length) {
+    console.error(`[${config.id}] handoff reply sent but not fully recorded`, saved.error ?? kept.error);
+    back(contactId, `Enviado, pero no quedó registrado en ${problems.join(', ')}. No lo vuelvas a mandar.`);
+  }
   back(contactId);
 }
