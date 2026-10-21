@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { leadPhone, metaPhone } from '../../core/followup.ts';
 
-export interface MessageLite { contact_id: string; role: 'user' | 'assistant'; content: string; at: string }
+export interface MessageLite { contact_id: string; role: 'user' | 'assistant' | 'human'; content: string; at: string }
 export interface ContactLite { contact_id: string; channel: string; name: string | null; interest: string | null; left_contact: boolean }
 export interface LeadLite { contact_id: string; channel: string; nombre: string; contacto: string; necesidad: string | null; at: string }
 export interface ConversationRow {

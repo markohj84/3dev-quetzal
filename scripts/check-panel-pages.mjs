@@ -18,6 +18,7 @@ async function userId(email) {
   return data.users.find((u) => u.email === email)?.id;
 }
 async function cleanup() {
+  await must(admin.from('handoffs').delete().eq('client_id', clientId).in('contact_id', [WA, WEB, NOISE]));
   for (const email of [OWNER, STRANGER]) { const id = await userId(email); if (id) await admin.auth.admin.deleteUser(id); }
   await must(admin.from('leads').delete().eq('client_id', clientId).in('contact_id', [WA, WEB, NOISE]));
   await must(admin.from('contacts').delete().eq('client_id', clientId).in('contact_id', [WA, WEB, NOISE]));
@@ -34,6 +35,19 @@ async function sessionCookie(email) {
   return [...jar].map(([n, v]) => `${n}=${v}`).join('; ');
 }
 const get = (path, cookie) => fetch(`${BASE}${path}`, { headers: cookie ? { cookie } : {}, redirect: 'manual' });
+/** Submit a server-action form exactly as the browser would: every hidden field of the form whose button says `label`. */
+async function submit(path, cookie, label, fields = {}) {
+  const html = await (await get(path, cookie)).text();
+  const form = [...html.matchAll(/<form[\s\S]*?<\/form>/g)].map((m) => m[0]).find((f) => f.includes(label));
+  assert.ok(form, `no hay un formulario con "${label}" en ${path}`);
+  const body = new FormData();
+  for (const m of form.matchAll(/<input type="hidden" name="([^"]+)"(?: value="([^"]*)")?/g)) body.append(m[1], (m[2] ?? '').replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+  for (const [k, v] of Object.entries(fields)) body.append(k, v);
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', body, redirect: 'manual', headers: { cookie, Origin: BASE } });
+  // Relative either way, so page() can prefix BASE.
+  return { status: res.status, location: (res.headers.get('location') ?? '').replace(BASE, '') };
+}
+const handoffRow = async () => (await must(admin.from('handoffs').select('*').eq('client_id', clientId).eq('contact_id', WA)))[0];
 
 await cleanup();
 try {
@@ -101,6 +115,31 @@ try {
   assert.match(await page(`/panel/conversaciones/${encodeURIComponent('no-existe/../x')}`), /Conversación no encontrada/);
   const leads = await page('/panel/leads');
   assert.match(leads, /mailto:luis\.panel@3dev\.test/);
+
+  // Handoff: take, a reply Meta refuses (test contact), give back.
+  const convo = `/panel/conversaciones/${WA}`;
+  assert.match(await page(convo), /El asistente está contestando/);
+  assert.doesNotMatch(await page(`/panel/conversaciones/${WEB}`), /Tomar conversación/, 'la web no se toma');
+  let res = await submit(convo, cookie, 'Tomar conversación');
+  assert.equal(res.status, 303, `tomar: ${res.status}`);
+  assert.equal((await handoffRow())?.taken_by_email, OWNER);
+  const takenPage = await page(convo);
+  assert.match(takenPage, /La atiendes tú/);
+  assert.match(await page('/panel/conversaciones?dias=7'), /tomada/);
+
+  res = await submit(convo, cookie, 'Enviar', { text: 'Hola, soy del equipo' });
+  assert.equal(res.status, 303);
+  assert.match(decodeURIComponent(res.location), /aviso=/, 'el error vuelve a la pantalla');
+  assert.match(await page(res.location), /No se pudo enviar/);
+  const human = await must(admin.from('messages').select('id').eq('client_id', clientId).eq('contact_id', WA).eq('role', 'human'));
+  assert.equal(human.length, 0, 'un mensaje que Meta no aceptó no queda en la transcripción');
+
+  res = await submit(convo, cookie, 'Enviar', { text: '   ' });
+  assert.match(await page(res.location), /Escribe un mensaje/);
+
+  res = await submit(convo, cookie, 'Devolver al asistente');
+  assert.equal(res.status, 303);
+  assert.equal(await handoffRow(), undefined, 'devuelta');
 
   const strange = await get('/panel', await sessionCookie(STRANGER));
   assert.equal(strange.status, 200);

@@ -35,3 +35,13 @@
 .panel button { font: inherit; padding: 10px 12px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
 .panel .notice { background: var(--soft); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
 .panel .pager { display: flex; justify-content: space-between; margin-top: 12px; font-size: 14px; }
+
+.panel .handoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 14px; }
+.panel .handoff form { display: contents; }
+.panel .handoff.mine { flex-direction: column; align-items: stretch; }
+.panel .handoff.mine form { display: flex; flex-direction: column; gap: 8px; max-width: none; }
+.panel textarea { font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
+.panel button:disabled, .panel textarea:disabled { opacity: .5; cursor: not-allowed; }
+.panel button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.panel .bubble.human { align-self: flex-end; background: #1d4ed8; color: #fff; }
+.panel .bubble .who { font-weight: 600; }

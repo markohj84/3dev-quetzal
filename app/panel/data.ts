@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getAssistant } from '../assistant';
 import { selectAll } from '../../core/store/db';
 import { metaPhone } from '../../core/followup';
+import { isTaken, type Handoff } from '../../core/handoff';
 import { summarizeConversations, type ContactLite, type LeadLite, type MessageLite } from './shape';
 
 const PAGE_SIZE = 50;
@@ -13,7 +14,7 @@ const EVAL = 'eval%';
  * check is skipped when Next renders only the page segment, and Cal.com is
  * called with the client's key, which RLS can't guard.
  */
-async function requireAccess(sb: SupabaseClient, clientId: string): Promise<void> {
+export async function requireAccess(sb: SupabaseClient, clientId: string): Promise<void> {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) throw new Error('panel: no session');
   const { data, error } = await sb.from('dashboard_users').select('client_id').eq('client_id', clientId).maybeSingle();
@@ -81,23 +82,26 @@ export async function loadSummary(sb: SupabaseClient, period: Period) {
 export async function loadConversations(sb: SupabaseClient, period: Period, channel: string | undefined, page: number) {
   const { config } = await getAssistant();
   await requireAccess(sb, config.id);
-  const [messages, contacts, leads, booked] = await Promise.all([
+  const [messages, contacts, leads, booked, handoffRows] = await Promise.all([
     messagesSince(sb, config.id, period.since),
     contactsSeenSince(sb, config.id, period.since),
     leadsByContact(sb, config.id),
     bookedPhones(period.since),
+    sb.from('handoffs').select('*').eq('client_id', config.id),
   ]);
+  const now = new Date();
+  const taken = new Set(((handoffRows.data ?? []) as Handoff[]).filter((h) => isTaken(h, now)).map((h) => h.contact_id));
   // ponytail: grouped in memory from the period's messages; move to a SQL view when a client passes ~50k messages per 90 days.
   const all = summarizeConversations(messages, contacts, leads, booked, config.followUp?.countryCode)
     .filter((row) => !channel || row.channel === channel);
   const start = (page - 1) * PAGE_SIZE;
-  return { rows: all.slice(start, start + PAGE_SIZE), hasMore: all.length > start + PAGE_SIZE };
+  return { rows: all.slice(start, start + PAGE_SIZE), hasMore: all.length > start + PAGE_SIZE, taken };
 }
 
 export async function loadConversation(sb: SupabaseClient, contactId: string) {
   const { config } = await getAssistant();
   await requireAccess(sb, config.id);
-  const [{ data: contact }, { data: lead }, messages] = await Promise.all([
+  const [{ data: contact }, { data: lead }, messages, { data: handoff }] = await Promise.all([
     sb.from('contacts').select('contact_id, channel, name, interest, left_contact').eq('client_id', config.id).eq('contact_id', contactId).maybeSingle(),
     sb.from('leads').select('contact_id, channel, nombre, contacto, necesidad, at').eq('client_id', config.id).eq('contact_id', contactId)
       .order('at', { ascending: false }).limit(1).maybeSingle(),
@@ -105,9 +109,17 @@ export async function loadConversation(sb: SupabaseClient, contactId: string) {
       sb.from('messages').select('contact_id, role, content, at').eq('client_id', config.id).eq('contact_id', contactId)
         .order('at').order('id').range(from, to),
     ),
+    sb.from('handoffs').select('*').eq('client_id', config.id).eq('contact_id', contactId).maybeSingle(),
   ]);
   if (!contact && !messages.length) return null;
-  return { contact: (contact as ContactLite | null) ?? undefined, lead: (lead as LeadLite | null) ?? undefined, messages };
+  const lastUserAt = [...messages].reverse().find((m) => m.role === 'user')?.at ?? null;
+  return {
+    contact: (contact as ContactLite | null) ?? undefined,
+    lead: (lead as LeadLite | null) ?? undefined,
+    messages,
+    handoff: (handoff as Handoff | null) ?? null,
+    lastUserAt,
+  };
 }
 
 export async function loadLeads(sb: SupabaseClient, period: Period) {

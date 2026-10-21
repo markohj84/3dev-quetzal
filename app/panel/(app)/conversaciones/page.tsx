@@ -12,7 +12,7 @@ export default async function ConversacionesPage({ searchParams }: { searchParam
   const channel = q.canal === 'whatsapp' || q.canal === 'web' ? q.canal : undefined;
   const page = Math.max(1, Number(q.pagina) || 1);
   const { config } = await getAssistant();
-  const { rows, hasMore } = await loadConversations(await createPanelClient(), periodOf(days), channel, page);
+  const { rows, hasMore, taken } = await loadConversations(await createPanelClient(), periodOf(days), channel, page);
   const tz = config.scheduling.timeZone ?? 'UTC';
   const now = new Date();
   const link = (extra: Record<string, string | number | undefined>) => {
@@ -40,6 +40,7 @@ export default async function ConversacionesPage({ searchParams }: { searchParam
                 {r.channel === 'whatsapp' ? 'WhatsApp' : 'Web'} · {r.count} mensajes
                 {r.leftData && <span className="on"> · dejó datos</span>}
                 {r.booked && <span className="on"> · agendó</span>}
+                {taken.has(r.contactId) && <span className="on"> · tomada</span>}
               </div>
               <div className="preview">{r.lastText}</div>
             </li>
