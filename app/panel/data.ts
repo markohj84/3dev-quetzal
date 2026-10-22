@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getAssistant } from '../assistant';
+import { getAssistantOr404 } from '../assistant';
 import { selectAll } from '../../core/store/db';
 import { metaPhone } from '../../core/followup';
 import { isTaken, type Handoff } from '../../core/handoff';
@@ -27,7 +27,7 @@ export const periodOf = (days: 7 | 30 | 90): Period => ({ days, since: new Date(
 
 /** Null when the calendar can't say: the screen shows "—" instead of a wrong zero. */
 async function bookedPhones(since: Date): Promise<Set<string> | null> {
-  const { scheduler } = await getAssistant();
+  const { scheduler } = await getAssistantOr404();
   if (!scheduler.bookedPhones) return null;
   try {
     return new Set((await scheduler.bookedPhones(since)).map(metaPhone));
@@ -61,7 +61,7 @@ async function contactsSeenSince(sb: SupabaseClient, clientId: string, since: Da
 }
 
 export async function loadSummary(sb: SupabaseClient, period: Period) {
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   await requireAccess(sb, config.id);
   const [messages, leads, booked] = await Promise.all([
     messagesSince(sb, config.id, period.since),
@@ -80,7 +80,7 @@ export async function loadSummary(sb: SupabaseClient, period: Period) {
 }
 
 export async function loadConversations(sb: SupabaseClient, period: Period, channel: string | undefined, page: number) {
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   await requireAccess(sb, config.id);
   const [messages, contacts, leads, booked, handoffRows] = await Promise.all([
     messagesSince(sb, config.id, period.since),
@@ -99,7 +99,7 @@ export async function loadConversations(sb: SupabaseClient, period: Period, chan
 }
 
 export async function loadConversation(sb: SupabaseClient, contactId: string) {
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   await requireAccess(sb, config.id);
   const [{ data: contact }, { data: lead }, messages, { data: handoff }] = await Promise.all([
     sb.from('contacts').select('contact_id, channel, name, interest, left_contact').eq('client_id', config.id).eq('contact_id', contactId).maybeSingle(),
@@ -123,7 +123,7 @@ export async function loadConversation(sb: SupabaseClient, contactId: string) {
 }
 
 export async function loadLeads(sb: SupabaseClient, period: Period) {
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   await requireAccess(sb, config.id);
   return [...(await leadsByContact(sb, config.id)).values()]
     .filter((l) => new Date(l.at) >= period.since)

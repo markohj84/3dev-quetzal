@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getAssistant } from '../../assistant';
+import { getAssistantOr404 } from '../../assistant';
 import { createPanelClient } from '../supabase';
 import { loginMessage, stateAfterSend, stateAfterVerify } from '../shape';
 import '../panel.css';
@@ -34,7 +34,7 @@ async function verifyCode(form: FormData) {
 
 export default async function EntrarPage({ searchParams }: { searchParams: Promise<{ correo?: string; estado?: string }> }) {
   const { correo, estado } = await searchParams;
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   const message = loginMessage(estado);
   return (
     <main className="panel">

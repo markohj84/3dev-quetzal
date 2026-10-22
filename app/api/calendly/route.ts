@@ -1,4 +1,4 @@
-import { getAssistant } from '../../assistant';
+import { getAssistantOrNull } from '../../assistant';
 import { verifyCalendlySignature, parseBooking } from '../../../core/scheduling/calendly-webhook';
 import { createLeadNotifier } from '../../../core/notify';
 
@@ -11,11 +11,14 @@ import { createLeadNotifier } from '../../../core/notify';
  * round.
  */
 export async function POST(request: Request) {
+  const assistant = await getAssistantOrNull();
+  if (!assistant) return new Response('not found', { status: 404 });
+  const { config, secrets } = assistant;
   const rawBody = await request.text();
 
   if (
     !verifyCalendlySignature(
-      process.env.CALENDLY_WEBHOOK_SIGNING_KEY ?? '',
+      secrets.calendlySigningKey ?? '',
       rawBody,
       request.headers.get('calendly-webhook-signature'),
     )
@@ -34,10 +37,8 @@ export async function POST(request: Request) {
   // Calendly retries non-2xx, including the event types we don't act on.
   if (!booking) return new Response('ok', { status: 200 });
 
-  const { config } = await getAssistant();
-
   try {
-    await createLeadNotifier(config.notify).notify({
+    await createLeadNotifier(config.notify, secrets).notify({
       channel: 'calendly',
       contactId: booking.email,
       transcript: [],

@@ -24,6 +24,10 @@ const CALCOM_API_KEY = process.env.CALCOM_API_KEY;
 /** Attendee name of every booking an eval makes; cleanup cancels them by it. */
 const EVAL_ATTENDEE = 'Eval Agenda';
 
+/** The client under test: sessions are namespaced by it (set by genericCases / runEvals). */
+let sessionClient = '';
+const sessionKey = (contactId: string) => `session:${sessionClient}:${contactId}`;
+
 const EVAL_OWNER = 'eval-handoff-owner@3dev.test';
 /** handoffs.taken_by needs a real auth user; one shared by every run, removed in cleanup. */
 async function evalOwner() {
@@ -60,6 +64,7 @@ export function genericCases({
   offer: RegExp;
   whatsapp?: boolean;
 }): Case[] {
+  sessionClient = clientId;
   const leadFor = async (contactId: string) => {
     const { data, error } = await db()
       .from('leads')
@@ -162,7 +167,7 @@ export function genericCases({
       async check(_replies, contactId) {
         const { data: row } = await db().from('contacts').select('name').eq('client_id', clientId).eq('contact_id', contactId).maybeSingle();
         assert.match(row?.name ?? '', /laura/i, `no guardó el nombre en la ficha: ${JSON.stringify(row)}`);
-        await kv.del(`session:${contactId}`);
+        await kv.del(sessionKey(contactId));
         const r = await sendWhatsAppTurn(contactId, 'Hola');
         assert.match(r, /laura/i, `no la reconoció al volver: ${r}`);
       },
@@ -181,7 +186,7 @@ export function genericCases({
         await db().from('handoffs').insert({ client_id: clientId, contact_id: contactId, taken_by: owner.id, taken_by_email: owner.email, taken_at: twentyMinAgo, last_human_at: twentyMinAgo });
         await postWhatsApp(contactId, 'Hola, ¿me atiende una persona?');
         await postWhatsApp(contactId, '¿Sigue ahí?');
-        const session = await kv.get<{ history: { role: string; content: string }[] }>(`session:${contactId}`);
+        const session = await kv.get<{ history: { role: string; content: string }[] }>(sessionKey(contactId));
         assert.deepEqual(session?.history.map((t) => t.role), ['user', 'user'], `el asistente no debió contestar: ${JSON.stringify(session?.history)}`);
         assert.ok((session as { startedAt?: string } | null)?.startedAt, 'la sesión creada durante la toma marca cuándo empezó (si no, se duplica como memoria)');
         const { data: rows } = await db().from('messages').select('role').eq('client_id', clientId).eq('contact_id', contactId);
@@ -199,7 +204,7 @@ export function genericCases({
         await db().from('contacts').upsert({ client_id: clientId, contact_id: contactId, channel: 'whatsapp', left_contact: false });
         const fiveHoursAgo = new Date(Date.now() - 5 * 3600_000).toISOString();
         await db().from('handoffs').insert({ client_id: clientId, contact_id: contactId, taken_by: owner.id, taken_by_email: owner.email, taken_at: fiveHoursAgo, last_human_at: fiveHoursAgo });
-        await kv.set(`session:${contactId}`, { history: [
+        await kv.set(sessionKey(contactId), { history: [
           { role: 'user', content: 'Quiero una cita' },
           { role: 'assistant', content: 'Claro, soy Marco del equipo. Te escribo mañana con horarios.' },
         ], hasOffered: true });
@@ -277,7 +282,7 @@ export async function sendWhatsAppTurn(contactId: string, text: string): Promise
 
   // The route answers 200 even when the engine fails, so check this very
   // turn landed in the session rather than trusting the last reply there.
-  const session = await kv.get<{ history: { role: string; content: string }[] }>(`session:${contactId}`);
+  const session = await kv.get<{ history: { role: string; content: string }[] }>(sessionKey(contactId));
   const [asked, answer] = session?.history.slice(-2) ?? [];
   if (asked?.content !== text || answer?.role !== 'assistant') {
     throw new Error('la ruta de WhatsApp no dejó respuesta en la sesión; revisa el log del dev server');
@@ -308,7 +313,7 @@ async function cleanup(clientId: string, sessionIds: string[]) {
       body: JSON.stringify({ cancellationReason: 'Eval de Quetzal' }),
     });
   }
-  for (const id of sessionIds) await kv.del(`session:${id}`);
+  for (const id of sessionIds) await kv.del(sessionKey(id));
   if (sessionIds.length) {
     // Cascades to their messages: an eval leaves no trace in the conversation log.
     const contacts = await db().from('contacts').delete().eq('client_id', clientId).in('contact_id', sessionIds);
@@ -321,6 +326,7 @@ async function cleanup(clientId: string, sessionIds: string[]) {
 }
 
 export async function runEvals({ clientId, cases }: { clientId: string; cases: Case[] }) {
+  sessionClient = clientId;
   let failed = 0;
   let skipped = 0;
   const sessionIds: string[] = [];

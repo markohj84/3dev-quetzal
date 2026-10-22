@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getAssistant } from '../../assistant';
+import { getAssistantOr404 } from '../../assistant';
 import { createPanelClient } from '../supabase';
 import '../panel.css';
 
@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Panel', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   const sb = await createPanelClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) redirect('/panel/entrar');

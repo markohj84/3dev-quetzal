@@ -15,13 +15,16 @@ export interface SessionStore {
   set(contactId: string, state: ConversationState): Promise<void>;
 }
 
-export function createSessionStore(): SessionStore {
+/** Keyed by client too: in a shared deploy two clients can meet the same phone number or session id. */
+export const sessionKey = (clientId: string, contactId: string) => `session:${clientId}:${contactId}`;
+
+export function createSessionStore(clientId: string): SessionStore {
   return {
     async get(contactId) {
-      return (await kv.get<ConversationState>(`session:${contactId}`)) ?? null;
+      return (await kv.get<ConversationState>(sessionKey(clientId, contactId))) ?? null;
     },
     async set(contactId, state) {
-      await kv.set(`session:${contactId}`, state, { ex: SESSION_TTL_SECONDS });
+      await kv.set(sessionKey(clientId, contactId), state, { ex: SESSION_TTL_SECONDS });
     },
   };
 }

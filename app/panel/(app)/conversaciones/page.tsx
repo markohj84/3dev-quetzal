@@ -1,4 +1,4 @@
-import { getAssistant } from '../../../assistant';
+import { getAssistantOr404 } from '../../../assistant';
 import { createPanelClient } from '../../supabase';
 import { loadConversations, periodOf } from '../../data';
 import { formatWhen, parseDays } from '../../shape';
@@ -11,7 +11,7 @@ export default async function ConversacionesPage({ searchParams }: { searchParam
   const days = parseDays(q.dias);
   const channel = q.canal === 'whatsapp' || q.canal === 'web' ? q.canal : undefined;
   const page = Math.max(1, Number(q.pagina) || 1);
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   const { rows, hasMore, taken } = await loadConversations(await createPanelClient(), periodOf(days), channel, page);
   const tz = config.scheduling.timeZone ?? 'UTC';
   const now = new Date();

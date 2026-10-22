@@ -1,4 +1,4 @@
-import { getAssistant } from '../../../assistant';
+import { getAssistantOr404 } from '../../../assistant';
 import { createPanelClient } from '../../supabase';
 import { loadLeads, periodOf } from '../../data';
 import { contactLink, formatWhen, parseDays } from '../../shape';
@@ -6,7 +6,7 @@ import { Nav } from '../../nav';
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ dias?: string }> }) {
   const days = parseDays((await searchParams).dias);
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   const leads = await loadLeads(await createPanelClient(), periodOf(days));
   const tz = config.scheduling.timeZone ?? 'UTC';
   const now = new Date();

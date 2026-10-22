@@ -162,14 +162,22 @@ export function templateParam(value: string | undefined): string {
  * Meta resolved the number to — the id a reply will come back from, which
  * for Mexican mobiles is not the number we sent to.
  */
-export async function sendTemplate(msg: {
-  to: string;
-  template: string;
-  language: string;
-  params: string[];
-}): Promise<string | undefined> {
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+/** One client's own number and token: never read from the environment here, or a shared deploy would send from the wrong number. */
+export interface WhatsAppCredentials {
+  phoneNumberId?: string;
+  token?: string;
+}
+
+export async function sendTemplate(
+  msg: {
+    to: string;
+    template: string;
+    language: string;
+    params: string[];
+  },
+  creds: WhatsAppCredentials,
+): Promise<string | undefined> {
+  const { phoneNumberId, token } = creds;
   if (!phoneNumberId || !token) throw new Error('WhatsApp no configurado');
 
   const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {

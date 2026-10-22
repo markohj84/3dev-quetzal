@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAssistant } from '../../assistant';
+import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
@@ -9,35 +9,23 @@ import { panelUrl } from '../../panel/links';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
 
-const sessions = createSessionStore();
 // contactId here is Meta's own phone number id, not caller-supplied — safe to key on directly.
 const rateLimiter = createRateLimiter(20, 60);
-
-const adapter = createWhatsAppAdapter({
-  phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
-  accessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
-});
 
 /** Meta verifies the webhook with a GET before it will send anything. */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
-  if (params.get('hub.verify_token') === process.env.WHATSAPP_VERIFY_TOKEN) {
+  // The Meta app is the platform's: the token is shared unless this host's client brought its own.
+  const assistant = await getAssistantOrNull();
+  const token = assistant?.secrets.whatsappVerifyToken ?? process.env.WHATSAPP_VERIFY_TOKEN;
+  if (token && params.get('hub.verify_token') === token) {
     return new Response(params.get('hub.challenge') ?? '', { status: 200 });
   }
   return new Response('forbidden', { status: 403 });
 }
 
 export async function POST(request: Request) {
-  const { engine, config } = await getAssistant();
-
-  if (!config.channels.whatsapp.enabled) {
-    return NextResponse.json({ error: 'channel disabled' }, { status: 404 });
-  }
-
   const rawBody = await request.text();
-  if (!verifySignature(process.env.WHATSAPP_APP_SECRET ?? '', rawBody, request.headers.get('x-hub-signature-256'))) {
-    return new Response('forbidden', { status: 403 });
-  }
 
   let parsed: unknown = null;
   try {
@@ -45,11 +33,37 @@ export async function POST(request: Request) {
   } catch {
     /* falls through to adapter.parse(null) below, same as a malformed body always has */
   }
+
+  // One Meta app, one webhook, many numbers: the number the message arrived at
+  // says whose it is. Read before the signature only to pick WHICH secret
+  // checks it; nothing is processed until that check passes.
+  const toNumber = (parsed as any)?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id as string | undefined;
+  const tenant = await tenantByPhoneNumberId(toNumber);
+  if (!tenant) {
+    // Meta retries anything that is not a 200; a number nobody here owns is not ours to answer.
+    console.warn(`[whatsapp] ignorado: el número ${toNumber} no es de ningún cliente de este despliegue`);
+    return new Response('ok', { status: 200 });
+  }
+  const { engine, config, secrets } = await assistantFor(tenant);
+
+  if (!config.channels.whatsapp.enabled) {
+    return NextResponse.json({ error: 'channel disabled' }, { status: 404 });
+  }
+
+  if (!verifySignature(secrets.whatsappAppSecret ?? '', rawBody, request.headers.get('x-hub-signature-256'))) {
+    return new Response('forbidden', { status: 403 });
+  }
+
+  const sessions = createSessionStore(config.id);
+  const adapter = createWhatsAppAdapter({
+    phoneNumberId: secrets.whatsapp.phoneNumberId ?? '',
+    accessToken: secrets.whatsapp.token ?? '',
+  });
   const inbound = adapter.parse(parsed);
   // Meta retries anything that is not a 200, including delivery receipts.
   if (!inbound) return new Response('ok', { status: 200 });
 
-  if (!(await rateLimiter.check(inbound.contactId))) {
+  if (!(await rateLimiter.check(`${config.id}:${inbound.contactId}`))) {
     return new Response('ok', { status: 200 });
   }
 
@@ -76,12 +90,12 @@ export async function POST(request: Request) {
       .catch((error) => console.error(`[${config.id}] session append failed`, error));
     if (shouldNotify(handoff, now)) {
       const profile = await profiles.get(inbound.contactId).catch(() => null);
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: [],
         reachAt: `https://wa.me/${toMetaRecipient(inbound.contactId)}`,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
         inbound: { name: profile?.name ?? `+${toMetaRecipient(inbound.contactId)}`, text: inbound.text },
       });
       await handoffs.markNotified(inbound.contactId).catch((error) => console.error(`[${config.id}] handoff notify mark failed`, error));
@@ -150,12 +164,12 @@ export async function POST(request: Request) {
     }
 
     if (!state.hasOffered && result.state.hasOffered) {
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
         reachAt,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
       });
     }
 
@@ -169,13 +183,13 @@ export async function POST(request: Request) {
           at: new Date().toISOString(),
         })
         .catch((error) => console.error(`[${config.id}] lead save failed`, error));
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
         captured: result.capturedLead,
         reachAt,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
       });
     }
 
@@ -191,13 +205,13 @@ export async function POST(request: Request) {
           .mark(phone, 'booked')
           .catch((error) => console.error(`[${config.id}] follow-up mark failed`, error));
       }
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
         booking: result.booked,
         reachAt,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
       });
     }
   } catch (error) {

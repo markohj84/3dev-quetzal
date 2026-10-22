@@ -1,4 +1,4 @@
-import { getAssistant } from '../../assistant';
+import { getAssistantOr404 } from '../../assistant';
 import { createPanelClient } from '../supabase';
 import { loadSummary, periodOf } from '../data';
 import { formatWhen, parseDays } from '../shape';
@@ -6,7 +6,7 @@ import { Nav } from '../nav';
 
 export default async function ResumenPage({ searchParams }: { searchParams: Promise<{ dias?: string }> }) {
   const days = parseDays((await searchParams).dias);
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   const s = await loadSummary(await createPanelClient(), periodOf(days));
   const tz = config.scheduling.timeZone ?? 'UTC';
   const now = new Date();

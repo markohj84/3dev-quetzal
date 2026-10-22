@@ -125,6 +125,8 @@ export const AssistantConfig = z.object({
   /** Organisation the assistant represents. */
   organization: z.string(),
   locale: z.string().default('es-MX'),
+  /** Hostnames that belong to this client in a shared deploy (MULTI_TENANT=1). Unique across clients. */
+  domains: z.array(z.string().toLowerCase()).default([]),
 
   /** Path, relative to the client directory, of the voice document. */
   voiceFile: z.string().default('voice.md'),

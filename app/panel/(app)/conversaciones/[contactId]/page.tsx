@@ -1,4 +1,4 @@
-import { getAssistant } from '../../../../assistant';
+import { getAssistantOr404 } from '../../../../assistant';
 import { createPanelClient } from '../../../supabase';
 import { loadConversation } from '../../../data';
 import { contactLink, contactPhone, dayKey, displayName, formatWhen, parseDays } from '../../../shape';
@@ -12,7 +12,7 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
   const contactId = decodeURIComponent((await params).contactId);
   const { dias, aviso } = await searchParams;
   const days = parseDays(dias);
-  const { config } = await getAssistant();
+  const { config } = await getAssistantOr404();
   const back = <a href={`/panel/conversaciones?dias=${days}`}>‹ Conversaciones</a>;
   const sb = await createPanelClient();
   const userEmail = (await sb.auth.getUser()).data.user?.email;

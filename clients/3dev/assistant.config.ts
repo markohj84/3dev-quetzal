@@ -1,4 +1,5 @@
 import { AssistantConfig } from '../../core/config/schema.ts';
+import { clientEnv } from '../../core/config/env.ts';
 
 /**
  * 3dev — client instance.
@@ -12,6 +13,7 @@ export default AssistantConfig.parse({
   name: 'Quetzal',
   organization: '3dev',
   locale: 'es-MX',
+  domains: ['quetzal.3dev.mx'],
 
   scheduling: {
     provider: 'calcom',
@@ -41,7 +43,7 @@ export default AssistantConfig.parse({
     },
     whatsapp: {
       enabled: true,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+      phoneNumberId: clientEnv('quetzal-3dev', 'WHATSAPP_PHONE_NUMBER_ID'),
     },
   },
 
@@ -49,7 +51,7 @@ export default AssistantConfig.parse({
     email: 'contacto@3dev.mx',
     fromEmail: 'Quetzal <notificaciones@3dev.mx>',
     // The number lives in the environment: this repository is public.
-    whatsapp: { to: process.env.NOTIFY_WHATSAPP_TO, template: 'aviso_lead' },
+    whatsapp: { to: clientEnv('quetzal-3dev', 'NOTIFY_WHATSAPP_TO'), template: 'aviso_lead' },
   },
 
   followUp: {

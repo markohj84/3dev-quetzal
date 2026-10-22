@@ -1,4 +1,5 @@
 import { AssistantConfig } from '../../core/config/schema.ts';
+import { clientEnv } from '../../core/config/env.ts';
 
 /**
  * Demo de venta: Clínica Dental Nogal, ficticia. Muestra a un prospecto de
@@ -11,6 +12,7 @@ export default AssistantConfig.parse({
   name: 'Lía',
   organization: 'Clínica Dental Nogal',
   locale: 'es-MX',
+  domains: ['demo.3dev.mx'],
 
   scheduling: {
     provider: 'calcom',
@@ -45,7 +47,7 @@ export default AssistantConfig.parse({
     // sin ella: python3 -m http.server 8787 --bind 127.0.0.1 --directory clients/demo-dental
     // y CATALOG_URL=http://127.0.0.1:8787/catalogo.csv.
     url:
-      process.env.CATALOG_URL ??
+      clientEnv('demo-dental', 'CATALOG_URL') ??
       'https://docs.google.com/spreadsheets/d/e/2PACX-1vSKjOXpYHFUCbpGpHvJmkicAudwdPr-JHPAk7KuE00G-cT26Cx7qHaBA-i9Ya0sg1BVmBVE5ZaPSgob/pub?output=csv',
     description:
       'promociones vigentes de la clínica y productos de higiene dental a la venta, con su precio y existencias',

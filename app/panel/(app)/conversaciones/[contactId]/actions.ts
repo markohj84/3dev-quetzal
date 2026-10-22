@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { getAssistant } from '../../../../assistant';
+import { getAssistantOr404 } from '../../../../assistant';
 import { createPanelClient } from '../../../supabase';
 import { requireAccess } from '../../../data';
 import { windowOpen } from '../../../../../core/handoff';
@@ -12,14 +12,14 @@ import { withStart } from '../../../../../core/engine/prompt';
 const MAX_LENGTH = 4096;
 
 async function context(contactId: string) {
-  const { config } = await getAssistant();
+  const { config, secrets } = await getAssistantOr404();
   const sb = await createPanelClient();
   await requireAccess(sb, config.id);
   const { data: { user } } = await sb.auth.getUser();
   const { data: contact } = await sb.from('contacts').select('channel').eq('client_id', config.id).eq('contact_id', contactId).maybeSingle();
   // Only WhatsApp can carry the owner's words back to the person.
   if (contact?.channel !== 'whatsapp') throw new Error('handoff: only WhatsApp conversations can be taken');
-  return { config, sb, user: user! };
+  return { config, secrets, sb, user: user! };
 }
 
 const back = (contactId: string, aviso?: string) =>
@@ -42,7 +42,7 @@ export async function giveBack(contactId: string) {
 }
 
 export async function reply(contactId: string, form: FormData) {
-  const { config, sb, user } = await context(contactId);
+  const { config, secrets, sb, user } = await context(contactId);
   const text = String(form.get('text') ?? '').trim();
   if (!text) back(contactId, 'Escribe un mensaje.');
   if (text.length > MAX_LENGTH) back(contactId, `WhatsApp acepta hasta ${MAX_LENGTH} caracteres.`);
@@ -55,8 +55,8 @@ export async function reply(contactId: string, form: FormData) {
 
   try {
     await createWhatsAppAdapter({
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
-      accessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
+      phoneNumberId: secrets.whatsapp.phoneNumberId ?? '',
+      accessToken: secrets.whatsapp.token ?? '',
     }).deliver(contactId, { text });
   } catch (error) {
     // Nothing is saved: a "Tú" bubble for a message that never left would lie to the owner.
@@ -77,7 +77,7 @@ export async function reply(contactId: string, form: FormData) {
   if (kept.error) problems.push('el plazo de 4 h');
   try {
     // The business said it: when the assistant takes over again, it sees this as its own side of the thread.
-    const sessions = createSessionStore();
+    const sessions = createSessionStore(config.id);
     const state = (await sessions.get(contactId)) ?? { history: [], hasOffered: false };
     await sessions.set(contactId, { ...withStart(state, new Date(now)), history: [...state.history, { role: 'assistant', content: text }] });
   } catch (error) {

@@ -1,4 +1,5 @@
 import { AssistantConfig } from '../../core/config/schema.ts';
+import { clientEnv } from '../../core/config/env.ts';
 
 /**
  * PLANTILLA — copia esta carpeta a clients/<cliente>/ y llena cada TODO.
@@ -12,6 +13,8 @@ export default AssistantConfig.parse({
   name: 'Asistente',
   organization: 'Negocio',
   locale: 'es-MX',
+  // TODO: dominios del cliente en el deploy compartido (MULTI_TENANT=1); únicos entre clientes.
+  domains: [],
 
   scheduling: {
     // 'calcom' agenda dentro del chat; 'none' si el cliente no agenda citas.
@@ -39,7 +42,7 @@ export default AssistantConfig.parse({
     },
     whatsapp: {
       enabled: true,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+      phoneNumberId: clientEnv('asistente-cliente', 'WHATSAPP_PHONE_NUMBER_ID'),
     },
   },
 
@@ -48,7 +51,7 @@ export default AssistantConfig.parse({
     email: 'dueno@negocio.mx',
     fromEmail: 'Asistente <avisos@negocio.mx>',
     // El número va en el entorno: este repositorio es público.
-    whatsapp: { to: process.env.NOTIFY_WHATSAPP_TO, template: 'aviso_lead' },
+    whatsapp: { to: clientEnv('asistente-cliente', 'NOTIFY_WHATSAPP_TO'), template: 'aviso_lead' },
   },
 
   followUp: {

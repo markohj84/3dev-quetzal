@@ -3,7 +3,7 @@ import type { Turn } from './engine';
 import type { CapturedLead } from './tools';
 import type { Booking } from './scheduling/calendly-webhook';
 import type { NotifyConfig } from './config/schema';
-import { sendTemplate, templateParam } from './channels/whatsapp.ts';
+import { sendTemplate, templateParam, type WhatsAppCredentials } from './channels/whatsapp.ts';
 
 export interface LeadAlert {
   channel: string;
@@ -32,13 +32,19 @@ export interface LeadNotifier {
  * Fires once per conversation, the moment it crosses into "real interest"
  * (the same signal that flips hasOffered) — not on every turn.
  */
-export function createLeadNotifier(config: NotifyConfig): LeadNotifier {
+/** The client's own keys, handed in by the caller: this file reads no environment. */
+export interface NotifySecrets {
+  resendApiKey?: string;
+  whatsapp?: WhatsAppCredentials;
+}
+
+export function createLeadNotifier(config: NotifyConfig, secrets: NotifySecrets = {}): LeadNotifier {
   return {
     async notify(alert) {
       // Each channel on its own: a failed WhatsApp send must not cost the email.
       const results = await Promise.allSettled([
-        sendEmail(config.email, config.fromEmail, alert),
-        sendWhatsApp(config.whatsapp, alert),
+        sendEmail(config.email, config.fromEmail, alert, secrets.resendApiKey),
+        sendWhatsApp(config.whatsapp, alert, secrets.whatsapp ?? {}),
       ]);
       for (const r of results) {
         if (r.status === 'rejected') console.error('lead alert failed', r.reason);
@@ -48,10 +54,14 @@ export function createLeadNotifier(config: NotifyConfig): LeadNotifier {
 }
 
 /** Resend's plain HTTP API directly; a single POST doesn't need the SDK. */
-async function sendEmail(to: string | undefined, from: string | undefined, alert: LeadAlert): Promise<void> {
+async function sendEmail(
+  to: string | undefined,
+  from: string | undefined,
+  alert: LeadAlert,
+  apiKey: string | undefined,
+): Promise<void> {
   if (!to || !from) return;
 
-  const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn('RESEND_API_KEY no configurado — no se pudo notificar el lead');
     return;
@@ -142,9 +152,9 @@ export function whatsAppAlertParams(alert: LeadAlert): string[] {
   ].map(templateParam);
 }
 
-async function sendWhatsApp(config: NotifyConfig['whatsapp'], alert: LeadAlert): Promise<void> {
+async function sendWhatsApp(config: NotifyConfig['whatsapp'], alert: LeadAlert, creds: WhatsAppCredentials): Promise<void> {
   if (!config?.to) return;
-  await sendTemplate({ to: config.to, template: config.template, language: config.language, params: whatsAppAlertParams(alert) });
+  await sendTemplate({ to: config.to, template: config.template, language: config.language, params: whatsAppAlertParams(alert) }, creds);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

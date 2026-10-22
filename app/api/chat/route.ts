@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAssistant } from '../../assistant';
+import { getAssistantOrNull } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createUsageLog } from '../../../core/store/db';
@@ -8,16 +8,18 @@ import { leadPhone } from '../../../core/followup';
 import { panelUrl } from '../../panel/links';
 
 const adapter = createWebAdapter();
-const sessions = createSessionStore();
 // Keyed by IP, not sessionId: the widget mints a fresh sessionId per page load,
 // so a session-scoped limit costs an attacker nothing to bypass.
 const rateLimiter = createRateLimiter(20, 60);
 
 export async function POST(request: Request) {
-  const { engine, config } = await getAssistant();
+  const assistant = await getAssistantOrNull();
+  if (!assistant) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  const { engine, config, secrets } = assistant;
+  const sessions = createSessionStore(config.id);
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  if (!(await rateLimiter.check(ip))) {
+  if (!(await rateLimiter.check(`${config.id}:${ip}`))) {
     return NextResponse.json({ error: 'too many requests' }, { status: 429 });
   }
 
@@ -47,11 +49,11 @@ export async function POST(request: Request) {
       .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
 
     if (!state.hasOffered && result.state.hasOffered) {
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
       });
     }
 
@@ -65,11 +67,11 @@ export async function POST(request: Request) {
           at: new Date().toISOString(),
         })
         .catch((error) => console.error(`[${config.id}] lead save failed`, error));
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
         captured: result.capturedLead,
       });
     }
@@ -86,11 +88,11 @@ export async function POST(request: Request) {
           .mark(phone, 'booked')
           .catch((error) => console.error(`[${config.id}] follow-up mark failed`, error));
       }
-      await createLeadNotifier(config.notify).notify({
+      await createLeadNotifier(config.notify, secrets).notify({
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
-        panelUrl: panelUrl(inbound.contactId),
+        panelUrl: panelUrl(config, inbound.contactId),
         booking: result.booked,
       });
     }
