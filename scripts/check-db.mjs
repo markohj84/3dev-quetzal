@@ -91,6 +91,27 @@ try {
   await handoffs.release('tomada');
   assert.equal(await handoffs.get('tomada'), null, 'devuelta');
 
+  // earlier(): before this conversation, last 90 days, at most 30, oldest first, only this contact.
+  const dayMs = 864e5;
+  const memRows = [
+    ...Array.from({ length: 35 }, (_, i) => ({ client_id: C, contact_id: 'memoria', role: i % 2 ? 'assistant' : 'user', content: `m${i}`, at: new Date(Date.now() - 10 * dayMs + i * 60_000).toISOString() })),
+    { client_id: C, contact_id: 'memoria', role: 'user', content: 'viejo', at: new Date(Date.now() - 100 * dayMs).toISOString() },
+    { client_id: C, contact_id: 'memoria', role: 'user', content: 'de hoy', at: new Date(Date.now() - 60_000).toISOString() },
+    { client_id: C, contact_id: 'otro', role: 'user', content: 'ajeno', at: new Date(Date.now() - dayMs).toISOString() },
+  ];
+  await must(db().from('contacts').upsert([
+    { client_id: C, contact_id: 'memoria', channel: 'whatsapp', left_contact: false },
+    { client_id: C, contact_id: 'otro', channel: 'whatsapp', left_contact: false },
+  ]));
+  await must(db().from('messages').insert(memRows));
+  const startedAt = new Date(Date.now() - 5 * 60_000);
+  const mem = await log.earlier('memoria', startedAt);
+  assert.equal(mem.length, 30, 'tope de 30');
+  assert.deepEqual([mem[0].content, mem.at(-1).content], ['m5', 'm34'], 'los 30 más recientes, en orden');
+  assert.ok(!mem.some((m) => m.content === 'viejo'), 'más de 90 días no');
+  assert.ok(!mem.some((m) => m.content === 'de hoy'), 'lo de esta conversación no');
+  assert.ok(!mem.some((m) => m.content === 'ajeno'), 'otro contacto no');
+
   console.log('check-db: passed');
 } finally {
   await cleanup();

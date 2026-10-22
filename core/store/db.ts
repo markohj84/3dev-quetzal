@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { CapturedLead } from '../tools';
 import type { Handoff } from '../handoff';
+import type { EarlierMessage } from '../engine/prompt';
 
 let client: SupabaseClient | null = null;
 const DB_TIMEOUT_MS = 3_000;
@@ -52,6 +53,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Same 90 days the privacy notice promises and purge_expired() enforces. */
 const PROFILE_DAYS = 90;
 const FOLLOW_UP_DAYS = 90;
+/** The privacy notice promises 90 days of WhatsApp memory; 30 messages keep the prompt small. */
+const MEMORY_DAYS = 90;
+const MEMORY_MESSAGES = 30;
 
 export interface LogEntry {
   channel: string;
@@ -65,6 +69,8 @@ export interface ConversationLog {
   append(entry: LogEntry): Promise<void>;
   /** The person's message with no reply: the owner has the conversation. */
   appendInbound(entry: Omit<LogEntry, 'assistantText'>): Promise<void>;
+  /** What this person said before `before` (the current conversation's start): memory for the next reply. */
+  earlier(contactId: string, before: Date): Promise<EarlierMessage[]>;
 }
 
 export interface StoredLead extends CapturedLead {
@@ -211,6 +217,15 @@ export function createConversationLog(clientId: string): ConversationLog {
     async append(entry) {
       await touchContact(clientId, entry.contactId, entry.channel, entry.at.toISOString());
       await must(db().from('messages').insert(logEntryToMessages(clientId, entry)));
+    },
+    async earlier(contactId, before) {
+      const since = new Date(Date.now() - MEMORY_DAYS * DAY_MS).toISOString();
+      const rows = await must(
+        db().from('messages').select('role, content, at').eq('client_id', clientId).eq('contact_id', contactId)
+          .lt('at', before.toISOString()).gte('at', since)
+          .order('at', { ascending: false }).order('id', { ascending: false }).limit(MEMORY_MESSAGES),
+      );
+      return (rows as EarlierMessage[]).reverse();
     },
     async appendInbound(entry) {
       const at = entry.at.toISOString();
