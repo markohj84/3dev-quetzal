@@ -57,8 +57,11 @@ if (platform && cmd === 'list') {
   } else {
     await must(admin.from('dashboard_users').delete().eq('user_id', user.id).eq('client_id', b));
     const left = await must(admin.from('dashboard_users').select('client_id').eq('user_id', user.id));
-    if (!left.length) await must(admin.auth.admin.deleteUser(user.id));
-    console.log(`${a} ya no tiene acceso a ${b}${left.length ? '' : ' (usuario borrado: no le quedaban clientes)'}`);
+    // Deleting the user would also take away /admin: keep anyone who is still a platform admin.
+    const isAdmin = (await must(admin.from('platform_admins').select('user_id').eq('user_id', user.id))).length > 0;
+    const gone = !left.length && !isAdmin;
+    if (gone) await must(admin.auth.admin.deleteUser(user.id));
+    console.log(`${a} ya no tiene acceso a ${b}${gone ? ' (usuario borrado: no le quedaban clientes)' : ''}`);
   }
 } else if (cmd === 'list' && a) {
   const rows = await must(admin.from('dashboard_users').select('user_id').eq('client_id', a));

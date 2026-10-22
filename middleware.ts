@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 
 /**
  * Refreshes an expiring panel session and writes it back to the response.
- * Only /panel: the chat API, the widget and the webhooks never see it.
+ * Only /panel and /admin: the chat API, the widget and the webhooks never see it.
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
