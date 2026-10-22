@@ -96,10 +96,18 @@ export async function POST(request: Request) {
       console.error(`[${config.id}] profile load failed`, error);
       return null;
     });
+    // Memory: what this person said before this conversation began (the session's startedAt).
+    const earlier = await createConversationLog(config.id)
+      .earlier(inbound.contactId, state.startedAt ? new Date(state.startedAt) : new Date())
+      .catch((error) => {
+        console.error(`[${config.id}] memory lookup failed`, error);
+        return [];
+      });
     const result = await engine.respond(state, inbound.text, adapter, {
       ...profile,
       displayName: inbound.displayName,
       phone: `+${toMetaRecipient(inbound.contactId)}`,
+      earlier,
     });
     await sessions.set(inbound.contactId, result.state);
     // A failed send (expired token, billing, Meta outage) must not also lose

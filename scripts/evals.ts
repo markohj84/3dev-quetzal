@@ -208,6 +208,30 @@ export function genericCases({
         assert.equal(still?.length, 0, 'la toma vencida se borró');
       },
     },
+    {
+      name: 'por WhatsApp: recuerda la conversación de hace días',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const threeDaysAgo = (min: number) => new Date(Date.now() - 3 * 864e5 + min * 60_000).toISOString();
+        await db().from('contacts').upsert({ client_id: clientId, contact_id: contactId, channel: 'whatsapp', left_contact: false });
+        await db().from('messages').insert([
+          { client_id: clientId, contact_id: contactId, role: 'user', content: 'Hola, me interesa una página para mi taller mecánico', at: threeDaysAgo(0) },
+          { client_id: clientId, contact_id: contactId, role: 'assistant', content: 'Con gusto. ¿Tu taller ya tiene redes sociales o algún sitio?', at: threeDaysAgo(1) },
+          { client_id: clientId, contact_id: contactId, role: 'user', content: 'Solo Facebook', at: threeDaysAgo(2) },
+        ]);
+        const r = await sendWhatsAppTurn(contactId, 'Hola de nuevo, ¿qué habíamos platicado?');
+        assert.match(r, /taller/i, `debería recordar el taller: ${r}`);
+      },
+    },
+    {
+      name: 'por WhatsApp: sin historial no inventa una conversación anterior',
+      channel: 'whatsapp',
+      turns: ['¿Te acuerdas de lo que hablamos la vez pasada?'],
+      check([r]) {
+        assert.ok(!/(hablamos|platicamos|me (dijiste|comentaste)) (de|sobre) (tu|el|la|un|una) /i.test(r), `no debe inventar un tema: ${r}`);
+      },
+    },
   ];
   return whatsapp ? cases : cases.filter((c) => c.channel !== 'whatsapp');
 }
