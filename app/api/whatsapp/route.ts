@@ -4,6 +4,7 @@ import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../.
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore } from '../../../core/store/db';
 import { isTaken, shouldNotify } from '../../../core/handoff';
+import { withStart } from '../../../core/engine/prompt';
 import { panelUrl } from '../../panel/links';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
@@ -70,7 +71,8 @@ export async function POST(request: Request) {
     // In the session too, so the assistant has the whole thread when it takes over again.
     // A Redis error must still answer 200: Meta's retries would duplicate the row and the alert.
     await sessions
-      .set(inbound.contactId, { ...state, history: [...state.history, { role: 'user', content: inbound.text }] })
+      // withStart: a session born here must still mark its start, or this thread comes back as "earlier".
+      .set(inbound.contactId, { ...withStart(state, now), history: [...state.history, { role: 'user', content: inbound.text }] })
       .catch((error) => console.error(`[${config.id}] session append failed`, error));
     if (shouldNotify(handoff, now)) {
       const profile = await profiles.get(inbound.contactId).catch(() => null);

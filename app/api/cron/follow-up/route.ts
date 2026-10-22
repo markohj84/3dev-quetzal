@@ -3,6 +3,7 @@ import { getAssistant } from '../../../assistant';
 import { sendTemplate } from '../../../../core/channels/whatsapp';
 import { dueFollowUps, firstName, metaPhone } from '../../../../core/followup';
 import { createSessionStore } from '../../../../core/store/session-store';
+import { withStart } from '../../../../core/engine/prompt';
 import { createFollowUpStore, createLeadStore } from '../../../../core/store/db';
 
 /**
@@ -63,7 +64,9 @@ export async function GET(request: Request) {
       const contactId = waId ?? phone;
       const text = followUp.text.replace('{nombre}', name || 'de nuevo');
       const state = (await sessions.get(contactId)) ?? { history: [], hasOffered: false };
+      // Spread through withStart: dropping startedAt would bring this thread back as "earlier".
       await sessions.set(contactId, {
+        ...withStart(state, new Date()),
         history: [...state.history, { role: 'assistant', content: text }],
         hasOffered: true,
       });

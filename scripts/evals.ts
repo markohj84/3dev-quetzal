@@ -183,6 +183,7 @@ export function genericCases({
         await postWhatsApp(contactId, '¿Sigue ahí?');
         const session = await kv.get<{ history: { role: string; content: string }[] }>(`session:${contactId}`);
         assert.deepEqual(session?.history.map((t) => t.role), ['user', 'user'], `el asistente no debió contestar: ${JSON.stringify(session?.history)}`);
+        assert.ok((session as { startedAt?: string } | null)?.startedAt, 'la sesión creada durante la toma marca cuándo empezó (si no, se duplica como memoria)');
         const { data: rows } = await db().from('messages').select('role').eq('client_id', clientId).eq('contact_id', contactId);
         assert.deepEqual(rows?.map((r) => r.role), ['user', 'user'], 'los dos mensajes quedan en la transcripción');
         const { data: h } = await db().from('handoffs').select('notified_at').eq('client_id', clientId).eq('contact_id', contactId).single();

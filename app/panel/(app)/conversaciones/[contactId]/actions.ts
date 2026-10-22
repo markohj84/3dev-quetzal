@@ -7,6 +7,7 @@ import { requireAccess } from '../../../data';
 import { windowOpen } from '../../../../../core/handoff';
 import { createWhatsAppAdapter } from '../../../../../core/channels/whatsapp';
 import { createSessionStore } from '../../../../../core/store/session-store';
+import { withStart } from '../../../../../core/engine/prompt';
 
 const MAX_LENGTH = 4096;
 
@@ -78,7 +79,7 @@ export async function reply(contactId: string, form: FormData) {
     // The business said it: when the assistant takes over again, it sees this as its own side of the thread.
     const sessions = createSessionStore();
     const state = (await sessions.get(contactId)) ?? { history: [], hasOffered: false };
-    await sessions.set(contactId, { ...state, history: [...state.history, { role: 'assistant', content: text }] });
+    await sessions.set(contactId, { ...withStart(state, new Date(now)), history: [...state.history, { role: 'assistant', content: text }] });
   } catch (error) {
     console.error(`[${config.id}] handoff session append failed`, error);
     problems.push('el contexto del asistente');
