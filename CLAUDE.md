@@ -149,6 +149,12 @@ antes de `respond()` y la escribe con lo que regresó `remembered` o
 como pista, nunca se guarda. La ficha va en un segundo bloque de sistema,
 después del breakpoint de caché, para no romper el caché compartido.
 
+
+Además, en WhatsApp la ruta carga hasta 30 mensajes de los últimos 90 días
+anteriores a la conversación actual (`ConversationLog.earlier`, separados por
+`ConversationState.startedAt`) y los pasa en la nota de contacto como
+"Earlier conversations": son los mensajes reales, no un resumen, y el
+asistente puede decir que los recuerda. La web no recuerda.
 ## Notificación de leads
 
 Se dispara en dos momentos distintos, que pueden no coincidir: (1) cuando
@@ -263,9 +269,8 @@ otras piezas de ingeniería que **no existen todavía**. No meterlas en el
 prompt del asistente hasta que estén construidas — prometer una capacidad
 que no existe es peor que no tener el dato:
 
-- **Memoria persistente completa entre sesiones**. Hay ficha de contacto
-  (nombre + interés, 90 días, solo WhatsApp — ver "Ficha de contacto"), pero
-  no historial ni memoria en la web. No vender más que eso.
+- **Memoria en la web**. En WhatsApp ya hay memoria de conversaciones (90
+  días, ver "Ficha de contacto"); la web no recuerda. No vender más que eso.
 - **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes").
   Hoy es un deploy por cliente: mismo repo, un proyecto de Vercel por
   cliente, y `CLIENT` elige la carpeta (ver "Clientes" arriba).

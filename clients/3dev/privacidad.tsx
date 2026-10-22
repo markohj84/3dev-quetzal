@@ -104,8 +104,8 @@ export default function PrivacidadPage() {
           eliminamos o anonimizamos.
         </p>
         <p>
-          Si nos escribes por WhatsApp, el asistente guarda tu nombre y el tema que te interesó durante 90 días desde
-          tu último mensaje, para reconocerte si vuelves a escribir. Puedes pedir que lo borremos en cualquier momento
+          Si nos escribes por WhatsApp, el asistente recuerda tus conversaciones de los últimos 90 días para que no
+          tengas que repetir lo que ya nos contaste. Puedes pedir que lo borremos en cualquier momento
           (ver sección 7).
         </p>
 
