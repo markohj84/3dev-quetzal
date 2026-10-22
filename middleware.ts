@@ -21,12 +21,14 @@ export async function middleware(request: NextRequest) {
   });
   const { data: { user } } = await sb.auth.getUser();
   // Not only the layout: a request can ask Next to render just the page segment.
-  if (!user && request.nextUrl.pathname !== '/panel/entrar') {
-    const login = NextResponse.redirect(new URL('/panel/entrar', request.url));
+  const path = request.nextUrl.pathname;
+  const loginPath = path.startsWith('/admin') ? '/admin/entrar' : '/panel/entrar';
+  if (!user && path !== loginPath) {
+    const login = NextResponse.redirect(new URL(loginPath, request.url));
     for (const cookie of response.cookies.getAll()) login.cookies.set(cookie);
     return login;
   }
   return response;
 }
 
-export const config = { matcher: ['/panel/:path*'] };
+export const config = { matcher: ['/panel/:path*', '/admin/:path*'] };

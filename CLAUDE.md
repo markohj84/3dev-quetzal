@@ -246,6 +246,22 @@ al panel (`app/panel/links.ts`, `VERCEL_PROJECT_PRODUCTION_URL`). Carrera
 conocida: si toma la conversación mientras el asistente ya está
 contestando, esa respuesta sale una vez.
 
+
+## Administración de 3dev
+
+`/admin` (`app/admin/`): tabla con todos los clientes y su uso del periodo (7, 30
+o 90 días): personas, mensajes recibidos, leads, seguimientos enviados, último
+mensaje y conversaciones tomadas ahora. **Solo agregados**: no lee
+conversaciones ni datos de contacto. Acceso: `platform_admins` (mismo login por
+código) y la función `admin_usage(days)` (`security definer`: responde solo si
+`auth.uid()` está ahí; las tablas de los clientes no ganan políticas). La lista
+de clientes sale de `contacts`, no del código; se excluyen contactos `eval*`.
+Alta: `node --env-file=.env.local scripts/panel-user.mjs admin add <correo>`
+(`remove`, `list`). Cada lectura revisa el acceso por sí misma (`requireAdmin`):
+una petición RSC puede saltarse el layout. Pruebas: `scripts/check-admin.mjs`
+(base real) y `scripts/check-admin-pages.mjs` (dev server). Fuera de la v1:
+citas (viven en Cal.com con la llave de cada cliente), costos (no se guardan
+tokens) y detalle por cliente.
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
 La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web
@@ -278,8 +294,8 @@ que no existe es peor que no tener el dato:
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
-- Panel de administración para 3dev (el panel del cliente y el handoff en
-  vivo por WhatsApp ya existen), flujos n8n reales. La notificación
+- Costos por cliente en el panel de 3dev (el panel de administración con uso ya
+  existe; falta guardar tokens), flujos n8n reales. La notificación
   asíncrona cuando hay un lead interesado sí está construida — ver
   "Notificación de leads" abajo.
 
