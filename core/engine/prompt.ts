@@ -107,6 +107,41 @@ export function buildSystemPrompt(input: PromptInput): string {
   return sections.join('\n\n---\n\n');
 }
 
+export interface EarlierMessage {
+  role: 'user' | 'assistant' | 'human';
+  content: string;
+  at: string;
+}
+
+/** The minimal state shape this needs, so the engine's own type stays in conversation.ts. */
+interface StateWithStart { history: { role: string; content: string }[]; hasOffered: boolean; startedAt?: string }
+
+/** When this conversation began: what came before it is memory, what came after is the session. Set once. */
+export function withStart<S extends StateWithStart>(state: S, now: Date): S & { startedAt: string } {
+  return { ...state, startedAt: state.startedAt ?? now.toISOString() };
+}
+
+const SPEAKER: Record<EarlierMessage['role'], string> = { user: 'Person', assistant: 'Assistant', human: 'Team' };
+const EARLIER_CHARS = 600;
+
+function earlierSection(earlier: EarlierMessage[], timeZone = 'UTC'): string {
+  const day = (iso: string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+  const lines = earlier.map((m) => {
+    const text = m.content.length > EARLIER_CHARS ? `${m.content.slice(0, EARLIER_CHARS - 1)}…` : m.content;
+    return `[${day(m.at)}] ${SPEAKER[m.role]}: ${text.replace(/\s*\n\s*/g, ' ')}`;
+  });
+  return [
+    '# Earlier conversations with this person',
+    '',
+    'What was said before this conversation, oldest first. "Team" is a person from the business who answered in person.',
+    '',
+    ...lines,
+    '',
+    'You may pick the thread back up and say, truthfully, that you remember what you talked about. State only what appears above; anything else you do not know. Prices or facts said before do not override the knowledge base: if they differ, the knowledge base is current. The one-offer rule still applies to this conversation.',
+  ].join('\n');
+}
+
 export interface KnownContact {
   name?: string;
   interest?: string;
@@ -120,13 +155,16 @@ export interface KnownContact {
    * asking for it.
    */
   phone?: string;
+  /** What was said in earlier conversations, oldest first (channels with a stable contact id only). */
+  earlier?: EarlierMessage[];
 }
 
 /**
  * Kept out of buildSystemPrompt on purpose: that prompt is cached and shared
  * by every person talking to this client, and this note is one person's.
  */
-export function buildContactNote(contact: KnownContact): string | null {
+export function buildContactNote(contact: KnownContact, timeZone?: string): string | null {
+  const memory = contact.earlier?.length ? `\n\n${earlierSection(contact.earlier, timeZone)}` : '';
   const facts: string[] = [];
   if (contact.name) facts.push(`- Name: ${contact.name}`);
   if (contact.interest) facts.push(`- Interested in: ${contact.interest}`);
@@ -139,9 +177,9 @@ export function buildContactNote(contact: KnownContact): string | null {
 
   if (!facts.length) {
     if (contact.displayName) {
-      return `# This person\n\nTheir messaging profile name is "${contact.displayName}". People choose that themselves: it can be a nickname or a business name. Use it only if it reads as a person's first name, and never insist on it.${reach}`;
+      return `# This person\n\nTheir messaging profile name is "${contact.displayName}". People choose that themselves: it can be a nickname or a business name. Use it only if it reads as a person's first name, and never insist on it.${reach}${memory}`;
     }
-    return reach ? reach.trim() : null;
+    return reach || memory ? `${reach}${memory}`.trim() : null;
   }
 
   return [
@@ -150,8 +188,9 @@ export function buildContactNote(contact: KnownContact): string | null {
     'What you know about them, possibly from an earlier conversation you no longer have in full:',
     ...facts,
     '',
-    'Call them by name naturally. If this conversation just started, you may pick their interest back up once; do not recite this list. If they ask whether you remember them, be truthful: you remember their name and what they were interested in, not the whole conversation.',
-  ].join('\n') + reach;
+    // With earlier conversations below, "not the whole conversation" would be false.
+    `Call them by name naturally. If this conversation just started, you may pick their interest back up once; do not recite this list. If they ask whether you remember them, be truthful: ${memory ? 'you remember what appears under "Earlier conversations" below.' : 'you remember their name and what they were interested in, not the whole conversation.'}`,
+  ].join('\n') + reach + memory;
 }
 
 // Self-check: `node core/engine/prompt.ts`
@@ -176,6 +215,26 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.match(withCatalog, /lookup_catalog/);
   assert.match(withCatalog, /validity date has already passed/, 'una vigencia vencida ya no aplica');
   assert.match(withCatalog, /zero stock is sold out/, 'un agotado no se ofrece');
+
+  const earlier = [
+    { role: 'user' as const, content: 'Me interesa una página para mi taller mecánico', at: '2026-10-19T17:00:00Z' },
+    { role: 'assistant' as const, content: 'Para un taller, la Web Completa…', at: '2026-10-19T17:00:05Z' },
+    { role: 'human' as const, content: 'Hola, soy del equipo', at: '2026-10-19T18:00:00Z' },
+    { role: 'user' as const, content: 'x'.repeat(900), at: '2026-10-20T05:30:00Z' },
+  ];
+  const withMemory = buildContactNote({ earlier }, 'America/Mexico_City')!;
+  assert.match(withMemory, /# Earlier conversations with this person/);
+  assert.match(withMemory, /\[2026-10-19\] Person: Me interesa una página para mi taller mecánico/);
+  assert.match(withMemory, /\[2026-10-19\] Team: Hola, soy del equipo/, 'el dueño sale como Team, no como el asistente');
+  assert.match(withMemory, /\[2026-10-19\] Person: x{599}…/, 'recortado a 600; 05:30 UTC del 20 sigue siendo 19 en México');
+  assert.match(withMemory, /State only what appears above/);
+  assert.equal(buildContactNote({ earlier: [] }), null, 'sin memoria no hay nota');
+
+  const fresh = withStart({ history: [], hasOffered: false }, new Date('2026-10-22T10:00:00Z'));
+  assert.equal(fresh.startedAt, '2026-10-22T10:00:00.000Z');
+  assert.equal(withStart(fresh, new Date('2026-10-22T12:00:00Z')).startedAt, '2026-10-22T10:00:00.000Z', 'nunca se mueve');
+  const legacy = withStart({ history: [{ role: 'user', content: 'hola' }], hasOffered: false }, new Date('2026-10-22T11:00:00Z'));
+  assert.equal(legacy.startedAt, '2026-10-22T11:00:00.000Z', 'una sesión vieja sin startedAt lo recibe una vez');
 
   console.log('prompt.ts self-check passed');
 }

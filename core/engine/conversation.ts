@@ -4,7 +4,7 @@ import type { ChannelAdapter, OutboundMessage } from '../channels/types';
 import type { Scheduler } from '../scheduling/types';
 import type { Booking } from '../scheduling/calendly-webhook';
 import type { Corpus } from './knowledge';
-import { buildContactNote, buildSystemPrompt, type KnownContact } from './prompt';
+import { buildContactNote, buildSystemPrompt, withStart, type KnownContact } from './prompt';
 import {
   bookMeetingTool,
   captureLeadTool,
@@ -26,6 +26,8 @@ export interface Turn {
 export interface ConversationState {
   history: Turn[];
   hasOffered: boolean;
+  /** When this conversation began; earlier messages are memory, not session. */
+  startedAt?: string;
 }
 
 /** A tool round-trip stays inside one respond() call — the model calls a
@@ -164,6 +166,7 @@ export function createEngine(deps: EngineDeps) {
       remembered?: RememberedContact;
       booked?: Booking;
     }> {
+      state = withStart(state, new Date());
       const history: Turn[] = [...state.history, { role: 'user', content: userText }];
 
       const systemPrompt = buildSystemPrompt({
@@ -186,7 +189,7 @@ export function createEngine(deps: EngineDeps) {
         { type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } },
       ];
       const remembers = adapter.capabilities.stableContactId;
-      const contactNote = remembers ? buildContactNote(contact) : null;
+      const contactNote = remembers ? buildContactNote(contact, config.scheduling.timeZone) : null;
       // After the cache breakpoint, so the shared prefix still hits.
       if (contactNote) system.push({ type: 'text', text: contactNote });
 
@@ -329,6 +332,7 @@ export function createEngine(deps: EngineDeps) {
         state: {
           history: [...history, { role: 'assistant', content: text }],
           hasOffered: offeredNow,
+          startedAt: state.startedAt,
         },
         capturedLead,
         remembered,
