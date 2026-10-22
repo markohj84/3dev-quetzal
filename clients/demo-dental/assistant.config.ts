@@ -1,6 +1,9 @@
 import { AssistantConfig } from '../../core/config/schema.ts';
 import { clientEnv } from '../../core/config/env.ts';
 
+/** Once: the config's id and the prefix of its variables (clientEnv) must be the same string. */
+const ID = 'demo-dental';
+
 /**
  * Demo de venta: Clínica Dental Nogal, ficticia. Muestra a un prospecto de
  * 3dev cómo se vería Quetzal en su negocio. Solo web; agenda en un Cal.com
@@ -8,7 +11,7 @@ import { clientEnv } from '../../core/config/env.ts';
  * le llegan a 3dev, porque quien deja datos aquí suele ser un prospecto.
  */
 export default AssistantConfig.parse({
-  id: 'demo-dental',
+  id: ID,
   name: 'Lía',
   organization: 'Clínica Dental Nogal',
   locale: 'es-MX',
@@ -47,7 +50,7 @@ export default AssistantConfig.parse({
     // sin ella: python3 -m http.server 8787 --bind 127.0.0.1 --directory clients/demo-dental
     // y CATALOG_URL=http://127.0.0.1:8787/catalogo.csv.
     url:
-      clientEnv('demo-dental', 'CATALOG_URL') ??
+      clientEnv(ID, 'CATALOG_URL') ??
       'https://docs.google.com/spreadsheets/d/e/2PACX-1vSKjOXpYHFUCbpGpHvJmkicAudwdPr-JHPAk7KuE00G-cT26Cx7qHaBA-i9Ya0sg1BVmBVE5ZaPSgob/pub?output=csv',
     description:
       'promociones vigentes de la clínica y productos de higiene dental a la venta, con su precio y existencias',

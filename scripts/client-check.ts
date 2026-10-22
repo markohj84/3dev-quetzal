@@ -10,6 +10,7 @@
  */
 import { access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { clientEnv, envPrefix, isMultiTenant } from '../core/config/env.ts';
 
 const [folder, ...flags] = process.argv.slice(2);
 if (!folder) {
@@ -18,7 +19,9 @@ if (!folder) {
 }
 const createTemplates = flags.includes('--create-templates');
 const dir = join(process.cwd(), 'clients', folder);
-const env = process.env;
+let env: Record<string, string | undefined> = process.env;
+/** Per-client in a shared deploy (see CLAUDE.md, Multi-tenant). */
+const CLIENT_OWNED = ['CALCOM_API_KEY', 'CALENDLY_API_TOKEN', 'RESEND_API_KEY', 'WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'NOTIFY_WHATSAPP_TO', 'WHATSAPP_WABA_ID'];
 
 let failures = 0;
 const ok = (msg: string) => console.log(`\x1b[32m✓\x1b[0m ${msg}`);
@@ -61,6 +64,14 @@ if (!config) {
   process.exit(1);
 }
 
+// En un deploy compartido (MULTI_TENANT=1) las variables del cliente llevan prefijo y no hay
+// respaldo sin prefijo: se revisa lo que el deploy de verdad va a leer.
+if (isMultiTenant()) {
+  env = { ...process.env };
+  for (const name of CLIENT_OWNED) env[name] = clientEnv(config.id, name);
+  console.log(`  (modo compartido: variables ${envPrefix(config.id)}__*)`);
+}
+
 // 3. Variables que esta config necesita
 const needed = ['ANTHROPIC_API_KEY', 'KV_REST_API_URL', 'KV_REST_API_TOKEN', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const wa = config.channels.whatsapp.enabled;
@@ -71,7 +82,7 @@ if (config.notify.email) needed.push('RESEND_API_KEY');
 if (config.notify.whatsapp) needed.push('NOTIFY_WHATSAPP_TO');
 if (config.followUp) needed.push('CRON_SECRET');
 for (const name of needed) (env[name] ? ok : bad)(`variable ${name}`);
-if (env.CLIENT !== folder) warn(`CLIENT=${folder} debe estar en el proyecto de Vercel de este cliente`);
+if (!isMultiTenant() && env.CLIENT !== folder) warn(`CLIENT=${folder} debe estar en el proyecto de Vercel de este cliente`);
 
 // 4. Que cada llave funcione
 if (env.ANTHROPIC_API_KEY) {

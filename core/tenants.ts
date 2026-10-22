@@ -27,6 +27,31 @@ export function resolveTenant<T extends TenantKey>(
   return null;
 }
 
+export function registryConflict(
+  tenants: { id: string; domains: string[]; whatsappPhoneNumberId?: string }[],
+  prefixOf: (id: string) => string,
+): string | null {
+  const seen = new Map<string, string>();
+  const claim = (key: string, label: string, owner: string): string | null => {
+    const prior = seen.get(key);
+    if (prior !== undefined && prior !== owner) return `${label} reclamado por dos clientes (${prior} y ${owner})`;
+    if (prior === owner && key.startsWith('id:')) return `${label} repetido en dos carpetas`;
+    seen.set(key, owner);
+    return null;
+  };
+  for (const t of tenants) {
+    // Same id twice shares one built assistant, Redis keys and Supabase rows;
+    // two ids with one variable prefix would read each other's secrets.
+    const found =
+      claim(`id:${t.id}`, `el id "${t.id}"`, t.id) ??
+      claim(`env:${prefixOf(t.id)}`, `el prefijo ${prefixOf(t.id)}`, t.id) ??
+      t.domains.map((d) => claim(`host:${normalizeHost(d)}`, `el dominio ${normalizeHost(d)}`, t.id)).find(Boolean) ??
+      (t.whatsappPhoneNumberId ? claim(`wa:${t.whatsappPhoneNumberId}`, `el número ${t.whatsappPhoneNumberId}`, t.id) : null);
+    if (found) return found;
+  }
+  return null;
+}
+
 // Self-check: `node core/tenants.ts`
 if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(normalizeHost('Beta.example.com:3000'), 'beta.example.com');
@@ -48,6 +73,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(resolveTenant(tenants, { phoneNumberId: '111' })?.id, 'a');
   assert.equal(resolveTenant(tenants, { phoneNumberId: '999' }), null, 'número desconocido: nadie');
   assert.equal(resolveTenant([{ id: 'c', domains: [] }], { phoneNumberId: '' }), null, 'un cliente sin número no coincide con ""');
+
+  // Two clients that would answer for each other are refused when the deploy starts.
+  const prefix = (id: string) => id.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+  assert.equal(registryConflict(tenants, prefix), null);
+  assert.match(registryConflict([...tenants, { id: 'a', domains: ['x.example.com'] }], prefix) ?? '', /id "a"/, 'dos carpetas con el mismo id (copia sin cambiar el id)');
+  assert.match(registryConflict([{ id: 'acme-co', domains: [] }, { id: 'acme_co', domains: [] }], prefix) ?? '', /ACME_CO/, 'ids distintos con el mismo prefijo de variables');
+  assert.match(registryConflict([{ id: 'p', domains: ['A.example.com'] }, { id: 'q', domains: ['a.example.com:443'] }], prefix) ?? '', /a\.example\.com/, 'el mismo dominio');
+  assert.match(registryConflict([{ id: 'p', domains: [], whatsappPhoneNumberId: '1' }, { id: 'q', domains: [], whatsappPhoneNumberId: '1' }], prefix) ?? '', /número 1/, 'el mismo número');
 
   console.log('tenants.ts self-check passed');
 }

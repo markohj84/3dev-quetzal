@@ -1,6 +1,9 @@
 import { AssistantConfig } from '../../core/config/schema.ts';
 import { clientEnv } from '../../core/config/env.ts';
 
+/** Once: the config's id and the prefix of its variables (clientEnv) must be the same string. */
+const ID = 'quetzal-3dev';
+
 /**
  * 3dev — client instance.
  *
@@ -9,7 +12,7 @@ import { clientEnv } from '../../core/config/env.ts';
  * directory, not touching core/.
  */
 export default AssistantConfig.parse({
-  id: 'quetzal-3dev',
+  id: ID,
   name: 'Quetzal',
   organization: '3dev',
   locale: 'es-MX',
@@ -43,7 +46,7 @@ export default AssistantConfig.parse({
     },
     whatsapp: {
       enabled: true,
-      phoneNumberId: clientEnv('quetzal-3dev', 'WHATSAPP_PHONE_NUMBER_ID'),
+      phoneNumberId: clientEnv(ID, 'WHATSAPP_PHONE_NUMBER_ID'),
     },
   },
 
@@ -51,7 +54,7 @@ export default AssistantConfig.parse({
     email: 'contacto@3dev.mx',
     fromEmail: 'Quetzal <notificaciones@3dev.mx>',
     // The number lives in the environment: this repository is public.
-    whatsapp: { to: clientEnv('quetzal-3dev', 'NOTIFY_WHATSAPP_TO'), template: 'aviso_lead' },
+    whatsapp: { to: clientEnv(ID, 'NOTIFY_WHATSAPP_TO'), template: 'aviso_lead' },
   },
 
   followUp: {

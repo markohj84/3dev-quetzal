@@ -40,6 +40,12 @@ async function runFollowUp({ config, scheduler, secrets }: Assistant): Promise<{
   const client = config.id;
   const followUp = config.followUp;
   if (!followUp) return { client, status: 200, body: { sent: 0, reason: 'follow-up disabled' } };
+  // Marks are written before sending: without the client's own WhatsApp keys every due lead
+  // would be marked and never nudged, for 90 days.
+  if (!secrets.whatsapp.phoneNumberId || !secrets.whatsapp.token) {
+    console.error(`[${config.id}] follow-up skipped: WhatsApp credentials missing`);
+    return { client, status: 200, body: { sent: 0, reason: 'whatsapp not configured' } };
+  }
 
   const store = createFollowUpStore(config.id);
   const sessions = createSessionStore(config.id);

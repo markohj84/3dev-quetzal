@@ -8,8 +8,8 @@ import { createCalendlyScheduler } from '../core/scheduling/calendly';
 import { createCalcomScheduler } from '../core/scheduling/calcom';
 import { createNullScheduler } from '../core/scheduling/types';
 import { createCatalog } from '../core/catalog';
-import { clientEnv, isMultiTenant } from '../core/config/env';
-import { normalizeHost, resolveTenant } from '../core/tenants';
+import { clientEnv, envPrefix, isMultiTenant } from '../core/config/env';
+import { normalizeHost, registryConflict, resolveTenant } from '../core/tenants';
 import type { AssistantConfig } from '../core/config/schema';
 
 /**
@@ -52,16 +52,12 @@ export async function listTenants(): Promise<Entry[]> {
       .filter((d) => d.isDirectory() && !d.name.startsWith('_'))
       .map((d) => d.name);
     const entries = await Promise.all(folders.map(loadEntry));
-    // Two clients claiming a domain or a number would answer for each other.
-    const seen = new Map<string, string>();
-    for (const e of entries) {
-      const keys = [...e.domains.map((d) => `host:${normalizeHost(d)}`), ...(e.whatsappPhoneNumberId ? [`wa:${e.whatsappPhoneNumberId}`] : [])];
-      for (const key of keys) {
-        const owner = seen.get(key);
-        if (owner && owner !== e.config.id) throw new Error(`${key} belongs to both ${owner} and ${e.config.id}`);
-        seen.set(key, e.config.id);
-      }
-    }
+    // Two clients that would answer for each other stop the deploy at startup.
+    const conflict = registryConflict(
+      entries.map((e) => ({ id: e.config.id, domains: e.domains, whatsappPhoneNumberId: e.whatsappPhoneNumberId })),
+      envPrefix,
+    );
+    if (conflict) throw new Error(`clientes en conflicto: ${conflict}`);
     return entries;
   })().catch((error) => {
     registry = null;

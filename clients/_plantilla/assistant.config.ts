@@ -1,6 +1,9 @@
 import { AssistantConfig } from '../../core/config/schema.ts';
 import { clientEnv } from '../../core/config/env.ts';
 
+/** Once: the config's id and the prefix of its variables (clientEnv) must be the same string. */
+const ID = 'asistente-cliente';
+
 /**
  * PLANTILLA — copia esta carpeta a clients/<cliente>/ y llena cada TODO.
  * La guía completa está en docs/nuevo-cliente.md. Al terminar, corre:
@@ -8,7 +11,7 @@ import { clientEnv } from '../../core/config/env.ts';
  */
 export default AssistantConfig.parse({
   // TODO: único entre clientes; las llaves de Redis y los prefijos de variables (clientEnv) llevan este id.
-  id: 'asistente-cliente',
+  id: ID,
   // TODO: nombre del asistente y del negocio, como los verá la gente.
   name: 'Asistente',
   organization: 'Negocio',
@@ -42,7 +45,7 @@ export default AssistantConfig.parse({
     },
     whatsapp: {
       enabled: true,
-      phoneNumberId: clientEnv('asistente-cliente', 'WHATSAPP_PHONE_NUMBER_ID'),
+      phoneNumberId: clientEnv(ID, 'WHATSAPP_PHONE_NUMBER_ID'),
     },
   },
 
@@ -51,7 +54,7 @@ export default AssistantConfig.parse({
     email: 'dueno@negocio.mx',
     fromEmail: 'Asistente <avisos@negocio.mx>',
     // El número va en el entorno: este repositorio es público.
-    whatsapp: { to: clientEnv('asistente-cliente', 'NOTIFY_WHATSAPP_TO'), template: 'aviso_lead' },
+    whatsapp: { to: clientEnv(ID, 'NOTIFY_WHATSAPP_TO'), template: 'aviso_lead' },
   },
 
   followUp: {

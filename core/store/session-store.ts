@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import type { ConversationState } from '../engine';
+import { isMultiTenant } from '../config/env';
 
 /** Names match what Vercel's Upstash Marketplace integration injects, not @upstash/redis's own convention. */
 const kv = new Redis({
@@ -21,7 +22,12 @@ export const sessionKey = (clientId: string, contactId: string) => `session:${cl
 export function createSessionStore(clientId: string): SessionStore {
   return {
     async get(contactId) {
-      return (await kv.get<ConversationState>(sessionKey(clientId, contactId))) ?? null;
+      const own = await kv.get<ConversationState>(sessionKey(clientId, contactId));
+      if (own) return own;
+      // ponytail: sessions opened before the key carried the client; a project of one client still owns them.
+      // Without this a person mid-conversation at deploy time is offered the meeting a second time.
+      // Delete after one release (sessions last 24 h).
+      return isMultiTenant() ? null : ((await kv.get<ConversationState>(`session:${contactId}`)) ?? null);
     },
     async set(contactId, state) {
       await kv.set(sessionKey(clientId, contactId), state, { ex: SESSION_TTL_SECONDS });
