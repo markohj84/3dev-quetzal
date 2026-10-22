@@ -39,6 +39,29 @@ viven en `scripts/evals.ts` (`genericCases`); cada `clients/<cliente>/evals.ts`
 agrega los suyos. Las configs importan `schema.ts` con extensión para que
 Node las ejecute directo en scripts y evals.
 
+### Multi-tenant (un deploy, muchos clientes)
+
+Con `MULTI_TENANT=1` un solo proyecto de Vercel atiende todas las carpetas de
+`clients/` (menos las que empiezan con `_`). **Sin esa variable nada cambia**:
+un cliente por proyecto, `CLIENT`, variables sin prefijo. Cada petición se
+resuelve por su dominio (`x-forwarded-host`: chat, widget, inicio, privacidad,
+panel, Calendly) o, en el webhook de WhatsApp, por el `phone_number_id`; un
+host o un número que no es de nadie responde 404 (webhook: 200 sin hacer
+nada), nunca cae en otro cliente. Los dominios van en `domains` de
+`assistant.config.ts`; dos clientes no pueden reclamar el mismo dominio ni el
+mismo número (el registro lo rechaza al arrancar). Los secretos del cliente van
+con prefijo —`QUETZAL_3DEV__CALCOM_API_KEY` (id en mayúsculas, no alfanumérico
+→ `_`)— y **en este modo no tienen respaldo sin prefijo**: si falta la llave de
+Cal.com de un cliente, ese cliente no agenda, nunca usa la de otro. Son de la
+plataforma (con respaldo) `ANTHROPIC_API_KEY`, `CRON_SECRET`, Redis, Supabase,
+`WHATSAPP_APP_SECRET` y `WHATSAPP_VERIFY_TOKEN` (la app de Meta es de 3dev).
+`core/config/env.ts` (`clientEnv`) y `core/tenants.ts` son genéricos; `core/`
+no lee variables de un cliente: las credenciales llegan como argumentos
+(`sendTemplate(msg, creds)`, `createLeadNotifier(config, secrets)`). La sesión
+de Redis lleva el cliente: `session:<clientId>:<contactId>`. El cron de
+seguimiento recorre todos los clientes. Prueba: `scripts/check-tenants.mjs`
+contra un dev server con `MULTI_TENANT=1` (ver el encabezado del script).
+
 ## Reglas de producto que no se negocian
 
 1. **El asistente no inventa datos.** Ninguna cifra, duración, nombre o
@@ -293,9 +316,9 @@ que no existe es peor que no tener el dato:
 
 - **Memoria en la web**. En WhatsApp ya hay memoria de conversaciones (90
   días, ver "Ficha de contacto"); la web no recuerda. No vender más que eso.
-- **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes").
-  Hoy es un deploy por cliente: mismo repo, un proyecto de Vercel por
-  cliente, y `CLIENT` elige la carpeta (ver "Clientes" arriba).
+- **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes"):
+  construida y probada (ver "Multi-tenant"). Producción sigue con un proyecto
+  de Vercel por cliente hasta migrar (decisión de Marco).
 - **Postgres/Supabase** ya guarda conversaciones, leads, fichas y
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.

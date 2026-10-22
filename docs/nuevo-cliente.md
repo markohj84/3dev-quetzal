@@ -119,6 +119,31 @@ Las plantillas `aviso_lead` y `seguimiento_lead` las crea el paso 6 de esta guí
 
 ---
 
+## 3b. Alta en un deploy compartido (`MULTI_TENANT=1`)
+
+Si 3dev corre un solo proyecto de Vercel para todos los clientes (ver "Multi-tenant"
+en `CLAUDE.md`), dar de alta uno es esto, en lugar de los pasos de proyecto de la
+sección 5:
+
+1. La carpeta `clients/<cliente>/` (sección 1) con `domains: ['dominio-del-cliente.com']`
+   y, en la config, `clientEnv('<id>', 'NOMBRE')` donde la plantilla lo indica.
+   El `<id>` es el mismo `id` de la config.
+2. Variables **con prefijo** en el proyecto compartido (el prefijo es el `id` en
+   mayúsculas y con `_` en lugar de todo lo no alfanumérico):
+   `<PREFIJO>__CALCOM_API_KEY`, `<PREFIJO>__RESEND_API_KEY`,
+   `<PREFIJO>__WHATSAPP_PHONE_NUMBER_ID`, `<PREFIJO>__WHATSAPP_ACCESS_TOKEN`,
+   `<PREFIJO>__NOTIFY_WHATSAPP_TO`. Sin ellas esa capacidad queda apagada; no hay
+   respaldo con la variable de otro cliente.
+3. El dominio del cliente agregado al proyecto compartido en Vercel.
+4. WhatsApp: el webhook sigue siendo de la app de Meta; con la WABA del cliente,
+   `override_callback_uri` apunta a `https://<dominio-del-cliente>/api/whatsapp`
+   (el mensaje se reconoce por el número, no por el dominio).
+5. `node --env-file=.env.local scripts/panel-user.mjs add <correo> <id>` para el panel.
+6. Los evals del cliente (un dev server por cliente con `CLIENT=<carpeta>`) y
+   `scripts/check-tenants.mjs` con `MULTI_TENANT=1`.
+
+---
+
 ## 4. Correo de avisos (Resend)
 
 El remitente (`notify.fromEmail`) debe estar en un dominio **verificado** en la

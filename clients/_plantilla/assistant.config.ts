@@ -7,7 +7,7 @@ import { clientEnv } from '../../core/config/env.ts';
  *   node --env-file=.env.<cliente> scripts/client-check.ts <cliente>
  */
 export default AssistantConfig.parse({
-  // TODO: único entre clientes; las llaves de Redis llevan este id.
+  // TODO: único entre clientes; las llaves de Redis y los prefijos de variables (clientEnv) llevan este id.
   id: 'asistente-cliente',
   // TODO: nombre del asistente y del negocio, como los verá la gente.
   name: 'Asistente',
