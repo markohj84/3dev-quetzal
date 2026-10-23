@@ -103,6 +103,11 @@ async function build(entry: Entry) {
     whatsappAppSecret: clientEnv(config.id, 'WHATSAPP_APP_SECRET') ?? process.env.WHATSAPP_APP_SECRET,
     whatsappVerifyToken: clientEnv(config.id, 'WHATSAPP_VERIFY_TOKEN') ?? process.env.WHATSAPP_VERIFY_TOKEN,
     calendlySigningKey: clientEnv(config.id, 'CALENDLY_WEBHOOK_SIGNING_KEY'),
+    webhook: {
+      url: clientEnv(config.id, 'NOTIFY_WEBHOOK_URL'),
+      secret: clientEnv(config.id, 'NOTIFY_WEBHOOK_SECRET'),
+      clientId: config.id,
+    },
   };
 
   const { provider, url, timeZone, earliestHour, latestHour } = config.scheduling;
