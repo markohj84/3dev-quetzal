@@ -245,7 +245,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   // Webhook: a local receiver stands in for n8n.
   const { createServer } = await import('node:http');
-  const { createHmac } = await import('node:crypto');
   const received: { body: string; signature?: string }[] = [];
   let mode: 'ok' | 'fail' | 'hang' = 'ok';
   const server = createServer((req, res) => {
