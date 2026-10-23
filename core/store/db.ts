@@ -315,7 +315,7 @@ export function createProfileStore(clientId: string): ProfileStore {
   };
 }
 
-/** The model-token cost of one reply, kept per client so 3dev can price a plan with real numbers. */
+/** The model-token cost of one reply, kept per client so a plan can be priced with real numbers. */
 export interface ReplyUsageRecord {
   model: string;
   input: number;
