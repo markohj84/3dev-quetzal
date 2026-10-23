@@ -1,6 +1,10 @@
 import assert from 'node:assert';
 
-/** USD per million tokens. Cache reads cost 0.1x the input rate, 5-minute cache writes 1.25x. */
+/**
+ * USD per million tokens. Cache reads cost 0.1x the input rate, 5-minute cache writes 1.25x.
+ * Haiku 5.5's rate assumes prompts under 100K tokens (above it: $0.50/$2.50): a client with a
+ * corpus that large would be under-reported 5x.
+ */
 const PRICES: Record<string, { input: number; output: number }> = {
   'claude-haiku-5-5': { input: 0.1, output: 0.5 },
   'claude-haiku-4-5': { input: 1, output: 5 },

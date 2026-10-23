@@ -9,6 +9,7 @@ const ago = (days) => new Date(Date.now() - days * 864e5).toISOString();
 const must = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
 const cleanup = async () => {
   await must(sb.from('follow_ups').delete().eq('client_id', C));
+  await must(sb.from('usage').delete().eq('client_id', C));
   await must(sb.from('contacts').delete().eq('client_id', C));
 };
 
@@ -28,6 +29,12 @@ try {
     { client_id: C, phone: '520000000002', reason: 'sent', at: ago(10) },
   ]));
 
+  const tokens = { model: 'm', input_tokens: 1, output_tokens: 1, cache_read_tokens: 0, cache_write_tokens: 0 };
+  await must(sb.from('usage').insert([
+    { client_id: C, contact_id: 'viejo', ...tokens, at: ago(400) },
+    { client_id: C, contact_id: 'reciente', ...tokens, at: ago(5) },
+  ]));
+
   await must(sb.rpc('purge_expired'));
 
   const contacts = await must(sb.from('contacts').select('contact_id, name, interest, left_contact').eq('client_id', C).order('contact_id'));
@@ -39,6 +46,8 @@ try {
   assert.deepEqual(messages.map((m) => m.content), ['hace 100 días'], 'solo se borra lo de más de 12 meses');
   const marks = await must(sb.from('follow_ups').select('phone').eq('client_id', C));
   assert.deepEqual(marks.map((m) => m.phone), ['520000000002'], 'la marca de más de 90 días se borra');
+  const usage = await must(sb.from('usage').select('contact_id').eq('client_id', C));
+  assert.deepEqual(usage.map((u) => u.contact_id), ['reciente'], 'el uso guarda el teléfono: vence a los 12 meses como los mensajes');
   console.log('check-purge: passed');
 } finally {
   await cleanup();
