@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
-import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore } from '../../../core/store/db';
+import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
 import { isTaken, shouldNotify } from '../../../core/handoff';
 import { withStart } from '../../../core/engine/prompt';
 import { panelUrl } from '../../panel/links';
@@ -112,6 +112,10 @@ export async function POST(request: Request) {
       earlier,
     });
     await sessions.set(inbound.contactId, result.state);
+    // Tokens are bookkeeping, not the reply: a database hiccup costs a log line.
+    await createUsageLog(config.id)
+      .record(inbound.contactId, result.usage)
+      .catch((error) => console.error(`[${config.id}] usage log failed`, error));
     // A failed send (expired token, billing, Meta outage) must not also lose
     // the log, the lead and the alert: what the person said still happened.
     await adapter.deliver(inbound.contactId, result.reply).catch((error) => {

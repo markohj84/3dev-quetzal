@@ -13,6 +13,7 @@ const ROOT = 'eval-admpg-root@3dev.test', OWNER = 'eval-admpg-owner@3dev.test', 
 const userId = async (email) => (await admin.auth.admin.listUsers({ perPage: 1000 })).data.users.find((u) => u.email === email)?.id;
 async function cleanup() {
   for (const e of [ROOT, OWNER]) { const id = await userId(e); if (id) await admin.auth.admin.deleteUser(id); }
+  await must(admin.from('usage').delete().eq('client_id', C));
   await must(admin.from('contacts').delete().eq('client_id', C));
 }
 async function sessionCookie(email) {
@@ -35,6 +36,8 @@ try {
   await must(admin.from('platform_admins').insert({ user_id: root.id }));
   await must(admin.from('contacts').insert({ client_id: C, contact_id: 'admpg-1', channel: 'web', left_contact: false }));
   await must(admin.from('messages').insert({ client_id: C, contact_id: 'admpg-1', role: 'user', content: 'secreto-de-la-conversacion', at: new Date().toISOString() }));
+
+  await must(admin.from('usage').insert({ client_id: C, contact_id: 'admpg-1', model: 'claude-haiku-5-5', input_tokens: 1_000_000, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 }));
 
   // Sin sesión: a entrar, también por petición RSC; nunca cifras.
   let r = await get('/admin');
@@ -60,6 +63,8 @@ try {
   assert.match(page, new RegExp(C), 'el admin ve el cliente');
   assert.match(page, /1 personas · 1 mensajes/);
   assert.doesNotMatch(page, /secreto-de-la-conversacion/, 'solo agregados');
+  assert.match(page, /costo US\$0\.100/, 'el costo sale del uso guardado y la tabla de precios');
+  assert.match(page, /US\$0\.100 por persona/);
   console.log('check-admin-pages: passed');
 } finally {
   await cleanup();

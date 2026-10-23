@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAssistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
-import { createConversationLog, createLeadStore, createFollowUpStore } from '../../../core/store/db';
+import { createConversationLog, createLeadStore, createFollowUpStore, createUsageLog } from '../../../core/store/db';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
 import { panelUrl } from '../../panel/links';
@@ -31,6 +31,10 @@ export async function POST(request: Request) {
   try {
     const result = await engine.respond(state, inbound.text, adapter);
     await sessions.set(inbound.contactId, result.state);
+    // Tokens are bookkeeping, not the reply: a database hiccup costs a log line.
+    await createUsageLog(config.id)
+      .record(inbound.contactId, result.usage)
+      .catch((error) => console.error(`[${config.id}] usage log failed`, error));
     // The log is a record, not the reply: a database hiccup must not cost the person their answer.
     await createConversationLog(config.id)
       .append({

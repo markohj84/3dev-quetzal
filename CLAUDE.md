@@ -259,9 +259,15 @@ de clientes sale de `contacts`, no del código; se excluyen contactos `eval*`.
 Alta: `node --env-file=.env.local scripts/panel-user.mjs admin add <correo>`
 (`remove`, `list`). Cada lectura revisa el acceso por sí misma (`requireAdmin`):
 una petición RSC puede saltarse el layout. Pruebas: `scripts/check-admin.mjs`
-(base real) y `scripts/check-admin-pages.mjs` (dev server). Fuera de la v1:
-citas (viven en Cal.com con la llave de cada cliente), costos (no se guardan
-tokens) y detalle por cliente.
+(base real) y `scripts/check-admin-pages.mjs` (dev server). **Costos**: cada
+respuesta guarda en `usage` la suma de sus llamadas al modelo (`respond()`
+regresa `usage`; las rutas lo registran con `createUsageLog`, sin bloquear la
+respuesta), `admin_tokens(days)` la agrega por cliente y modelo (solo
+`platform_admins`) y `app/admin/pricing.ts` la convierte a dólares: **agregar
+ahí el precio de cada modelo nuevo**, o el panel muestra tokens "sin precio".
+El costo existe desde el día del deploy y es solo el de Anthropic (sin
+plantillas de WhatsApp, Supabase ni Vercel). Fuera de la v1: citas (viven en
+Cal.com con la llave de cada cliente) y detalle por cliente.
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
 La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web
@@ -294,8 +300,7 @@ que no existe es peor que no tener el dato:
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
-- Costos por cliente en el panel de 3dev (el panel de administración con uso ya
-  existe; falta guardar tokens), flujos n8n reales. La notificación
+- Flujos n8n reales (el panel de administración con uso y costo de modelos ya existe). La notificación
   asíncrona cuando hay un lead interesado sí está construida — ver
   "Notificación de leads" abajo.
 

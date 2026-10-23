@@ -315,6 +315,39 @@ export function createProfileStore(clientId: string): ProfileStore {
   };
 }
 
+/** The model-token cost of one reply, kept per client so 3dev can price a plan with real numbers. */
+export interface ReplyUsageRecord {
+  model: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  calls: number;
+}
+
+export interface UsageLog {
+  record(contactId: string, usage: ReplyUsageRecord): Promise<void>;
+}
+
+export function createUsageLog(clientId: string): UsageLog {
+  return {
+    async record(contactId, u) {
+      await must(
+        db().from('usage').insert({
+          client_id: clientId,
+          contact_id: contactId,
+          model: u.model,
+          input_tokens: u.input,
+          output_tokens: u.output,
+          cache_read_tokens: u.cacheRead,
+          cache_write_tokens: u.cacheWrite,
+          calls: u.calls,
+        }),
+      );
+    },
+  };
+}
+
 export interface HandoffStore {
   get(contactId: string): Promise<Handoff | null>;
   release(contactId: string): Promise<void>;

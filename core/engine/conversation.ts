@@ -23,6 +23,16 @@ export interface Turn {
   content: string;
 }
 
+/** What one reply cost in tokens: the sum of every call it took (tool rounds, fallback, forced capture). */
+export interface ReplyUsage {
+  model: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  calls: number;
+}
+
 export interface ConversationState {
   history: Turn[];
   hasOffered: boolean;
@@ -165,8 +175,20 @@ export function createEngine(deps: EngineDeps) {
       capturedLead?: CapturedLead;
       remembered?: RememberedContact;
       booked?: Booking;
+      usage: ReplyUsage;
     }> {
       state = withStart(state, new Date());
+      const usage: ReplyUsage = { model: config.model.model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0 };
+      const call: typeof client.messages.create = (async (params: Anthropic.MessageCreateParamsNonStreaming) => {
+        const response = await client.messages.create(params);
+        usage.calls++;
+        usage.input += response.usage?.input_tokens ?? 0;
+        usage.output += response.usage?.output_tokens ?? 0;
+        usage.cacheRead += response.usage?.cache_read_input_tokens ?? 0;
+        usage.cacheWrite += response.usage?.cache_creation_input_tokens ?? 0;
+        return response;
+      }) as typeof client.messages.create;
+
       const history: Turn[] = [...state.history, { role: 'user', content: userText }];
 
       const systemPrompt = buildSystemPrompt({
@@ -214,7 +236,7 @@ export function createEngine(deps: EngineDeps) {
       ];
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-        const response = await client.messages.create({
+        const response = await call({
           ...modelParams,
           system,
           tools,
@@ -284,7 +306,7 @@ export function createEngine(deps: EngineDeps) {
         // showing the person an empty message. Also when the rounds ran out
         // with tool results unread: a "déjame revisar" from round 0 must not
         // stand in for the booking confirmation the last tool returned.
-        const fallback = await client.messages.create({
+        const fallback = await call({
           ...modelParams,
           system,
           messages,
@@ -305,7 +327,7 @@ export function createEngine(deps: EngineDeps) {
         // tool, and the person walks away believing someone will reach them.
         // Same tools and messages as the loop, so the cached prefix still hits.
         try {
-          const forced = await client.messages.create({
+          const forced = await call({
             ...modelParams,
             system,
             tools,
@@ -337,6 +359,7 @@ export function createEngine(deps: EngineDeps) {
         capturedLead,
         remembered,
         booked,
+        usage,
       };
     },
   };

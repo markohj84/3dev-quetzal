@@ -1,11 +1,12 @@
 // Prueba core/store/db.ts contra la base real con client_id 'eval-db'.
 //   node --env-file=.env.local scripts/check-db.mjs
 import assert from 'node:assert';
-import { db, backfillContacts, createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore } from '../core/store/db.ts';
+import { db, createUsageLog, backfillContacts, createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore } from '../core/store/db.ts';
 
 const C = 'eval-db';
 const must = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
 const cleanup = async () => {
+  await must(db().from('usage').delete().eq('client_id', C));
   await must(db().from('handoffs').delete().eq('client_id', C));
   const { data: users } = await db().auth.admin.listUsers({ perPage: 1000 });
   for (const u of users.users.filter((u) => u.email === 'eval-db-owner@3dev.test')) await db().auth.admin.deleteUser(u.id);
@@ -111,6 +112,11 @@ try {
   assert.ok(!mem.some((m) => m.content === 'viejo'), 'más de 90 días no');
   assert.ok(!mem.some((m) => m.content === 'de hoy'), 'lo de esta conversación no');
   assert.ok(!mem.some((m) => m.content === 'ajeno'), 'otro contacto no');
+
+  // Usage: one row per reply, with the tokens it took.
+  await createUsageLog(C).record('uso', { model: 'm-1', input: 120, output: 30, cacheRead: 4000, cacheWrite: 500, calls: 2 });
+  const used = await must(db().from('usage').select('model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, calls').eq('client_id', C).eq('contact_id', 'uso'));
+  assert.deepEqual(used, [{ model: 'm-1', input_tokens: 120, output_tokens: 30, cache_read_tokens: 4000, cache_write_tokens: 500, calls: 2 }]);
 
   console.log('check-db: passed');
 } finally {

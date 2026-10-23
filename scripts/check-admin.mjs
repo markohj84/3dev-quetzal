@@ -14,6 +14,7 @@ const userId = async (email) => (await admin.auth.admin.listUsers({ perPage: 100
 async function cleanup() {
   for (const email of Object.values(E)) { const id = await userId(email); if (id) await admin.auth.admin.deleteUser(id); }
   for (const c of [A, B]) {
+    await must(admin.from('usage').delete().eq('client_id', c));
     await must(admin.from('handoffs').delete().eq('client_id', c));
     await must(admin.from('follow_ups').delete().eq('client_id', c));
     await must(admin.from('leads').delete().eq('client_id', c));
@@ -69,11 +70,27 @@ try {
   assert.equal(Number(wide.people), 3, 'a 90 días entra la persona vieja');
   assert.equal(Object.keys(a).some((k) => /content|contacto|nombre|phone/.test(k)), false, 'solo agregados: nada de contenido ni contactos');
 
+  // Tokens: summed per client and model, test traffic left out.
+  await must(admin.from('usage').insert([
+    { client_id: A, contact_id: 'adm-p1', model: 'm-1', input_tokens: 1000, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 0, at: ago(30) },
+    { client_id: A, contact_id: 'adm-p2', model: 'm-1', input_tokens: 500, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 2000, at: ago(10) },
+    { client_id: A, contact_id: 'eval-noise', model: 'm-1', input_tokens: 99999, output_tokens: 99999, cache_read_tokens: 0, cache_write_tokens: 0, at: ago(5) },
+    { client_id: A, contact_id: 'adm-old', model: 'm-1', input_tokens: 77777, output_tokens: 1, cache_read_tokens: 0, cache_write_tokens: 0, at: ago(60 * 24 * 40) },
+  ]));
+  const tokens = await must(asAdmin.rpc('admin_tokens', { days: 7 }));
+  const ta = tokens.filter((t) => t.client_id === A);
+  assert.equal(ta.length, 1, 'una fila por cliente y modelo');
+  assert.deepEqual([ta[0].replies, ta[0].input_tokens, ta[0].output_tokens, ta[0].cache_read_tokens, ta[0].cache_write_tokens].map(Number), [2, 1500, 300, 5000, 2000], 'suma sin eval* ni lo viejo');
+  assert.equal((await must(asAdmin.rpc('admin_tokens', { days: 90 }))).find((t) => t.client_id === A).input_tokens > 1500, true, 'a 90 días entra lo de hace 40');
+
   // Everyone else gets nothing.
   const asOwner = await signedIn(E.owner);
   const ownerRows = await must(asOwner.rpc('admin_usage', { days: 7 }));
   assert.equal(ownerRows.length, 0, 'un dueño de cliente no ve el agregado de todos');
   assert.ok((await anonClient().rpc('admin_usage', { days: 7 })).error, 'sin sesión no se puede ejecutar');
+  assert.equal((await must(asOwner.rpc('admin_tokens', { days: 90 }))).length, 0, 'un dueño de cliente no ve los tokens de nadie');
+  assert.ok((await anonClient().rpc('admin_tokens', { days: 7 })).error, 'sin sesión no se pueden leer los tokens');
+  assert.ok((await anonClient().from('usage').select('id')).data?.length === 0 || (await anonClient().from('usage').select('id')).error, 'la tabla usage no se lee con la llave pública');
   assert.deepEqual(await must(asOwner.from('platform_admins').select('user_id')), [], 'nadie lee la lista de admins que no es la suya');
   assert.equal((await must(asAdmin.from('platform_admins').select('user_id'))).length, 1, 'el admin se ve a sí mismo');
   assert.ok((await asOwner.from('platform_admins').insert({ user_id: owner.id })).error, 'nadie se da de alta como admin');
