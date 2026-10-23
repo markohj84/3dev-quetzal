@@ -27,8 +27,10 @@ El motor no debe poder averiguar por qué canal llegó un mensaje.
 
 ## Clientes
 
-Un deploy por cliente: mismo repositorio, un proyecto de Vercel por cliente,
-y la variable `CLIENT` (default `3dev`) elige la carpeta `clients/<cliente>/`
+Producción corre en un solo proyecto de Vercel (`3dev-quetzal`, con
+`MULTI_TENANT=1`) que atiende a todos los clientes por su dominio (ver
+"Multi-tenant" abajo). En local, y en un cliente que pida su propio proyecto,
+la variable `CLIENT` (default `3dev`) elige la carpeta `clients/<cliente>/`
 (`app/assistant.ts`). Todo lo del cliente vive en su carpeta: config, voz,
 conocimiento, `widget.html`, `privacidad.tsx` y `evals.ts`.
 `next.config.js` incluye `clients/` en el paquete porque la ruta se decide en
@@ -61,6 +63,12 @@ no lee variables de un cliente: las credenciales llegan como argumentos
 de Redis lleva el cliente: `session:<clientId>:<contactId>`. El cron de
 seguimiento recorre todos los clientes. Prueba: `scripts/check-tenants.mjs`
 contra un dev server con `MULTI_TENANT=1` (ver el encabezado del script).
+
+En Vercel las variables *sensitive* no se pueden leer ni renombrar: para dar de
+alta o mover una llave hay que tener el valor a la mano (`.env.local`, el
+archivo local del cliente o el panel del proveedor). Claude Code bloquea
+escribir secretos y mover dominios en Vercel: eso lo hace Marco (consola de
+Vercel o un script que él corre).
 
 ## Reglas de producto que no se negocian
 
@@ -284,8 +292,8 @@ Alta: `node --env-file=.env.local scripts/panel-user.mjs admin add <correo>`
 una petición RSC puede saltarse el layout. Pruebas: `scripts/check-admin.mjs`
 (base real) y `scripts/check-admin-pages.mjs` (dev server). **Costos**: cada
 respuesta guarda en `usage` la suma de sus llamadas al modelo (`respond()`
-regresa `usage`; las rutas lo registran con `createUsageLog`, sin bloquear la
-respuesta), `admin_tokens(days)` la agrega por cliente y modelo (solo
+regresa `usage`; las rutas lo registran con `createUsageLog`; una falla solo deja una
+línea de log), `admin_tokens(days)` la agrega por cliente y modelo (solo
 `platform_admins`) y `app/admin/pricing.ts` la convierte a dólares: **agregar
 ahí el precio de cada modelo nuevo**, o el panel muestra tokens "sin precio".
 El costo existe desde el día del deploy y es solo el de Anthropic (sin
@@ -316,9 +324,6 @@ que no existe es peor que no tener el dato:
 
 - **Memoria en la web**. En WhatsApp ya hay memoria de conversaciones (90
   días, ver "Ficha de contacto"); la web no recuerda. No vender más que eso.
-- **Arquitectura multi-tenant por dominio** ("un deploy, muchos clientes"):
-  construida y probada (ver "Multi-tenant"). Producción sigue con un proyecto
-  de Vercel por cliente hasta migrar (decisión de Marco).
 - **Postgres/Supabase** ya guarda conversaciones, leads, fichas y
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.

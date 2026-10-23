@@ -1,9 +1,10 @@
 # Dar de alta un cliente nuevo
 
-Un deploy por cliente: el mismo repositorio, un proyecto de Vercel por
-cliente, y la variable `CLIENT` elige su carpeta en `clients/`. Cada cliente
-tiene sus propias llaves, su número de WhatsApp y su calendario; nada se
-comparte entre ellos mientras corren.
+Producción es un solo proyecto de Vercel (`3dev-quetzal`, `MULTI_TENANT=1`)
+para todos los clientes: el alta normal es la sección 3b. La sección 5 (un
+proyecto propio, con `CLIENT`) queda para el cliente que lo pida. En los dos
+casos cada cliente tiene sus propias llaves, su número de WhatsApp y su
+calendario; nunca se usa la llave de otro.
 
 Tiempo estimado: medio día de configuración, más lo que tarde Meta en
 aprobar el número y las plantillas (horas a un día).
@@ -119,11 +120,11 @@ Las plantillas `aviso_lead` y `seguimiento_lead` las crea el paso 6 de esta guí
 
 ---
 
-## 3b. Alta en un deploy compartido (`MULTI_TENANT=1`)
+## 3b. Alta en el deploy compartido (`MULTI_TENANT=1`, lo normal)
 
-Si 3dev corre un solo proyecto de Vercel para todos los clientes (ver "Multi-tenant"
-en `CLAUDE.md`), dar de alta uno es esto, en lugar de los pasos de proyecto de la
-sección 5:
+Producción corre en un solo proyecto de Vercel para todos los clientes (ver
+"Multi-tenant" en `CLAUDE.md`). Dar de alta uno es esto, en lugar de los pasos
+de proyecto de la sección 5:
 
 1. La carpeta `clients/<cliente>/` (sección 1) con `domains: ['dominio-del-cliente.com']`
    y, en la config, `clientEnv('<id>', 'NOMBRE')` donde la plantilla lo indica.
