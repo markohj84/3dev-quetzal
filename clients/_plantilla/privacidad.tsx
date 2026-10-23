@@ -90,6 +90,8 @@ export default function PrivacidadPage() {
           <li><strong>Upstash</strong>: almacenamiento temporal de la conversación en curso.</li>
           <li><strong>Supabase</strong>: base de datos donde se guardan las conversaciones y los datos de contacto que compartes.</li>
           <li><strong>Resend</strong>: envío de notificaciones internas por correo.</li>
+          {/* Si el cliente tiene flujos en n8n (NOTIFY_WEBHOOK_URL), descomenta y nombra también los sistemas a los que el flujo mande datos:
+          <li><strong>n8n</strong>: automatizaciones internas con los datos de la conversación.</li> */}
           <li><strong>Cal.com</strong>: agenda de llamadas, si decides programar una.</li>
         </ul>
         <p>

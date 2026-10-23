@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
@@ -90,14 +90,14 @@ export async function POST(request: Request) {
       .catch((error) => console.error(`[${config.id}] session append failed`, error));
     if (shouldNotify(handoff, now)) {
       const profile = await profiles.get(inbound.contactId).catch(() => null);
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: [],
         reachAt: `https://wa.me/${toMetaRecipient(inbound.contactId)}`,
         panelUrl: panelUrl(config, inbound.contactId),
         inbound: { name: profile?.name ?? `+${toMetaRecipient(inbound.contactId)}`, text: inbound.text },
-      });
+      }));
       await handoffs.markNotified(inbound.contactId).catch((error) => console.error(`[${config.id}] handoff notify mark failed`, error));
     }
     return new Response('ok', { status: 200 });
@@ -164,13 +164,13 @@ export async function POST(request: Request) {
     }
 
     if (!state.hasOffered && result.state.hasOffered) {
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
         reachAt,
         panelUrl: panelUrl(config, inbound.contactId),
-      });
+      }));
     }
 
     if (result.capturedLead) {
@@ -183,14 +183,14 @@ export async function POST(request: Request) {
           at: new Date().toISOString(),
         })
         .catch((error) => console.error(`[${config.id}] lead save failed`, error));
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
         captured: result.capturedLead,
         reachAt,
         panelUrl: panelUrl(config, inbound.contactId),
-      });
+      }));
     }
 
     if (result.booked) {
@@ -205,14 +205,14 @@ export async function POST(request: Request) {
           .mark(phone, 'booked')
           .catch((error) => console.error(`[${config.id}] follow-up mark failed`, error));
       }
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',
         contactId: inbound.contactId,
         transcript: result.state.history,
         booking: result.booked,
         reachAt,
         panelUrl: panelUrl(config, inbound.contactId),
-      });
+      }));
     }
   } catch (error) {
     console.error(`[${config.id}] whatsapp failed`, error);

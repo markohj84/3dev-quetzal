@@ -149,17 +149,25 @@ de proyecto de la sección 5:
 
 ## 3c. Recibir eventos en n8n
 
-1. Un nodo **Webhook** con método `POST` y la opción **Raw Body** activada.
-   Su URL de producción es `<PREFIJO>__NOTIFY_WEBHOOK_URL`.
+1. Un nodo **Webhook** con método `POST` y respuesta *Immediately*. Su URL de
+   producción va en `<PREFIJO>__NOTIFY_WEBHOOK_URL`.
 2. Si hay `<PREFIJO>__NOTIFY_WEBHOOK_SECRET`: un nodo **Crypto** (acción
-   *Hmac*, tipo *SHA256*, codificación *hex*, el mismo secreto) sobre el
-   cuerpo crudo, y un **IF** que lo compare con el encabezado
-   `x-signature-256` sin el prefijo `sha256=`. Lo que no coincide se descarta.
+   *Hmac*, tipo *SHA256*, codificación *hex*, el mismo secreto) con valor
+   `{{ JSON.stringify($json.body) }}`, y un **IF** que lo compare con
+   `{{ $json.headers['x-signature-256'].replace('sha256=', '') }}`. Lo que no
+   coincide se descarta. Funciona sin *Raw Body* porque Quetzal arma el cuerpo
+   con `JSON.stringify` y volver a serializarlo da los mismos bytes (la
+   autoprueba de `core/notify.ts` lo verifica). Receta sin probar todavía
+   contra un n8n real: al montarla, verifícala con un evento de prueba.
 3. Un **Switch** por `event` (`interest`, `lead`, `booking`, `inbound`) y, en
    cada rama, la automatización del cliente (CRM, hoja, aviso interno).
+4. Agrega n8n (y cada sistema al que el flujo mande los datos) a la lista de
+   proveedores de `clients/<cliente>/privacidad.tsx`: el evento lleva la
+   transcripción y los datos de contacto.
 
-Quetzal espera 5 s y no reintenta: el flujo debe contestar rápido (el nodo
-Webhook en modo *Immediately*) y hacer lo lento después.
+Quetzal no reintenta y corta a los 5 s: el flujo debe contestar de inmediato y
+hacer lo lento después. Los avisos salen después de responder (`after()`),
+así que un flujo lento no retrasa al asistente.
 
 ---
 

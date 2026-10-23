@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { getAssistantOrNull } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
 import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
@@ -49,12 +49,12 @@ export async function POST(request: Request) {
       .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
 
     if (!state.hasOffered && result.state.hasOffered) {
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
         panelUrl: panelUrl(config, inbound.contactId),
-      });
+      }));
     }
 
     if (result.capturedLead) {
@@ -67,13 +67,13 @@ export async function POST(request: Request) {
           at: new Date().toISOString(),
         })
         .catch((error) => console.error(`[${config.id}] lead save failed`, error));
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
         panelUrl: panelUrl(config, inbound.contactId),
         captured: result.capturedLead,
-      });
+      }));
     }
 
     if (result.booked) {
@@ -88,13 +88,13 @@ export async function POST(request: Request) {
           .mark(phone, 'booked')
           .catch((error) => console.error(`[${config.id}] follow-up mark failed`, error));
       }
-      await createLeadNotifier(config.notify, secrets).notify({
+      after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'web',
         contactId: inbound.contactId,
         transcript: result.state.history,
         panelUrl: panelUrl(config, inbound.contactId),
         booking: result.booked,
-      });
+      }));
     }
 
     return NextResponse.json({

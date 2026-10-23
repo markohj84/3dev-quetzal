@@ -273,6 +273,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(received.length, 1);
   const sent = JSON.parse(received[0].body);
   assert.equal(sent.event, 'lead');
+  assert.equal(JSON.stringify(JSON.parse(received[0].body)), received[0].body, 'n8n firma el cuerpo re-serializado: debe ser idéntico');
   assert.equal(sent.clientId, 'acme');
   assert.equal(sent.channel, 'whatsapp');
   assert.equal(sent.contactId, '5212225551234');

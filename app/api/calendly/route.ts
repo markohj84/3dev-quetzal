@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { getAssistantOrNull } from '../../assistant';
 import { verifyCalendlySignature, parseBooking } from '../../../core/scheduling/calendly-webhook';
 import { createLeadNotifier } from '../../../core/notify';
@@ -38,12 +39,12 @@ export async function POST(request: Request) {
   if (!booking) return new Response('ok', { status: 200 });
 
   try {
-    await createLeadNotifier(config.notify, secrets).notify({
+    after(() => createLeadNotifier(config.notify, secrets).notify({
       channel: 'calendly',
       contactId: booking.email,
       transcript: [],
       booking,
-    });
+    }));
   } catch (error) {
     console.error(`[${config.id}] calendly webhook failed`, error);
   }

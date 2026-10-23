@@ -215,7 +215,9 @@ asunto del correo), `clientId`, `channel`, `contactId`, `at`, `lead`,
 La URL es secreta: quien la tenga puede escribirle al flujo, por eso nunca va
 en la config. Con `<PREFIJO>__NOTIFY_WEBHOOK_SECRET` lleva
 `x-signature-256: sha256=<HMAC-SHA256 hex del cuerpo>`. Tope de 5 s y sin
-reintentos: con n8n caído, ese evento se pierde. Las automatizaciones a la
+reintentos: con n8n caído, ese evento se pierde. Las rutas mandan todos los
+avisos (correo, WhatsApp y webhook) con `after()`, después de responder: un
+canal lento no retrasa al asistente. Las automatizaciones a la
 medida de la Oferta 2 se arman en n8n sobre estos eventos, sin tocar este repo.
 
 ## Seguimiento automático
