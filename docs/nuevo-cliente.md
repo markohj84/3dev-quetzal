@@ -122,7 +122,7 @@ Las plantillas `aviso_lead` y `seguimiento_lead` las crea el paso 6 de esta guí
 
 ## 3b. Alta en el deploy compartido (`MULTI_TENANT=1`, lo normal)
 
-Producción corre en un solo proyecto de Vercel para todos los clientes (ver
+Producción corre en un solo proyecto de Vercel para todos los clientes (sección
 "Multi-tenant" en `CLAUDE.md`). Dar de alta uno es esto, en lugar de los pasos
 de proyecto de la sección 5:
 
@@ -133,7 +133,9 @@ de proyecto de la sección 5:
    mayúsculas y con `_` en lugar de todo lo no alfanumérico):
    `<PREFIJO>__CALCOM_API_KEY`, `<PREFIJO>__RESEND_API_KEY`,
    `<PREFIJO>__WHATSAPP_PHONE_NUMBER_ID`, `<PREFIJO>__WHATSAPP_ACCESS_TOKEN`,
-   `<PREFIJO>__NOTIFY_WHATSAPP_TO`. Sin ellas esa capacidad queda apagada; no hay
+   `<PREFIJO>__NOTIFY_WHATSAPP_TO` y, si tiene flujos en n8n,
+   `<PREFIJO>__NOTIFY_WEBHOOK_URL` y `<PREFIJO>__NOTIFY_WEBHOOK_SECRET` (sección
+   3c). Sin ellas esa capacidad queda apagada; no hay
    respaldo con la variable de otro cliente.
 3. El dominio del cliente agregado al proyecto compartido en Vercel.
 4. WhatsApp: el webhook sigue siendo de la app de Meta; con la WABA del cliente,
@@ -142,6 +144,22 @@ de proyecto de la sección 5:
 5. `node --env-file=.env.local scripts/panel-user.mjs add <correo> <id>` para el panel.
 6. Los evals del cliente (un dev server por cliente con `CLIENT=<carpeta>`) y
    `scripts/check-tenants.mjs` con `MULTI_TENANT=1`.
+
+---
+
+## 3c. Recibir eventos en n8n
+
+1. Un nodo **Webhook** con método `POST` y la opción **Raw Body** activada.
+   Su URL de producción es `<PREFIJO>__NOTIFY_WEBHOOK_URL`.
+2. Si hay `<PREFIJO>__NOTIFY_WEBHOOK_SECRET`: un nodo **Crypto** (acción
+   *Hmac*, tipo *SHA256*, codificación *hex*, el mismo secreto) sobre el
+   cuerpo crudo, y un **IF** que lo compare con el encabezado
+   `x-signature-256` sin el prefijo `sha256=`. Lo que no coincide se descarta.
+3. Un **Switch** por `event` (`interest`, `lead`, `booking`, `inbound`) y, en
+   cada rama, la automatización del cliente (CRM, hoja, aviso interno).
+
+Quetzal espera 5 s y no reintenta: el flujo debe contestar rápido (el nodo
+Webhook en modo *Immediately*) y hacer lo lento después.
 
 ---
 

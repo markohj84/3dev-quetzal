@@ -206,6 +206,18 @@ aviso, nombre, contacto, detalle). Cada canal falla por su cuenta: si Meta
 rechaza el envío, el correo sale igual. No poner `NOTIFY_WHATSAPP_TO` en
 `.env.local`, o cada eval que capture un lead mandará un WhatsApp real.
 
+El tercer canal es un webhook (`sendWebhook`, pensado para n8n): con
+`<PREFIJO>__NOTIFY_WEBHOOK_URL`, cada aviso sale también como `POST` JSON con
+`event` (`inbound` > `booking` > `lead` > `interest`, la misma precedencia del
+asunto del correo), `clientId`, `channel`, `contactId`, `at`, `lead`,
+`booking`, `inbound`, `reachAt`, `panelUrl` y la transcripción (lo ausente va
+`null`; ejemplo en `docs/superpowers/specs/2026-10-23-eventos-n8n-design.md`).
+La URL es secreta: quien la tenga puede escribirle al flujo, por eso nunca va
+en la config. Con `<PREFIJO>__NOTIFY_WEBHOOK_SECRET` lleva
+`x-signature-256: sha256=<HMAC-SHA256 hex del cuerpo>`. Tope de 5 s y sin
+reintentos: con n8n caído, ese evento se pierde. Las automatizaciones a la
+medida de la Oferta 2 se arman en n8n sobre estos eventos, sin tocar este repo.
+
 ## Seguimiento automático
 
 Un cron diario (`vercel.json`, 16:00 UTC = 10:00 en México) llama
@@ -328,9 +340,9 @@ que no existe es peor que no tener el dato:
   seguimientos (ver "Registro de conversaciones"). Falta pgvector para RAG.
 - **Capa model-agnostic** para intercambiar de proveedor de IA sin reescribir.
   Hoy `core/engine/conversation.ts` llama directo al SDK de Anthropic.
-- Flujos n8n reales (el panel de administración con uso y costo de modelos ya existe). La notificación
-  asíncrona cuando hay un lead interesado sí está construida — ver
-  "Notificación de leads" abajo.
+- Acciones del asistente hacia n8n durante la charla (consultar o registrar
+  algo en un sistema del cliente). Los eventos salientes sí existen — ver
+  "Notificación de leads".
 
 ## Estilo
 
