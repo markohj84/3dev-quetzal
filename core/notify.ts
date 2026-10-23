@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { createHmac } from 'node:crypto';
 import type { Turn } from './engine';
 import type { CapturedLead } from './tools';
 import type { Booking } from './scheduling/calendly-webhook';
@@ -36,6 +37,8 @@ export interface LeadNotifier {
 export interface NotifySecrets {
   resendApiKey?: string;
   whatsapp?: WhatsAppCredentials;
+  /** The client's n8n (or any) endpoint. The URL is a secret: whoever has it can post to the flow. */
+  webhook?: { url?: string; secret?: string; clientId: string };
 }
 
 export function createLeadNotifier(config: NotifyConfig, secrets: NotifySecrets = {}): LeadNotifier {
@@ -45,6 +48,7 @@ export function createLeadNotifier(config: NotifyConfig, secrets: NotifySecrets 
       const results = await Promise.allSettled([
         sendEmail(config.email, config.fromEmail, alert, secrets.resendApiKey),
         sendWhatsApp(config.whatsapp, alert, secrets.whatsapp ?? {}),
+        sendWebhook(alert, secrets.webhook),
       ]);
       for (const r of results) {
         if (r.status === 'rejected') console.error('lead alert failed', r.reason);
@@ -157,6 +161,39 @@ async function sendWhatsApp(config: NotifyConfig['whatsapp'], alert: LeadAlert, 
   await sendTemplate({ to: config.to, template: config.template, language: config.language, params: whatsAppAlertParams(alert) }, creds);
 }
 
+/** The same order the email subject uses: the most specific thing that happened wins. */
+export function alertEvent(alert: LeadAlert): 'inbound' | 'booking' | 'lead' | 'interest' {
+  if (alert.inbound) return 'inbound';
+  if (alert.booking) return 'booking';
+  if (alert.captured) return 'lead';
+  return 'interest';
+}
+
+// ponytail: no retries — with the flow down the event is lost; add a queue when a client needs one.
+async function sendWebhook(alert: LeadAlert, webhook: NotifySecrets['webhook']): Promise<void> {
+  if (!webhook?.url) return;
+  const body = JSON.stringify({
+    event: alertEvent(alert),
+    clientId: webhook.clientId,
+    channel: alert.channel,
+    contactId: alert.contactId,
+    at: new Date().toISOString(),
+    lead: alert.captured ?? null,
+    booking: alert.booking ?? null,
+    inbound: alert.inbound ?? null,
+    reachAt: alert.reachAt ?? null,
+    panelUrl: alert.panelUrl ?? null,
+    transcript: alert.transcript,
+  });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (webhook.secret) {
+    headers['x-signature-256'] = `sha256=${createHmac('sha256', webhook.secret).update(body).digest('hex')}`;
+  }
+  // A slow flow must not hold the reply: five seconds, then a log line.
+  const res = await fetch(webhook.url, { method: 'POST', headers, body, signal: AbortSignal.timeout(5000) });
+  if (!res.ok) console.error('webhook error', res.status);
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const transcript = [
     { role: 'user' as const, content: 'Quiero un sitio\npara mi   taller' },
@@ -206,5 +243,70 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.ok(lead[3].endsWith(panel), 'los avisos de siempre también traen el enlace');
   assert.ok(lead[3].length <= 200);
 
+  // Webhook: a local receiver stands in for n8n.
+  const { createServer } = await import('node:http');
+  const { createHmac } = await import('node:crypto');
+  const received: { body: string; signature?: string }[] = [];
+  let mode: 'ok' | 'fail' | 'hang' = 'ok';
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      received.push({ body, signature: req.headers['x-signature-256'] as string | undefined });
+      if (mode === 'hang') return;
+      res.statusCode = mode === 'fail' ? 500 : 200;
+      res.end('ok');
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, r));
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/hook`;
+  const off: NotifyConfig = {} as NotifyConfig;
+
+  assert.equal(alertEvent({ channel: 'web', contactId: 'x', transcript }), 'interest');
+  assert.equal(alertEvent({ channel: 'web', contactId: 'x', transcript, captured: { nombre: 'A', contacto: 'a' } }), 'lead');
+  assert.equal(alertEvent({ channel: 'calendly', contactId: 'x', transcript: [], captured: { nombre: 'A', contacto: 'a' }, booking: { nombre: 'A' } }), 'booking');
+  assert.equal(alertEvent({ channel: 'whatsapp', contactId: 'x', transcript, booking: { nombre: 'A' }, inbound: { name: 'A', text: 'hola' } }), 'inbound');
+
+  await createLeadNotifier(off, { webhook: { url, secret: 's3cr3t', clientId: 'acme' } }).notify({
+    channel: 'whatsapp', contactId: '5212225551234', transcript, reachAt: '522225551234',
+    captured: { nombre: 'Ana', contacto: '222 555 1234', necesidad: 'limpieza' },
+  });
+  assert.equal(received.length, 1);
+  const sent = JSON.parse(received[0].body);
+  assert.equal(sent.event, 'lead');
+  assert.equal(sent.clientId, 'acme');
+  assert.equal(sent.channel, 'whatsapp');
+  assert.equal(sent.contactId, '5212225551234');
+  assert.deepEqual(sent.lead, { nombre: 'Ana', contacto: '222 555 1234', necesidad: 'limpieza' });
+  assert.equal(sent.booking, null, 'lo ausente va como null');
+  assert.equal(sent.inbound, null);
+  assert.equal(sent.panelUrl, null);
+  assert.equal(sent.reachAt, '522225551234');
+  assert.deepEqual(sent.transcript, transcript);
+  assert.ok(!Number.isNaN(Date.parse(sent.at)));
+  assert.equal(
+    received[0].signature,
+    `sha256=${createHmac('sha256', 's3cr3t').update(received[0].body).digest('hex')}`,
+    'la firma es del cuerpo crudo que llegó',
+  );
+
+  await createLeadNotifier(off, { webhook: { url, clientId: 'acme' } }).notify({ channel: 'web', contactId: 'x', transcript });
+  assert.equal(received.length, 2);
+  assert.equal(received[1].signature, undefined, 'sin secreto, sin firma');
+
+  await createLeadNotifier(off, { webhook: { clientId: 'acme' } }).notify({ channel: 'web', contactId: 'x', transcript });
+  assert.equal(received.length, 2, 'sin URL no hay petición');
+
+  mode = 'fail';
+  await createLeadNotifier(off, { webhook: { url, clientId: 'acme' } }).notify({ channel: 'web', contactId: 'x', transcript });
+  assert.equal(received.length, 3, 'un 500 no lanza');
+
+  mode = 'hang';
+  const t0 = Date.now();
+  await createLeadNotifier(off, { webhook: { url, clientId: 'acme' } }).notify({ channel: 'web', contactId: 'x', transcript });
+  const waited = Date.now() - t0;
+  assert.ok(waited >= 4500 && waited < 7000, `un webhook colgado se corta a los 5 s (tardó ${waited} ms)`);
+  server.closeAllConnections();
+  server.close();
   console.log('notify.ts self-check passed');
 }
