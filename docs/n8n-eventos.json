@@ -1,0 +1,231 @@
+{
+  "name": "Quetzal — eventos",
+  "nodes": [
+    {
+      "name": "Evento de Quetzal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quetzal-eventos",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "name": "Calcular firma",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ JSON.stringify($json.body) }}",
+        "dataPropertyName": "firma",
+        "encoding": "hex"
+      },
+      "credentials": {
+        "crypto": {
+          "name": "Firma de eventos de Quetzal"
+        }
+      }
+    },
+    {
+      "name": "¿Firma válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "df0ff6dd-8e40-4acb-9c30-eef8094f582c",
+              "leftValue": "={{ $json.firma }}",
+              "rightValue": "={{ ($json.headers['x-signature-256'] || '').replace('sha256=', '') }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Por tipo de evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "interest",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "interest"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "lead",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "booking",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "booking"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "inbound",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "inbound"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Descartar",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        660,
+        120
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Evento de Quetzal": {
+      "main": [
+        [
+          {
+            "node": "Calcular firma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular firma": {
+      "main": [
+        [
+          {
+            "node": "¿Firma válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Firma válida?": {
+      "main": [
+        [
+          {
+            "node": "Por tipo de evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descartar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

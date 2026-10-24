@@ -149,16 +149,22 @@ de proyecto de la sección 5:
 
 ## 3c. Recibir eventos en n8n
 
+Atajo: importa `docs/n8n-eventos.json` (pasos 1–3 ya armados), cambia el
+`path` del webhook por uno del cliente y elige su credencial de firma.
+
 1. Un nodo **Webhook** con método `POST` y respuesta *Immediately*. Su URL de
-   producción va en `<PREFIJO>__NOTIFY_WEBHOOK_URL`.
+   producción va en `<PREFIJO>__NOTIFY_WEBHOOK_URL`. Tiene que ser pública:
+   Vercel no alcanza un n8n en `localhost`.
 2. Si hay `<PREFIJO>__NOTIFY_WEBHOOK_SECRET`: un nodo **Crypto** (acción
-   *Hmac*, tipo *SHA256*, codificación *hex*, el mismo secreto) con valor
+   *Hmac*, tipo *SHA256*, codificación *hex*; en n8n 2.x el secreto va en una
+   credencial *Crypto*, campo *Hmac Secret*) con valor
    `{{ JSON.stringify($json.body) }}`, y un **IF** que lo compare con
-   `{{ $json.headers['x-signature-256'].replace('sha256=', '') }}`. Lo que no
-   coincide se descarta. Funciona sin *Raw Body* porque Quetzal arma el cuerpo
-   con `JSON.stringify` y volver a serializarlo da los mismos bytes (la
-   autoprueba de `core/notify.ts` lo verifica). Receta sin probar todavía
-   contra un n8n real: al montarla, verifícala con un evento de prueba.
+   `{{ ($json.headers['x-signature-256'] || '').replace('sha256=', '') }}`
+   (sin el `|| ''`, un POST sin firma truena el flujo en vez de descartarse).
+   Lo que no coincide se descarta. Funciona sin *Raw Body* porque Quetzal arma
+   el cuerpo con `JSON.stringify` y volver a serializarlo da los mismos bytes.
+   Probado contra n8n 2.38 con acentos, emoji, saltos de línea y ` `, y
+   con los eventos reales de `npm run eval:3dev`.
 3. Un **Switch** por `event` (`interest`, `lead`, `booking`, `inbound`) y, en
    cada rama, la automatización del cliente (CRM, hoja, aviso interno).
 4. Agrega n8n (y cada sistema al que el flujo mande los datos) a la lista de
