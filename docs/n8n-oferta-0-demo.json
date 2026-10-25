@@ -1,0 +1,328 @@
+{
+  "name": "Oferta 0 — demo: formulario → registro → aviso por WhatsApp",
+  "nodes": [
+    {
+      "name": "Formulario de contacto",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "formTitle": "Clínica Dental Nogal",
+        "formDescription": "Déjanos tus datos y te escribimos por WhatsApp para agendar tu cita.\nClínica de ejemplo: demo de 3dev.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre",
+              "requiredField": true,
+              "placeholder": "Ana López"
+            },
+            {
+              "fieldLabel": "WhatsApp",
+              "fieldType": "number",
+              "requiredField": true,
+              "placeholder": "2221234567"
+            },
+            {
+              "fieldLabel": "Correo",
+              "fieldType": "email",
+              "placeholder": "ana@correo.com"
+            },
+            {
+              "fieldLabel": "¿Qué te interesa?",
+              "fieldType": "radio",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Limpieza"
+                  },
+                  {
+                    "option": "Blanqueamiento"
+                  },
+                  {
+                    "option": "Ortodoncia"
+                  },
+                  {
+                    "option": "Revisión general"
+                  },
+                  {
+                    "option": "Otro"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Cuéntanos un poco más",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "path": "nogal-contacto",
+          "appendAttribution": false,
+          "buttonLabel": "Enviar",
+          "customCss": "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');\n:root {\n  --font-family: 'Space Grotesk', system-ui, sans-serif;\n  --color-background: #111310;\n  --color-card-bg: #191c18;\n  --color-card-border: rgb(244 243 238 / 15%);\n  --color-card-shadow: rgb(0 0 0 / 40%);\n  --color-header: #f4f3ee;\n  --color-header-subtext: #b7bdb2;\n  --color-label: #f4f3ee;\n  --color-input-border: rgb(244 243 238 / 25%);\n  --color-input-text: #f4f3ee;\n  --color-focus-border: #5dc4a4;\n  --color-submit-btn-bg: #5dc4a4;\n  --color-submit-btn-text: #111310;\n  --color-required: #5dc4a4;\n  --color-error: #f0a08a;\n  --color-link: #5dc4a4;\n  --color-html-text: #b7bdb2;\n  --color-html-link: #5dc4a4;\n  --border-radius-card: 8px;\n  --border-radius-input: 6px;\n  --box-shadow-card: 0 12px 40px var(--color-card-shadow);\n}\nbody { background: var(--color-background); }\ninput, select, textarea { background: #111310; color: var(--color-input-text); }\ninput::placeholder, textarea::placeholder { color: #565c53; opacity: 1; }\ninput[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }\ninput[type=number] { -moz-appearance: textfield; }\n#submit-btn { font-weight: 700; letter-spacing: 0.02em; }\n#submit-btn:hover { filter: brightness(1.08); }\n\n.error-show { font-size: 0 !important; }\n.error-show::after { font-size: 13px; }\n.error-field-0.error-show::after { content: 'Escribe tu nombre'; }\n.error-field-1.error-show::after { content: 'Escribe tu WhatsApp a 10 dígitos, solo números'; }\n.error-field-2.error-show::after { content: 'Revisa el correo: algo como ana@correo.com'; }\n.error-field-3.error-show::after { content: 'Elige una opción'; }\n\n:root { --color-input-bg: #111310; }\n.form-header p { color: var(--color-header-subtext); }\n.multiselect-option label { color: var(--color-label); }\ninput[type='radio'] { accent-color: #5dc4a4; }\n\ninput, textarea, select, button { font-family: inherit; }\n"
+        }
+      }
+    },
+    {
+      "name": "Preparar lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Meta rechaza variables vacías, con saltos de línea o de más de 200 caracteres.\nconst flat = (v) => (String(v ?? '').replace(/\\s+/g, ' ').trim().slice(0, 200)) || '—';\n// Un celular de México son 10 dígitos; se acepta también con lada de país (52 o 521).\nconst tenDigits = (v) => {\n  const d = String(v ?? '').replace(/\\D/g, '');\n  const local = d.length === 12 && d.startsWith('52') ? d.slice(2) : d.length === 13 && d.startsWith('521') ? d.slice(3) : d;\n  return /^[1-9]\\d{9}$/.test(local) ? local : null;\n};\nreturn $input.all().map(({ json: f }) => {\n  const whatsapp = tenDigits(f['WhatsApp']);\n  return { json: {\n    valido: whatsapp !== null,\n    nombre: flat(f['Nombre']),\n    whatsapp: whatsapp ?? String(f['WhatsApp'] ?? ''),\n    correo: flat(f['Correo']),\n    tratamiento: flat(f['¿Qué te interesa?']),\n    mensaje: flat(f['Cuéntanos un poco más']),\n  } };\n});"
+      }
+    },
+    {
+      "name": "¿WhatsApp válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "fefc8212-b718-4c28-8118-c4dc02fd6b53",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Registrar lead",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<id de la tabla de leads>"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "nombre": "={{ $json.nombre }}",
+            "whatsapp": "={{ $json.whatsapp }}",
+            "correo": "={{ $json.correo }}",
+            "tratamiento": "={{ $json.tratamiento }}",
+            "mensaje": "={{ $json.mensaje }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "whatsapp",
+              "displayName": "whatsapp",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tratamiento",
+              "displayName": "tratamiento",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Avisar por WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/<phone_number_id>/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: '<WhatsApp del dueño, 52…>', type: 'template', template: { name: 'aviso_lead', language: { code: 'es_MX' }, components: [{ type: 'body', parameters: ['nuevo contacto del formulario', $('Preparar lead').item.json.nombre, $('Preparar lead').item.json.whatsapp || '—', $('Preparar lead').item.json.tratamiento + ' · ' + $('Preparar lead').item.json.mensaje].map((text) => ({ type: 'text', text: String(text).slice(0, 200) })) }] } }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "WhatsApp Cloud API (Bearer)"
+        }
+      }
+    },
+    {
+      "name": "Gracias",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        -100
+      ],
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "text",
+        "completionTitle": "={{ '¡Listo, ' + $('Preparar lead').item.json.nombre.split(' ')[0] + '!' }}",
+        "completionMessage": "=Recibimos tus datos. Te escribimos por WhatsApp al <strong>{{ $('Preparar lead').item.json.whatsapp.replace(/(\\d{3})(\\d{3})(\\d{4})/, '$1 $2 $3') }}</strong> para agendar tu cita de <strong>{{ $('Preparar lead').item.json.tratamiento.toLowerCase() }}</strong>.\n<a href=\"/form/nogal-contacto\">← Regresar al formulario</a>",
+        "options": {
+          "formTitle": "Clínica Dental Nogal",
+          "customCss": "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');\n:root {\n  --font-family: 'Space Grotesk', system-ui, sans-serif;\n  --color-background: #111310;\n  --color-card-bg: #191c18;\n  --color-card-border: rgb(244 243 238 / 15%);\n  --color-card-shadow: rgb(0 0 0 / 40%);\n  --color-header: #f4f3ee;\n  --color-header-subtext: #b7bdb2;\n  --color-label: #f4f3ee;\n  --color-input-border: rgb(244 243 238 / 25%);\n  --color-input-text: #f4f3ee;\n  --color-focus-border: #5dc4a4;\n  --color-submit-btn-bg: #5dc4a4;\n  --color-submit-btn-text: #111310;\n  --color-required: #5dc4a4;\n  --color-error: #f0a08a;\n  --color-link: #5dc4a4;\n  --color-html-text: #b7bdb2;\n  --color-html-link: #5dc4a4;\n  --border-radius-card: 8px;\n  --border-radius-input: 6px;\n  --box-shadow-card: 0 12px 40px var(--color-card-shadow);\n}\nbody { background: var(--color-background); }\ninput, select, textarea { background: #111310; color: var(--color-input-text); }\ninput::placeholder, textarea::placeholder { color: #565c53; opacity: 1; }\ninput[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }\ninput[type=number] { -moz-appearance: textfield; }\n#submit-btn { font-weight: 700; letter-spacing: 0.02em; }\n#submit-btn:hover { filter: brightness(1.08); }\n\n.card { text-align: left; }\n.card h1 { font-size: 26px; letter-spacing: -0.01em; color: var(--color-header); }\n.card p { color: var(--color-header-subtext); font-size: 16px; line-height: 1.6; }\n.card p strong { color: var(--color-header); }\n.card a { display: inline-block; margin-top: 20px; padding: 12px 20px; border-radius: 6px; background: transparent; border: 1px solid #5dc4a4; color: #5dc4a4; font-weight: 700; text-decoration: none; }\n.card a:hover { background: rgb(93 196 164 / 12%); }\n\n:root { --color-input-bg: #111310; }\n.form-header p { color: var(--color-header-subtext); }\n.multiselect-option label { color: var(--color-label); }\ninput[type='radio'] { accent-color: #5dc4a4; }\n\ninput, textarea, select, button { font-family: inherit; }\n"
+        }
+      }
+    },
+    {
+      "name": "Número no válido",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        120
+      ],
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "text",
+        "completionTitle": "Revisa tu WhatsApp",
+        "completionMessage": "=El número <strong>{{ $('Preparar lead').item.json.whatsapp || 'que escribiste' }}</strong> no parece un celular de México. Escríbelo a 10 dígitos, por ejemplo 2221234567.\n<a href=\"/form/nogal-contacto\">← Regresar al formulario</a>",
+        "options": {
+          "formTitle": "Clínica Dental Nogal",
+          "customCss": "@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');\n:root {\n  --font-family: 'Space Grotesk', system-ui, sans-serif;\n  --color-background: #111310;\n  --color-card-bg: #191c18;\n  --color-card-border: rgb(244 243 238 / 15%);\n  --color-card-shadow: rgb(0 0 0 / 40%);\n  --color-header: #f4f3ee;\n  --color-header-subtext: #b7bdb2;\n  --color-label: #f4f3ee;\n  --color-input-border: rgb(244 243 238 / 25%);\n  --color-input-text: #f4f3ee;\n  --color-focus-border: #5dc4a4;\n  --color-submit-btn-bg: #5dc4a4;\n  --color-submit-btn-text: #111310;\n  --color-required: #5dc4a4;\n  --color-error: #f0a08a;\n  --color-link: #5dc4a4;\n  --color-html-text: #b7bdb2;\n  --color-html-link: #5dc4a4;\n  --border-radius-card: 8px;\n  --border-radius-input: 6px;\n  --box-shadow-card: 0 12px 40px var(--color-card-shadow);\n}\nbody { background: var(--color-background); }\ninput, select, textarea { background: #111310; color: var(--color-input-text); }\ninput::placeholder, textarea::placeholder { color: #565c53; opacity: 1; }\ninput[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }\ninput[type=number] { -moz-appearance: textfield; }\n#submit-btn { font-weight: 700; letter-spacing: 0.02em; }\n#submit-btn:hover { filter: brightness(1.08); }\n\n.card { text-align: left; }\n.card h1 { font-size: 26px; letter-spacing: -0.01em; color: var(--color-header); }\n.card p { color: var(--color-header-subtext); font-size: 16px; line-height: 1.6; }\n.card p strong { color: var(--color-header); }\n.card a { display: inline-block; margin-top: 20px; padding: 12px 20px; border-radius: 6px; background: transparent; border: 1px solid #5dc4a4; color: #5dc4a4; font-weight: 700; text-decoration: none; }\n.card a:hover { background: rgb(93 196 164 / 12%); }\n\n:root { --color-input-bg: #111310; }\n.form-header p { color: var(--color-header-subtext); }\n.multiselect-option label { color: var(--color-label); }\ninput[type='radio'] { accent-color: #5dc4a4; }\n\ninput, textarea, select, button { font-family: inherit; }\n"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Formulario de contacto": {
+      "main": [
+        [
+          {
+            "node": "Preparar lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar lead": {
+      "main": [
+        [
+          {
+            "node": "¿WhatsApp válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿WhatsApp válido?": {
+      "main": [
+        [
+          {
+            "node": "Registrar lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Número no válido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar lead": {
+      "main": [
+        [
+          {
+            "node": "Avisar por WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar por WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Gracias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
