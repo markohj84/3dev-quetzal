@@ -12,3 +12,6 @@ venv/
 
 # Supabase CLI: project ref y pooler URL tras `supabase link`
 supabase/.temp/
+
+# Archivos de trabajo de las sesiones de Claude Code (incluye un token local)
+.superpowers/
