@@ -99,7 +99,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       text: result.reply.text,
-      chips: state.history.length === 0 ? config.channels.web.openers : [],
+      // Openers are painted by the widget on load; repeating them here put them back under the first reply.
+      chips: [],
     });
   } catch (error) {
     console.error(`[${config.id}] chat failed`, error);
