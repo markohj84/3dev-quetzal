@@ -25,7 +25,14 @@
     '.quetzal-launcher .quetzal-dot{',
     '  position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:9999px;',
     '  background:color-mix(in srgb,' + accent + ' 55%,#fff);box-shadow:0 0 6px ' + accent + ';animation:quetzal-pulse 2.4s ease infinite;',
-    '}'
+    '}',
+    // The panel grows out of the launcher's corner. visibility (not display)
+    // lets the closing transition finish before it stops taking clicks.
+    '.quetzal-frame{transform-origin:100% 100%;opacity:0;transform:translateY(16px) scale(.9);visibility:hidden;pointer-events:none;',
+    '  transition:opacity .2s ease,transform .45s cubic-bezier(.16,1,.3,1),visibility 0s linear .45s}',
+    '.quetzal-frame.quetzal-open{opacity:1;transform:none;visibility:visible;pointer-events:auto;',
+    '  transition:opacity .2s ease,transform .45s cubic-bezier(.16,1,.3,1),visibility 0s}',
+    '@media (prefers-reduced-motion:reduce){.quetzal-frame,.quetzal-launcher{transition:none}}'
   ].join('');
   document.head.appendChild(style);
 
@@ -41,22 +48,28 @@
   frame.src = origin + '/widget';
   frame.title = 'Asistente';
   frame.setAttribute('allow', 'clipboard-write');
+  frame.className = 'quetzal-frame';
   frame.style.cssText = [
     'position:fixed', 'right:24px', 'bottom:24px', 'z-index:2147483000',
     'width:min(400px,calc(100vw - 32px))', 'height:min(600px,calc(100vh - 48px))',
-    'border:0', 'border-radius:20px', 'display:none',
+    'border:0', 'border-radius:20px',
     'box-shadow:0 24px 60px rgba(0,0,0,.45)', 'color-scheme:normal'
   ].join(';');
 
   function open() {
-    if (!mounted) { document.body.appendChild(frame); mounted = true; }
-    frame.style.display = 'block';
+    if (!mounted) {
+      document.body.appendChild(frame);
+      mounted = true;
+      frame.getBoundingClientRect(); // commit the closed state so the first open animates too
+    }
+    frame.classList.add('quetzal-open');
     button.classList.add('quetzal-hidden');
   }
 
   function close() {
-    frame.style.display = 'none';
+    frame.classList.remove('quetzal-open');
     button.classList.remove('quetzal-hidden');
+    button.focus();
   }
 
   button.addEventListener('click', open);
