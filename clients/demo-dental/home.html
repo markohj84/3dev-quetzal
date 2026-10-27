@@ -6,133 +6,574 @@
 <title>Clínica Dental Nogal · Demo de 3dev</title>
 <meta name="description" content="Demo de Quetzal, el asistente de 3dev: una clínica dental de ejemplo donde puedes probar a Lía, su asistente.">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#eeedfb">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://images.unsplash.com">
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@500..800&family=Figtree:wght@400..600&display=swap" rel="stylesheet">
 <style>
-/* Clínica de barrio con buen gusto: blanco, azul profundo, mucho aire. El demo se anuncia arriba y abajo. */
+/* Dos voces en una página: la clínica (lavanda, morado y turquesa) y, en noche
+   morada, las hojas donde habla 3dev. Así el prospecto distingue el negocio de
+   ejemplo del producto que se le vende. */
 :root {
-  --bg: #ffffff; --tint: #eef6f9; --ink: #10242c; --muted: #4f646c; --line: #dbe7ec;
-  --accent: #0b4a60; --accent-2: #1789ad; --on-accent: #ffffff; --banner: #10242c; --on-banner: #eef6f9;
-  --display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-  --body: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
-  --r: 10px;
+  --purple: #413074; --violet: #736fa1; --teal: #0fb7b8; --snow: #f7f8fa;
+  --lav: #c9c7f2; --lav-50: #eeedfb; --teal-50: #dcf4f4; --line: #dcdaf0;
+  --ink: #1e1640; --muted: #59557a;
+  --night: #1a1336; --night-2: #271d4f; --night-ink: #eeecfa; --night-muted: #b7b1d8; --night-line: #3a2f6a;
+  --display: 'League Spartan', ui-sans-serif, system-ui, sans-serif;
+  --body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --sheet: clamp(28px, 4vw, 48px);
   color-scheme: light;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 var(--body); }
-a { color: var(--accent); }
-.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; }
-h1, h2, h3 { font-family: var(--display); line-height: 1.12; margin: 0; text-wrap: balance; }
-p { margin: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--snow); color: var(--ink); font: 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; overflow-x: clip; }
+a { color: inherit; }
+img, svg { display: block; max-width: 100%; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+ul, ol, dl, dd { margin: 0; padding: 0; }
+:focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; border-radius: 6px; }
+.night :focus-visible { outline-color: var(--teal); }
 
-.demo-banner { background: var(--banner); color: var(--on-banner); font-size: 0.92rem; }
-.demo-banner .wrap { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-block: 10px; }
-.demo-banner a { color: var(--on-banner); font-weight: 600; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 24px;
+  font: 600 1rem var(--body); text-decoration: none; border-radius: 999px; border: 1.5px solid transparent;
+  background: var(--purple); color: var(--snow); cursor: pointer;
+  transition: background-color .25s var(--ease), transform .25s var(--ease), box-shadow .25s var(--ease);
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--purple); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn.ghost { background: transparent; color: var(--purple); border-color: var(--lav); }
+.btn.ghost:hover { background: var(--snow); box-shadow: none; }
+.btn.teal { background: var(--teal); color: var(--ink); }
+.btn.teal:hover { box-shadow: 0 10px 28px -10px var(--teal); }
+.btn.line-light { background: transparent; color: var(--night-ink); border-color: var(--night-line); }
+.btn.line-light:hover { border-color: var(--night-muted); box-shadow: none; }
+.btn svg { flex: none; }
 
-header.site { border-bottom: 1px solid var(--line); }
-header.site .wrap { display: flex; align-items: center; justify-content: space-between; padding-block: 18px; gap: 16px; }
-.logo { font: 700 1.3rem var(--display); color: var(--accent); letter-spacing: -0.01em; }
-.logo span { color: var(--accent-2); font-weight: 500; }
-.hours-chip { font-size: 0.9rem; color: var(--muted); }
+/* 3dev habla aquí, no la clínica. */
+.progress { display: none; }
+.demo-bar { background: var(--night); color: var(--night-muted); font-size: 0.9rem; }
+.demo-bar .wrap { display: flex; gap: 4px 20px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-block: 10px; }
+.demo-bar strong { color: var(--night-ink); font-weight: 600; }
+.demo-bar a { color: var(--teal); font-weight: 600; text-underline-offset: 3px; }
 
-.hero { background: linear-gradient(180deg, var(--tint), var(--bg)); }
-.hero .wrap { display: grid; gap: 24px; padding-block: 64px 56px; }
-.hero h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); font-weight: 700; letter-spacing: -0.02em; max-width: 16ch; }
-.hero p.lead { font-size: 1.2rem; color: var(--muted); max-width: 52ch; }
-.cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.btn { font: 600 1rem var(--display); background: var(--accent); color: var(--on-accent); border: 0; border-radius: var(--r); padding: 14px 22px; cursor: pointer; }
-.btn:hover { background: var(--accent-2); }
-.btn:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 3px; }
-.hint { color: var(--muted); font-size: 0.95rem; }
+/* La barra flota sobre el contenido en vez de partir la página en franjas. */
+header.site { position: sticky; top: 12px; z-index: 10; margin-top: 12px; }
+header.site .bar {
+  display: flex; align-items: center; gap: 12px 28px; min-height: 64px; padding: 8px 8px 8px 20px;
+  border-radius: 999px; background: color-mix(in srgb, var(--snow) 86%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px); box-shadow: 0 1px 0 var(--line), 0 12px 32px -18px oklch(0.3 0.1 290 / 0.35);
+}
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo .mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px 12px 12px 4px; background: var(--purple); color: var(--teal); }
+.logo b { font: 800 1.45rem/1 var(--display); letter-spacing: -0.02em; color: var(--purple); padding-top: 3px; }
+.logo span { font-size: 0.78rem; color: var(--muted); line-height: 1.15; }
+header nav { display: flex; gap: 6px; margin-left: auto; font-size: 0.95rem; }
+header nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-radius: 999px; transition: background-color .2s var(--ease), color .2s var(--ease); }
+header nav a:hover { color: var(--purple); background: var(--lav-50); }
+header .btn { min-height: 46px; padding: 0 20px; font-size: 0.95rem; }
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--muted); white-space: nowrap; }
+.status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--violet); }
+.status.is-open::before { background: var(--teal); box-shadow: 0 0 0 4px var(--teal-50); }
+.status[hidden] { display: none; }
+@media (max-width: 920px) { header nav { display: none; } .status { margin-left: auto; } }
+@media (max-width: 560px) { .logo span, header .status { display: none; } header .btn { margin-left: auto; } header.site .bar { padding-left: 12px; } }
 
-section.block .wrap { padding-block: 56px; display: grid; gap: 28px; }
-section.block h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 600; }
-.prices { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
-.price { background: var(--bg); padding: 20px; display: grid; gap: 6px; align-content: start; }
-.price h3 { font-size: 1.1rem; font-weight: 600; }
-.price .amount { font: 600 1.35rem var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
-.price p { color: var(--muted); font-size: 0.95rem; }
-.note { color: var(--muted); font-size: 0.92rem; max-width: 70ch; }
+.hero { position: relative; margin-top: -76px; padding-top: 76px; background: var(--lav-50); border-radius: 0 0 var(--sheet) var(--sheet); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(40px, 6vw, 88px); align-items: center; padding-block: clamp(40px, 6vw, 80px) clamp(64px, 8vw, 112px); }
+.hero h1 { font-size: clamp(3rem, 7vw, 5.8rem); font-weight: 800; line-height: 0.92; letter-spacing: -0.035em; color: var(--purple); }
+.hero h1 .swash { position: relative; display: inline-block; white-space: nowrap; }
+.hero h1 .swash svg { position: absolute; left: -2%; bottom: -0.16em; width: 104%; height: 0.32em; overflow: visible; color: var(--teal); }
+.hero .lead { margin-top: 28px; font-size: clamp(1.08rem, 1.6vw, 1.25rem); color: var(--muted); max-width: 44ch; }
+.cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 32px; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px; list-style: none; }
+.facts li { padding: 8px 14px; border-radius: 999px; background: var(--snow); color: var(--purple); font-size: 0.92rem; font-weight: 500; box-shadow: inset 0 0 0 1px var(--line); }
 
-.visit { background: var(--tint); }
-.visit dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; margin: 0; }
-.visit dt { font-weight: 600; }
-.visit dd { margin: 0; color: var(--muted); }
-@media (max-width: 560px) { .visit dl { grid-template-columns: 1fr; gap: 2px; } .visit dd { margin-bottom: 10px; } }
+.stage { position: relative; isolation: isolate; padding: 0 0 28px; }
+.stage::before { content: ''; position: absolute; z-index: -1; top: 14%; right: -16%; width: 64%; aspect-ratio: 1; border-radius: 50%; background: var(--teal); }
+.stage::after { content: ''; position: absolute; z-index: -1; left: -8%; bottom: 4%; width: 34%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--violet); opacity: .5; }
+.stage img { width: 100%; aspect-ratio: 5 / 6; object-fit: cover; object-position: 42% 50%; border-radius: 999px 999px 32px 32px; background: var(--lav); }
+.float { position: absolute; display: flex; align-items: center; gap: 12px; text-decoration: none; border-radius: 20px; background: var(--snow); color: var(--ink); box-shadow: 0 18px 40px -16px oklch(0.3 0.12 290 / 0.45); transition: transform .35s var(--ease); }
+.float:hover { transform: translateY(-3px) rotate(var(--tilt, 0deg)); }
+.ask { left: -8%; right: 18%; bottom: 0; padding: 14px 16px; }
+.ask .avatar { position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px 14px 14px 4px; background: var(--purple); color: var(--teal); font: 800 1.1rem var(--display); }
+.ask .avatar::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border-radius: 50%; background: var(--teal); border: 2px solid var(--snow); }
+.ask b { display: block; font-weight: 600; }
+.ask small { display: block; font-size: 0.86rem; color: var(--muted); line-height: 1.35; }
+.ask .go { margin-left: auto; flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--teal-50); color: var(--purple); transition: translate .3s var(--ease), background-color .3s var(--ease); }
+.ask:hover .go { translate: 3px 0; background: var(--teal); }
+.badge { --tilt: 4deg; top: 9%; right: -5%; transform: rotate(var(--tilt)); flex-direction: column; align-items: flex-start; gap: 0; padding: 12px 18px; border-radius: 18px 18px 18px 4px; }
+.badge small { font-size: 0.8rem; color: var(--muted); }
+.badge b { font: 800 1.6rem/1.1 var(--display); color: var(--purple); }
+@media (max-width: 860px) {
+  .hero .wrap { grid-template-columns: 1fr; }
+  .stage { max-width: 460px; width: 100%; justify-self: center; }
+  .ask { left: 0; right: 0; }
+  .badge { right: 0; }
+}
 
-footer .wrap { padding-block: 40px; display: grid; gap: 10px; border-top: 1px solid var(--line); }
-footer p { color: var(--muted); font-size: 0.95rem; }
+/* Hojas oscuras: el recorrido del demo y el cierre comercial. */
+.night { background: var(--night); color: var(--night-ink); }
+.sheet { margin: clamp(24px, 4vw, 48px) clamp(8px, 1.6vw, 20px); border-radius: var(--sheet); position: relative; overflow: hidden; isolation: isolate; }
+.tour .wrap { padding-block: clamp(56px, 8vw, 112px); }
+.tour::before { content: ''; position: absolute; z-index: -1; right: -12%; top: -30%; width: 46%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--night-line); }
+.kicker { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 0.86rem; font-weight: 600; color: var(--teal); background: color-mix(in srgb, var(--teal) 12%, transparent); }
+.tour h2, .close h2 { margin-top: 18px; font-size: clamp(2.2rem, 4.8vw, 3.8rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.03em; max-width: 16ch; }
+.tour .intro { margin-top: 20px; color: var(--night-muted); font-size: 1.1rem; max-width: 52ch; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin-top: clamp(40px, 6vw, 64px); align-items: start; }
+.steps li { display: grid; gap: 14px; padding: 24px; border-radius: 28px 28px 28px 8px; background: var(--night-2); transition: translate .35s var(--ease), background-color .35s var(--ease); }
+.steps li:hover { translate: 0 -6px; background: color-mix(in srgb, var(--night-2) 80%, var(--purple)); }
+@media (min-width: 1001px) { .steps li:nth-child(even) { margin-top: 48px; } }
+@media (max-width: 1000px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .steps { grid-template-columns: 1fr; } }
+.steps .n { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--teal); color: var(--ink); font: 800 1rem/1 var(--display); padding-top: 2px; }
+.steps h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+.bubble { justify-self: end; max-width: 92%; padding: 10px 14px; border-radius: 18px 18px 4px 18px; background: var(--teal); color: var(--ink); font-size: 0.98rem; font-weight: 500; line-height: 1.4; quotes: none; }
+.steps p { color: var(--night-muted); font-size: 0.96rem; line-height: 1.6; }
+.tour .cta-row { margin-top: clamp(40px, 6vw, 56px); }
+.tour .hint { color: var(--night-muted); font-size: 0.95rem; }
+
+.prices .wrap { padding-block: clamp(56px, 8vw, 104px); }
+.section-head { display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: end; justify-content: space-between; margin-bottom: clamp(28px, 4vw, 44px); }
+.prices h2, .visit h2 { font-size: clamp(2.2rem, 4.6vw, 3.6rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.03em; color: var(--purple); max-width: 14ch; }
+.section-head p { color: var(--muted); max-width: 42ch; }
+.price-grid { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 20px; align-items: stretch; }
+@media (max-width: 860px) { .price-grid { grid-template-columns: 1fr; } }
+.featured { position: relative; overflow: hidden; isolation: isolate; display: grid; gap: 18px; align-content: start; padding: clamp(24px, 3vw, 36px); border-radius: 32px 32px 32px 10px; background: var(--purple); color: var(--snow); }
+.featured::after { content: ''; position: absolute; z-index: -1; right: -70px; bottom: -70px; width: 220px; aspect-ratio: 1; border-radius: 50%; background: var(--teal); opacity: .9; }
+.featured .tag { justify-self: start; padding: 5px 12px; border-radius: 999px; background: var(--teal); color: var(--ink); font-size: 0.82rem; font-weight: 600; }
+.featured h3 { font-size: clamp(1.6rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.05; }
+.featured .big { font: 800 clamp(3.4rem, 6vw, 4.6rem)/0.9 var(--display); letter-spacing: -0.03em; }
+.featured .big small { font: 500 1rem var(--body); opacity: .8; margin-left: 6px; letter-spacing: 0; }
+.featured ul { list-style: none; display: grid; gap: 8px; color: color-mix(in srgb, var(--snow) 86%, transparent); }
+.featured li { display: flex; gap: 10px; align-items: baseline; }
+.featured li::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); transform: translateY(-2px); }
+.featured .btn { justify-self: start; margin-top: 8px; }
+
+.catalog { padding: clamp(18px, 2.4vw, 28px); border-radius: 32px; background: var(--snow); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 18px; align-content: start; }
+.tabs { display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--lav-50); overflow-x: auto; scrollbar-width: none; }
+.tabs[hidden] { display: none; }
+.tabs button { flex: 1 0 auto; min-height: 42px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 0.94rem var(--body); cursor: pointer; transition: background-color .25s var(--ease), color .25s var(--ease); }
+.tabs button:hover { color: var(--purple); }
+.tabs button[aria-selected="true"] { background: var(--purple); color: var(--snow); }
+/* With JS a single pill slides between tabs instead of each tab repainting. */
+.tabs.has-pill { position: relative; }
+.tabs.has-pill::before { content: ''; position: absolute; top: 5px; bottom: 5px; left: 0; width: var(--w, 0); transform: translateX(var(--x, 0)); border-radius: 999px; background: var(--purple); transition: transform .45s var(--ease), width .45s var(--ease); }
+.tabs.has-pill button { position: relative; }
+.tabs.has-pill button[aria-selected="true"] { background: transparent; }
+.panel h3.panel-title { font: 600 0.9rem var(--body); color: var(--muted); margin: 6px 4px 4px; }
+.tabs:not([hidden]) ~ .panel h3.panel-title { display: none; }
+.rows { list-style: none; display: grid; gap: 4px; }
+.rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px; padding: 14px 16px; border-radius: 18px; transition: background-color .2s var(--ease); }
+.rows li:hover { background: var(--lav-50); }
+.rows b { font-weight: 600; font-size: 1.04rem; }
+.rows .meta { grid-column: 1; font-size: 0.88rem; color: var(--muted); }
+.rows .amount { grid-row: 1 / span 2; grid-column: 2; font: 700 1.35rem var(--display); color: var(--purple); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.rows .amount small { display: block; font: 500 0.75rem var(--body); color: var(--muted); margin-bottom: -2px; }
+.rows .amount.quote { font: 600 0.9rem var(--body); color: var(--muted); white-space: normal; max-width: 13ch; line-height: 1.3; }
+@media (max-width: 560px) { .tabs button { padding: 0 12px; font-size: 0.9rem; } }
+.fine { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; justify-content: space-between; padding: 14px 16px 2px; border-top: 1px dashed var(--line); font-size: 0.88rem; color: var(--muted); }
+.link-btn { font: 600 0.95rem var(--body); color: var(--purple); text-underline-offset: 4px; }
+@media (prefers-reduced-motion: no-preference) {
+  .panel:not([hidden]) .rows li { animation: rise .55s var(--ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+}
+
+.visit .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(32px, 5vw, 72px); align-items: center; padding-block: clamp(24px, 4vw, 48px) clamp(56px, 8vw, 104px); }
+@media (max-width: 860px) { .visit .wrap { grid-template-columns: 1fr; } }
+.map { position: relative; margin: 0; border-radius: 40px 40px 40px 12px; overflow: hidden; background: var(--lav-50); aspect-ratio: 5 / 4; box-shadow: 0 0 0 1px var(--line), 0 28px 56px -32px oklch(0.3 0.12 290 / 0.55); }
+.map svg { width: 100%; height: 100%; }
+.map .ground { fill: var(--lav-50); }
+.map .block { fill: var(--snow); }
+.map .avenue { stroke: var(--lav); stroke-width: 18; stroke-linecap: round; }
+.map .street { stroke: var(--lav); stroke-width: 9; stroke-linecap: round; }
+.map .park { fill: var(--teal-50); }
+.map .tree { fill: var(--teal); opacity: .55; }
+.map .route { fill: none; stroke: var(--purple); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 10; }
+.map .label { font: 600 11px var(--body); fill: var(--muted); letter-spacing: .04em; }
+.map .pulse { fill: var(--teal); opacity: .3; transform-box: fill-box; transform-origin: center; }
+.map .pin { fill: var(--purple); }
+.map .pin-dot { fill: var(--teal); }
+.map .chip { position: absolute; bottom: 16px; left: 16px; padding: 6px 12px; border-radius: 999px; background: var(--snow); color: var(--muted); font-size: 0.8rem; font-weight: 600; box-shadow: 0 4px 14px -8px oklch(0.3 0.12 290 / 0.5); }
+.map .pin-card { position: absolute; left: 60%; top: 42.5%; transform: translate(-50%, calc(-100% - 46px)); padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: var(--snow); box-shadow: 0 14px 30px -14px oklch(0.3 0.12 290 / 0.5); white-space: nowrap; font-size: 0.86rem; line-height: 1.3; }
+.map .pin-card b { display: block; color: var(--purple); font: 700 1rem var(--display); }
+.map .pin-card span { color: var(--muted); }
+.visit-info { display: grid; gap: 24px; align-content: center; }
+.hours { display: grid; gap: 4px; }
+.hours div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 16px; border-radius: 14px; color: var(--muted); }
+.hours div.today { background: var(--purple); color: var(--snow); }
+.hours dt { font-weight: 600; }
+.hours div:not(.today) dt { color: var(--ink); }
+.details { list-style: none; display: grid; gap: 12px; }
+.details li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: center; color: var(--muted); }
+.details .ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--teal-50); color: var(--purple); }
+.details b { color: var(--ink); font-weight: 600; }
+.sample { font-size: 0.85em; color: var(--muted); white-space: nowrap; }
+
+.close .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(32px, 6vw, 88px); align-items: center; padding-block: clamp(56px, 8vw, 112px); }
+.close::before { content: ''; position: absolute; z-index: -1; left: -8%; bottom: -45%; width: 40%; aspect-ratio: 1; border-radius: 50%; background: var(--purple); opacity: .55; }
+.close .lead { margin-top: 20px; color: var(--night-muted); font-size: 1.1rem; max-width: 44ch; }
+.gets { list-style: none; display: grid; gap: 12px; }
+.gets li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; align-items: start; padding: 18px 20px; border-radius: 22px 22px 22px 6px; background: var(--night-2); }
+.gets .ic { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--teal); color: var(--ink); }
+@media (max-width: 860px) { .close .wrap { grid-template-columns: 1fr; } }
+
+footer { color: var(--muted); font-size: 0.92rem; }
+/* Aire abajo para que el botón flotante del chat no tape el pie. */
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; padding-block: 8px 104px; }
+footer p { max-width: 70ch; }
+footer a { color: var(--purple); text-underline-offset: 3px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+@media (prefers-reduced-motion: no-preference) {
+  .enter { animation: rise .9s var(--ease) both; animation-delay: calc(var(--i, 0) * 90ms); }
+  .stage.enter { animation-name: bloom; }
+  @keyframes bloom { from { opacity: 0; transform: translateY(24px) scale(0.97); } }
+  .swash path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s .6s var(--ease) forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .ask .avatar::after { animation: ping 2.4s var(--ease) infinite; }
+  @keyframes ping { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal) 55%, transparent); } 60% { box-shadow: 0 0 0 8px transparent; } }
+  .map .pulse { animation: pulse 2.4s var(--ease) infinite; }
+  @keyframes pulse { from { transform: scale(0.6); opacity: .45; } to { transform: scale(2.2); opacity: 0; } }
+  .map .route { animation: walk 1.6s linear infinite; }
+  @keyframes walk { to { stroke-dashoffset: -24; } }
+  /* Ambient motion: slow enough to read as alive, not as a distraction. translate
+     composes with each card's own transform (the badge's tilt, the hover lift). */
+  .badge { animation: bob 6s ease-in-out infinite; }
+  .ask { animation: bob 7s ease-in-out -2.5s infinite; }
+  @keyframes bob { 50% { translate: 0 -8px; } }
+  .stage::before { animation: breathe 9s ease-in-out infinite; }
+  @keyframes breathe { 50% { scale: 1.05; translate: -6px 4px; } }
+  .featured::after { animation: breathe 11s ease-in-out infinite; }
+  @supports (animation-timeline: view()) {
+    .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; }
+    .map .pin, .map .pin-dot { animation: drop linear both; animation-timeline: view(); animation-range: entry 20% cover 40%; }
+    @keyframes drop { from { opacity: 0; translate: 0 -40px; } }
+    .map .pin-card { animation: rise linear both; animation-timeline: view(); animation-range: entry 30% cover 45%; }
+
+    /* Scroll-linked motion: each effect is tied to scroll position, so it plays
+       forward and backward with the visitor instead of firing once. */
+    .progress { display: block; position: fixed; inset: 0 0 auto; z-index: 20; height: 3px; background: var(--teal); transform-origin: 0 50%; animation: grow-x linear both; animation-timeline: scroll(root); }
+    @keyframes grow-x { from { transform: scaleX(0); } }
+    .hero-copy { animation: lift linear both; animation-timeline: view(); animation-range: exit 20% exit 100%; }
+    @keyframes lift { to { translate: 0 -48px; opacity: 0; } }
+    .stage img { animation: sink linear both; animation-timeline: scroll(root); animation-range: 0 90vh; }
+    @keyframes sink { to { translate: 0 56px; scale: 1.03; } }
+    .sheet { animation: unfold linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+    @keyframes unfold { from { scale: .93; opacity: .85; } }
+    .steps li:nth-child(2) { animation-range: entry 8% entry 63%; }
+    .steps li:nth-child(3) { animation-range: entry 16% entry 71%; }
+    .steps li:nth-child(4) { animation-range: entry 24% entry 79%; }
+    .featured.reveal { animation-name: from-left; }
+    .catalog.reveal { animation-name: from-right; }
+    @keyframes from-left { from { opacity: 0; translate: -48px 0; } }
+    @keyframes from-right { from { opacity: 0; translate: 48px 0; } }
+    .map svg { animation: settle linear both; animation-timeline: view(); animation-range: entry 0% cover 50%; }
+    @keyframes settle { from { scale: 1.15; } }
+    .slide-in { animation: slide-in linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+    @keyframes slide-in { from { opacity: 0; translate: -32px 0; } }
+  }
+}
 </style>
 </head>
 <body>
-  <div class="demo-banner" role="note">
+  <div class="progress" aria-hidden="true"></div>
+  <div class="demo-bar" role="note">
     <div class="wrap">
-      <span>Esta clínica es de ejemplo: es un demo de Quetzal, el asistente que construye 3dev. Pruébalo abajo a la derecha.</span>
+      <span><strong>Demo de 3dev.</strong> La clínica es de ejemplo; Lía, su asistente, es real.</span>
       <a href="https://wa.me/522214100378?text=Hola%2C%20vengo%20de%20demo%20dental.%20Quiero%20un%20asistente%20as%C3%AD%20para%20mi%20negocio." target="_blank" rel="noopener">Quiero uno para mi negocio</a>
     </div>
   </div>
 
   <header class="site">
     <div class="wrap">
-      <div class="logo">Nogal <span>clínica dental</span></div>
-      <span class="hours-chip">Lun a vie 9:00–19:00 · Sáb 9:00–14:00</span>
+      <div class="bar">
+        <a class="logo" href="#inicio" aria-label="Clínica Dental Nogal, inicio">
+          <span class="mark" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.2 21.5V12h1.6v9.5z"/><path d="M12 12.6C8 12.9 5.2 10.4 5 6.2c4-.4 6.9 2.1 7 6.4Z"/><path d="M12.4 10.4c.2-3.9 2.8-6.6 6.6-6.4.1 3.9-2.5 6.5-6.6 6.4Z" opacity=".7"/></svg>
+          </span>
+          <b>Nogal</b><span>clínica<br>dental</span>
+        </a>
+        <nav aria-label="Secciones">
+          <a href="#precios">Precios</a>
+          <a href="#visita">Visítanos</a>
+          <a href="#prueba">Cómo probar el demo</a>
+        </nav>
+        <span class="status" id="status" hidden></span>
+        <a class="btn" href="/widget" data-open-chat>Agendar cita</a>
+      </div>
     </div>
   </header>
 
-  <main>
+  <main id="inicio">
     <section class="hero">
       <div class="wrap">
-        <h1>Tu sonrisa, atendida sin vueltas.</h1>
-        <p class="lead">Odontología general, estética y para niños en Puebla. Pregúntale a Lía por precios y horarios, y agenda tu consulta de valoración en el chat, a cualquier hora.</p>
+        <div class="hero-copy">
+          <h1 class="enter">Tu sonrisa, atendida <span class="swash">sin vueltas.<svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16C70 6 170 4 296 12" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" pathLength="1"/></svg></span></h1>
+          <p class="lead enter" style="--i:1">Odontología general, estética y para niños en Puebla. Pregúntale a Lía por precios y horarios, y agenda tu consulta de valoración en el chat, a cualquier hora.</p>
+          <div class="cta-row enter" style="--i:2">
+            <a class="btn" href="/widget" data-open-chat>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z"/></svg>
+              Platicar con Lía
+            </a>
+            <a class="btn ghost" href="#precios">Ver precios</a>
+          </div>
+          <ul class="facts enter" style="--i:3">
+            <li>Niños desde 3 años</li>
+            <li>Facturamos</li>
+            <li>Meses sin intereses desde $5,000</li>
+          </ul>
+        </div>
+        <div class="stage enter" style="--i:1">
+          <img
+            src="https://images.unsplash.com/photo-1777331903190-341a3dd0441b?auto=format&fit=crop&w=960&q=75"
+            srcset="https://images.unsplash.com/photo-1777331903190-341a3dd0441b?auto=format&fit=crop&w=640&q=75 640w,
+                    https://images.unsplash.com/photo-1777331903190-341a3dd0441b?auto=format&fit=crop&w=960&q=75 960w,
+                    https://images.unsplash.com/photo-1777331903190-341a3dd0441b?auto=format&fit=crop&w=1400&q=75 1400w"
+            sizes="(max-width: 860px) 460px, 500px"
+            width="960" height="720" fetchpriority="high"
+            alt="Un dentista platica con una paciente sentada en el sillón, en un consultorio con luz natural y piso de madera.">
+          <a class="float badge" href="#precios">
+            <small>Consulta de valoración</small>
+            <b>$350</b>
+          </a>
+          <a class="float ask" href="/widget" data-open-chat>
+            <span class="avatar" aria-hidden="true">L</span>
+            <span><b>Pregúntale a Lía</b><small>Precios, horarios y citas, al momento.</small></span>
+            <span class="go" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="tour night sheet" id="prueba" aria-labelledby="prueba-titulo">
+      <div class="wrap">
+        <span class="kicker">Demo de Quetzal, el asistente de 3dev</span>
+        <h2 id="prueba-titulo" class="slide-in">Pruébala como si fueras paciente.</h2>
+        <p class="intro">La clínica es de ejemplo, pero Lía contesta, consulta y agenda de verdad. Cuatro pruebas, un par de minutos.</p>
+        <ol class="steps">
+          <li class="reveal">
+            <span class="n">1</span>
+            <h3>Pregunta un precio</h3>
+            <q class="bubble">¿Cuánto cuesta una limpieza?</q>
+            <p>Responde con los precios que le dio la clínica. Si algo no está en su información, lo dice en lugar de inventarlo.</p>
+          </li>
+          <li class="reveal">
+            <span class="n">2</span>
+            <h3>Pregunta por promociones</h3>
+            <q class="bubble">¿Tienen alguna promoción?</q>
+            <p>Las consulta en vivo en una hoja de Google que la clínica edita. Si cambia un precio o se agota un producto, Lía lo sabe en minutos.</p>
+          </li>
+          <li class="reveal">
+            <span class="n">3</span>
+            <h3>Agenda una cita</h3>
+            <q class="bubble">Quiero una consulta de valoración.</q>
+            <p>Te ofrece horarios libres reales y deja la cita en el calendario. Las citas del demo no llegan a ninguna clínica.</p>
+          </li>
+          <li class="reveal">
+            <span class="n">4</span>
+            <h3>Deja tus datos</h3>
+            <q class="bubble">Soy Ana, mi número es…</q>
+            <p>Lía guarda el contacto y el negocio recibe un aviso con la conversación. En este demo, el aviso le llega a 3dev.</p>
+          </li>
+        </ol>
         <div class="cta-row">
-          <button class="btn" type="button" id="open-chat">Platicar con Lía</button>
-          <span class="hint">Contesta al momento y agenda en el chat.</span>
+          <a class="btn teal" href="/widget" data-open-chat>Abrir el chat</a>
+          <span class="hint">También está abajo a la derecha, en cualquier parte de la página.</span>
         </div>
       </div>
     </section>
 
-    <section class="block">
+    <section class="prices" id="precios" aria-labelledby="precios-titulo">
       <div class="wrap">
-        <h2>Precios claros</h2>
-        <div class="prices">
-          <div class="price"><h3>Consulta de valoración</h3><span class="amount">$350</span><p>Revisión y plan de tratamiento. Se descuenta si empiezas ese mes.</p></div>
-          <div class="price"><h3>Limpieza dental</h3><span class="amount">$700</span><p>Ultrasonido y pulido, unos 45 minutos.</p></div>
-          <div class="price"><h3>Resinas</h3><span class="amount">desde $900</span><p>Empastes del color del diente, por pieza.</p></div>
-          <div class="price"><h3>Blanqueamiento</h3><span class="amount">$3,800</span><p>Una sesión en consultorio de 90 minutos.</p></div>
-          <div class="price"><h3>Endodoncia</h3><span class="amount">desde $3,500</span><p>Tratamiento de conductos, según la pieza.</p></div>
-          <div class="price"><h3>Ortodoncia</h3><span class="amount">desde $22,000</span><p>Brackets metálicos, tratamiento completo.</p></div>
+        <div class="section-head">
+          <h2 id="precios-titulo" class="slide-in">Precios claros, sin sorpresas.</h2>
+          <p>Todo empieza con una valoración: te revisan, te explican qué necesitas y te dan el presupuesto antes de cualquier tratamiento.</p>
         </div>
-        <p class="note">Precios de muestra en pesos mexicanos, IVA incluido. Meses sin intereses con tarjetas participantes en tratamientos desde $5,000.</p>
+        <div class="price-grid">
+          <article class="featured reveal">
+            <span class="tag">Empieza aquí</span>
+            <h3>Consulta de valoración</h3>
+            <p class="big">$350<small>MXN</small></p>
+            <ul>
+              <li>Revisión completa y plan de tratamiento, en 30 minutos.</li>
+              <li>Se descuenta si empiezas tu tratamiento ese mes.</li>
+            </ul>
+            <a class="btn teal" href="/widget" data-open-chat>Agendar con Lía</a>
+          </article>
+
+          <div class="catalog reveal">
+            <div class="tabs" role="tablist" aria-label="Tratamientos por tipo" hidden>
+              <button type="button" role="tab" id="tab-prevencion" aria-controls="panel-prevencion" aria-selected="true">Prevención</button>
+              <button type="button" role="tab" id="tab-tratamientos" aria-controls="panel-tratamientos" aria-selected="false" tabindex="-1">Tratamientos</button>
+              <button type="button" role="tab" id="tab-estetica" aria-controls="panel-estetica" aria-selected="false" tabindex="-1">Estética</button>
+            </div>
+            <div class="panel" id="panel-prevencion" role="tabpanel" aria-labelledby="tab-prevencion">
+              <h3 class="panel-title">Prevención</h3>
+              <ul class="rows">
+                <li style="--i:0"><b>Limpieza dental</b><span class="meta">Ultrasonido y pulido · 45 min</span><span class="amount">$700</span></li>
+                <li style="--i:1"><b>Odontopediatría</b><span class="meta">Valoración para niños desde 3 años</span><span class="amount">$350</span></li>
+                <li style="--i:2"><b>Radiografía panorámica</b><span class="meta">Toda la boca en una toma</span><span class="amount">$450</span></li>
+              </ul>
+            </div>
+            <div class="panel" id="panel-tratamientos" role="tabpanel" aria-labelledby="tab-tratamientos">
+              <h3 class="panel-title">Tratamientos</h3>
+              <ul class="rows">
+                <li style="--i:0"><b>Resinas</b><span class="meta">Del color del diente · por pieza</span><span class="amount"><small>desde</small>$900</span></li>
+                <li style="--i:1"><b>Extracción simple</b><span class="meta">Muelas del juicio, con valoración</span><span class="amount"><small>desde</small>$900</span></li>
+                <li style="--i:2"><b>Endodoncia</b><span class="meta">Tratamiento de conductos · según la pieza</span><span class="amount"><small>desde</small>$3,500</span></li>
+              </ul>
+            </div>
+            <div class="panel" id="panel-estetica" role="tabpanel" aria-labelledby="tab-estetica">
+              <h3 class="panel-title">Estética y ortodoncia</h3>
+              <ul class="rows">
+                <li style="--i:0"><b>Blanqueamiento en consultorio</b><span class="meta">Una sesión · 90 min</span><span class="amount">$3,800</span></li>
+                <li style="--i:1"><b>Ortodoncia con brackets</b><span class="meta">Metálicos · de 12 a 24 meses</span><span class="amount"><small>desde</small>$22,000</span></li>
+                <li style="--i:2"><b>Alineadores transparentes</b><span class="meta">Según tu caso</span><span class="amount quote">Se cotizan en la valoración</span></li>
+              </ul>
+            </div>
+            <div class="fine">
+              <span>MXN, IVA incluido. «Desde» se confirma en la valoración.</span>
+              <a class="link-btn" href="/widget" data-open-chat>¿Promociones? Pregúntale a Lía</a>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="block visit">
+    <section class="visit" id="visita" aria-labelledby="visita-titulo">
       <div class="wrap">
-        <h2>Visítanos</h2>
-        <dl>
-          <dt>Dirección</dt><dd>Av. Ejemplo 123, Centro, Puebla (dirección de muestra)</dd>
-          <dt>Horario</dt><dd>Lunes a viernes de 9:00 a 19:00 · Sábados de 9:00 a 14:00</dd>
-          <dt>Teléfono</dt><dd>222 000 0000 (número de muestra)</dd>
-          <dt>Estacionamiento</dt><dd>Para pacientes, frente a la clínica</dd>
-        </dl>
+        <figure class="map reveal">
+          <svg viewBox="0 0 500 400" role="img" aria-label="Mapa ilustrativo: la clínica está sobre la Av. Ejemplo, junto a un jardín.">
+            <defs>
+              <pattern id="blocks" width="62" height="50" patternUnits="userSpaceOnUse" patternTransform="rotate(-14)">
+                <rect class="block" x="5" y="5" width="52" height="40" rx="9"/>
+              </pattern>
+            </defs>
+            <rect class="ground" width="500" height="400"/>
+            <rect width="500" height="400" fill="url(#blocks)"/>
+            <path class="street" d="M120 -20 L230 430"/>
+            <path class="street" d="M-20 140 L520 5"/>
+            <path class="street" d="M360 -20 L460 420"/>
+            <path class="avenue" d="M-20 300 L520 165"/>
+            <rect class="park" x="330" y="230" width="120" height="86" rx="18" transform="rotate(-14 390 273)"/>
+            <circle class="tree" cx="360" cy="268" r="9"/><circle class="tree" cx="388" cy="252" r="12"/><circle class="tree" cx="420" cy="276" r="8"/><circle class="tree" cx="396" cy="290" r="10"/><circle class="tree" cx="372" cy="300" r="7"/>
+            <text class="label" transform="translate(56 266) rotate(-14)">AV. EJEMPLO</text>
+            <text class="label" transform="translate(358 335) rotate(-14)">JARDÍN</text>
+            <path class="route" d="M30 285 L300 218 L300 184"/>
+            <circle class="pulse" cx="300" cy="170" r="16"/>
+            <path class="pin" d="M300 196c-3-7-16-18-16-30a16 16 0 0 1 32 0c0 12-13 23-16 30Z"/>
+            <circle class="pin-dot" cx="300" cy="166" r="6"/>
+          </svg>
+          <figcaption class="chip">Mapa ilustrativo</figcaption>
+          <div class="pin-card" aria-hidden="true"><b>Clínica Dental Nogal</b><span>Av. Ejemplo 123, Centro</span></div>
+        </figure>
+
+        <div class="visit-info">
+          <h2 id="visita-titulo" class="slide-in">Visítanos en el Centro de Puebla.</h2>
+          <dl class="hours" aria-label="Horario">
+            <div data-days="Mon Tue Wed Thu Fri"><dt>Lunes a viernes</dt><dd>9:00 a 19:00</dd></div>
+            <div data-days="Sat"><dt>Sábado</dt><dd>9:00 a 14:00</dd></div>
+            <div data-days="Sun"><dt>Domingo</dt><dd>Cerrado</dd></div>
+          </dl>
+          <ul class="details">
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span><b>Av. Ejemplo 123, Centro, Puebla</b> <span class="sample">(de muestra)</span></span></li>
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></span><span><b>222 000 0000</b> <span class="sample">(de muestra)</span></span></li>
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M10 16V8h3a2.5 2.5 0 0 1 0 5h-3"/></svg></span><span>Estacionamiento para pacientes, frente a la clínica.</span></li>
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h3"/></svg></span><span>Efectivo, tarjeta y transferencia. Emitimos factura.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="close night sheet" aria-labelledby="cierre-titulo">
+      <div class="wrap">
+        <div>
+          <span class="kicker">Para tu negocio</span>
+          <h2 id="cierre-titulo">¿Quieres una Lía que atienda a tus clientes?</h2>
+          <p class="lead">3dev la configura con la voz, los precios y el calendario de tu negocio. Mándanos un WhatsApp y te contamos cómo quedaría en el tuyo.</p>
+          <div class="cta-row">
+            <a class="btn teal" href="https://wa.me/522214100378?text=Hola%2C%20vengo%20de%20demo%20dental.%20Quiero%20un%20asistente%20as%C3%AD%20para%20mi%20negocio." target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z"/></svg>
+              Escríbenos por WhatsApp
+            </a>
+            <a class="btn line-light" href="https://3dev.mx" target="_blank" rel="noopener">Conoce 3dev</a>
+          </div>
+        </div>
+        <ul class="gets">
+          <li class="reveal"><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span>Contesta en tu sitio web y en WhatsApp, a cualquier hora.</span></li>
+          <li class="reveal"><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span>Agenda en tu calendario y te avisa de cada prospecto por correo o WhatsApp.</span></li>
+          <li class="reveal"><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span>Ves cada conversación en tu panel y puedes tomar el chat de WhatsApp cuando quieras.</span></li>
+        </ul>
       </div>
     </section>
   </main>
 
   <footer>
     <div class="wrap">
-      <p>Clínica Dental Nogal no existe: es un demo. Lía es Quetzal, el asistente que 3dev configura con la voz, los precios y el calendario de cada negocio.</p>
+      <p>Clínica Dental Nogal no existe: es un demo de 3dev. Su dirección, teléfono, precios, mapa y foto son ilustrativos. Lía es Quetzal, el asistente que 3dev configura para cada negocio.</p>
       <p><a href="https://3dev.mx" target="_blank" rel="noopener">3dev.mx</a> · <a href="/privacidad">Aviso de privacidad</a></p>
     </div>
   </footer>
 
-  <script src="/embed.js" data-accent="#5bbfe0" defer></script>
+  <script src="/embed.js" data-accent="#0fb7b8" defer></script>
   <script>
-    // The launcher belongs to embed.js; this button just presses it.
-    document.getElementById('open-chat').addEventListener('click', () => {
-      document.querySelector('.quetzal-launcher')?.click();
+    // Every "talk to Lía" control is a link to the full-page chat, so it still
+    // works if embed.js never loads; when the launcher exists, it opens that instead.
+    document.addEventListener('click', (event) => {
+      const trigger = event.target.closest('[data-open-chat]');
+      const launcher = document.querySelector('.quetzal-launcher');
+      if (!trigger || !launcher) return;
+      event.preventDefault();
+      launcher.click();
     });
+
+    // Without JS every price panel shows, each with its own title; with JS they become tabs.
+    const tablist = document.querySelector('[role="tablist"]');
+    const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+    function movePill(tab) {
+      tablist.style.setProperty('--x', `${tab.offsetLeft}px`);
+      tablist.style.setProperty('--w', `${tab.offsetWidth}px`);
+    }
+    function select(tab) {
+      movePill(tab);
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', on);
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      }
+    }
+    tablist.addEventListener('click', (e) => { const t = e.target.closest('[role="tab"]'); if (t) select(t); });
+    tablist.addEventListener('keydown', (e) => {
+      const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (!step) return;
+      const next = tabs[(tabs.indexOf(document.activeElement) + step + tabs.length) % tabs.length];
+      select(next);
+      next.focus();
+    });
+    tablist.hidden = false;
+    select(tabs[0]);
+    tablist.classList.add('has-pill');
+    // Fonts and viewport changes move the tabs; the pill follows.
+    new ResizeObserver(() => movePill(tablist.querySelector('[aria-selected="true"]'))).observe(tablist);
+
+    // Open/closed comes from the clinic's hours in its own time zone, not the visitor's.
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Mexico_City', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+    }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+    const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+    const closesAt = { Mon: 19, Tue: 19, Wed: 19, Thu: 19, Fri: 19, Sat: 14 }[parts.weekday];
+    const isOpen = closesAt !== undefined && minutes >= 9 * 60 && minutes < closesAt * 60;
+    const status = document.getElementById('status');
+    status.textContent = isOpen ? `Abierto, cierra a las ${closesAt}:00` : 'Cerrado ahora · Lía sí contesta';
+    status.classList.toggle('is-open', isOpen);
+    status.hidden = false;
+    document.querySelector(`.hours [data-days~="${parts.weekday}"]`)?.classList.add('today');
   </script>
 </body>
 </html>
