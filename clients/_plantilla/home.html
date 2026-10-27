@@ -1,0 +1,475 @@
+<!--
+  PLANTILLA DE LANDING (opcional). app/route.ts la sirve en "/" del dominio del
+  cliente; sin este archivo, "/" responde 404. Antes del primer deploy:
+  1. Los 4 colores de :root (marca, acento, texto, fondo); los demás se derivan.
+     Revisa contraste: --brand sobre --paper y --ink sobre --accent, 4.5:1 o más.
+  2. Las fuentes: el <link> de Google Fonts y --display / --body.
+  3. Todo lo que está entre corchetes con mayúscula inicial, por ejemplo el
+     nombre del negocio. client-check avisa si queda alguno.
+  4. El horario vive solo en la sección de visita (data-days, data-open,
+     data-close): de ahí salen el "Abierto/Cerrado" de arriba y el día marcado.
+  5. data-accent del <script src="/embed.js"> al final: el mismo hex que --accent.
+  Los precios y datos de aquí deben coincidir con knowledge/: el asistente
+  responde de allá, y la página no puede contradecirlo.
+  Borra este comentario al terminar.
+-->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Negocio] · [Ciudad]</title>
+<meta name="description" content="[Una frase: qué hace el negocio, para quién y dónde.]">
+<meta name="theme-color" content="#f7f8fa">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Pares probados: League Spartan + Figtree (cercano), Bricolage Grotesque + Figtree (cálido).
+     Si cambias el par, cambia también --display y --body. -->
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@500..800&family=Figtree:wght@400..600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Los colores del cliente. */
+  --brand: #413074;  /* títulos, botones, tarjeta destacada */
+  --accent: #0fb7b8; /* formas, botón secundario, puntos; lleva texto --ink encima */
+  --ink: #1e1640;    /* texto */
+  --paper: #f7f8fa;  /* fondo */
+
+  /* Derivados: no se tocan. */
+  --tint: color-mix(in srgb, var(--brand) 8%, var(--paper));
+  --soft: color-mix(in srgb, var(--brand) 24%, var(--paper));
+  --line: color-mix(in srgb, var(--brand) 14%, var(--paper));
+  --accent-tint: color-mix(in srgb, var(--accent) 16%, var(--paper));
+  --muted: color-mix(in srgb, var(--ink) 74%, var(--paper));
+  --on-brand: var(--paper);
+  --shadow: color-mix(in srgb, var(--brand) 40%, transparent);
+
+  --display: 'League Spartan', ui-sans-serif, system-ui, sans-serif;
+  --body: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --sheet: clamp(28px, 4vw, 48px);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; overflow-x: clip; }
+a { color: inherit; }
+img, svg { display: block; max-width: 100%; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+ul, dl, dd { margin: 0; padding: 0; }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; border-radius: 6px; }
+.on-brand :focus-visible { outline-color: var(--accent); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 24px;
+  font: 600 1rem var(--body); text-decoration: none; border-radius: 999px; border: 1.5px solid transparent;
+  background: var(--brand); color: var(--on-brand); cursor: pointer;
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--brand); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn.ghost { background: transparent; color: var(--brand); border-color: var(--soft); }
+.btn.ghost:hover { background: var(--paper); box-shadow: none; }
+.btn.accent { background: var(--accent); color: var(--ink); }
+.btn.accent:hover { box-shadow: 0 10px 28px -10px var(--accent); }
+.btn.line { background: transparent; color: var(--on-brand); border-color: color-mix(in srgb, var(--on-brand) 35%, transparent); }
+.btn.line:hover { border-color: var(--on-brand); box-shadow: none; }
+.btn svg { flex: none; }
+
+.progress { display: none; }
+
+/* La barra flota sobre el contenido en vez de partir la página en franjas. */
+header.site { position: sticky; top: 12px; z-index: 10; margin-top: 12px; }
+header.site .bar {
+  display: flex; align-items: center; gap: 12px 28px; min-height: 64px; padding: 8px 8px 8px 20px;
+  border-radius: 999px; background: color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px); box-shadow: 0 1px 0 var(--line), 0 12px 32px -18px var(--shadow);
+}
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo .mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px 12px 12px 4px; background: var(--brand); color: var(--accent); font: 800 1.2rem/1 var(--display); padding-top: 2px; }
+.logo img { height: 38px; width: auto; }
+.logo b { font: 800 1.4rem/1 var(--display); letter-spacing: -0.02em; color: var(--brand); padding-top: 3px; }
+header nav { display: flex; gap: 6px; margin-left: auto; font-size: 0.95rem; }
+header nav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-radius: 999px; transition: background-color .2s var(--ease), color .2s var(--ease); }
+header nav a:hover { color: var(--brand); background: var(--tint); }
+header .btn { min-height: 46px; padding: 0 20px; font-size: 0.95rem; }
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--muted); white-space: nowrap; }
+.status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--soft); }
+.status.is-open::before { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-tint); }
+.status[hidden] { display: none; }
+@media (max-width: 920px) { header nav { display: none; } .status { margin-left: auto; } }
+@media (max-width: 560px) { header .status { display: none; } header .btn { margin-left: auto; } header.site .bar { padding-left: 12px; } }
+
+.hero { position: relative; margin-top: -76px; padding-top: 76px; background: var(--tint); border-radius: 0 0 var(--sheet) var(--sheet); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(40px, 6vw, 88px); align-items: center; padding-block: clamp(40px, 6vw, 80px) clamp(64px, 8vw, 112px); }
+.hero h1 { font-size: clamp(2.8rem, 6.6vw, 5.6rem); font-weight: 800; line-height: 0.94; letter-spacing: -0.035em; color: var(--brand); }
+.hero h1 .swash { position: relative; display: inline-block; }
+.hero h1 .swash svg { position: absolute; left: -2%; bottom: -0.16em; width: 104%; height: 0.32em; overflow: visible; color: var(--accent); }
+.hero .lead { margin-top: 28px; font-size: clamp(1.08rem, 1.6vw, 1.25rem); color: var(--muted); max-width: 44ch; }
+.cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 32px; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px; list-style: none; }
+.facts li { padding: 8px 14px; border-radius: 999px; background: var(--paper); color: var(--brand); font-size: 0.92rem; font-weight: 500; box-shadow: inset 0 0 0 1px var(--line); }
+
+.stage { position: relative; isolation: isolate; padding: 0 0 28px; }
+.stage::before { content: ''; position: absolute; z-index: -1; top: 14%; right: -16%; width: 64%; aspect-ratio: 1; border-radius: 50%; background: var(--accent); }
+.stage::after { content: ''; position: absolute; z-index: -1; left: -8%; bottom: 4%; width: 34%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--soft); }
+.stage img { width: 100%; aspect-ratio: 5 / 6; object-fit: cover; border-radius: 999px 999px 32px 32px; background: var(--soft); }
+.float { position: absolute; display: flex; align-items: center; gap: 12px; text-decoration: none; border-radius: 20px; background: var(--paper); color: var(--ink); box-shadow: 0 18px 40px -16px var(--shadow); transition: transform .35s var(--ease); }
+.float:hover { transform: translateY(-3px) rotate(var(--tilt, 0deg)); }
+.ask { left: -8%; right: 18%; bottom: 0; padding: 14px 16px; }
+.ask .avatar { position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px 14px 14px 4px; background: var(--brand); color: var(--accent); font: 800 1.1rem var(--display); }
+.ask .avatar::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); }
+.ask b { display: block; font-weight: 600; }
+.ask small { display: block; font-size: 0.86rem; color: var(--muted); line-height: 1.35; }
+.ask .go { margin-left: auto; flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent-tint); color: var(--brand); transition: translate .3s var(--ease), background-color .3s var(--ease); }
+.ask:hover .go { translate: 3px 0; background: var(--accent); }
+.badge { --tilt: 4deg; top: 9%; right: -5%; transform: rotate(var(--tilt)); flex-direction: column; align-items: flex-start; gap: 0; padding: 12px 18px; border-radius: 18px 18px 18px 4px; }
+.badge small { font-size: 0.8rem; color: var(--muted); }
+.badge b { font: 800 1.6rem/1.1 var(--display); color: var(--brand); }
+@media (max-width: 860px) {
+  .hero .wrap { grid-template-columns: 1fr; }
+  .stage { max-width: 460px; width: 100%; justify-self: center; }
+  .ask { left: 0; right: 0; }
+  .badge { right: 0; }
+}
+
+.section-head { display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: end; justify-content: space-between; margin-bottom: clamp(28px, 4vw, 44px); }
+.services .wrap { padding-block: clamp(56px, 8vw, 104px); }
+.services h2, .visit h2 { font-size: clamp(2.2rem, 4.6vw, 3.6rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.03em; color: var(--brand); max-width: 14ch; }
+.section-head p { color: var(--muted); max-width: 42ch; }
+.price-grid { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 20px; align-items: stretch; }
+@media (max-width: 860px) { .price-grid { grid-template-columns: 1fr; } }
+.featured { position: relative; overflow: hidden; isolation: isolate; display: grid; gap: 18px; align-content: start; padding: clamp(24px, 3vw, 36px); border-radius: 32px 32px 32px 10px; background: var(--brand); color: var(--on-brand); }
+.featured::after { content: ''; position: absolute; z-index: -1; right: -70px; bottom: -70px; width: 220px; aspect-ratio: 1; border-radius: 50%; background: var(--accent); opacity: .9; }
+.featured .tag { justify-self: start; padding: 5px 12px; border-radius: 999px; background: var(--accent); color: var(--ink); font-size: 0.82rem; font-weight: 600; }
+.featured h3 { font-size: clamp(1.6rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.05; }
+.featured .big { font: 800 clamp(3.4rem, 6vw, 4.6rem)/0.9 var(--display); letter-spacing: -0.03em; }
+.featured .big small { font: 500 1rem var(--body); opacity: .8; margin-left: 6px; letter-spacing: 0; }
+.featured ul { list-style: none; display: grid; gap: 8px; color: color-mix(in srgb, var(--on-brand) 86%, transparent); }
+.featured li { display: flex; gap: 10px; align-items: baseline; }
+.featured li::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); transform: translateY(-2px); }
+.featured .btn { justify-self: start; margin-top: 8px; }
+
+.catalog { padding: clamp(18px, 2.4vw, 28px); border-radius: 32px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 18px; align-content: start; }
+.tabs { display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--tint); overflow-x: auto; scrollbar-width: none; }
+.tabs[hidden] { display: none; }
+.tabs button { flex: 1 0 auto; min-height: 42px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 0.94rem var(--body); cursor: pointer; transition: color .25s var(--ease); }
+.tabs button:hover { color: var(--brand); }
+.tabs button[aria-selected="true"] { background: var(--brand); color: var(--on-brand); }
+/* With JS a single pill slides between tabs instead of each tab repainting. */
+.tabs.has-pill { position: relative; }
+.tabs.has-pill::before { content: ''; position: absolute; top: 5px; bottom: 5px; left: 0; width: var(--w, 0); transform: translateX(var(--x, 0)); border-radius: 999px; background: var(--brand); transition: transform .45s var(--ease), width .45s var(--ease); }
+.tabs.has-pill button { position: relative; }
+.tabs.has-pill button[aria-selected="true"] { background: transparent; }
+@media (max-width: 560px) { .tabs button { padding: 0 12px; font-size: 0.9rem; } }
+.panel h3.panel-title { font: 600 0.9rem var(--body); color: var(--muted); margin: 6px 4px 4px; }
+.tabs:not([hidden]) ~ .panel h3.panel-title { display: none; }
+.rows { list-style: none; display: grid; gap: 4px; }
+.rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px; padding: 14px 16px; border-radius: 18px; transition: background-color .2s var(--ease); }
+.rows li:hover { background: var(--tint); }
+.rows b { font-weight: 600; font-size: 1.04rem; }
+.rows .meta { grid-column: 1; font-size: 0.88rem; color: var(--muted); }
+.rows .amount { grid-row: 1 / span 2; grid-column: 2; font: 700 1.35rem var(--display); color: var(--brand); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.rows .amount small { display: block; font: 500 0.75rem var(--body); color: var(--muted); margin-bottom: -2px; }
+.rows .amount.quote { font: 600 0.9rem var(--body); color: var(--muted); white-space: normal; max-width: 13ch; line-height: 1.3; }
+.fine { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; justify-content: space-between; padding: 14px 16px 2px; border-top: 1px dashed var(--line); font-size: 0.88rem; color: var(--muted); }
+.link-btn { font: 600 0.95rem var(--body); color: var(--brand); text-underline-offset: 4px; }
+
+.visit .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(32px, 5vw, 72px); align-items: center; padding-block: clamp(24px, 4vw, 48px) clamp(56px, 8vw, 104px); }
+@media (max-width: 860px) { .visit .wrap { grid-template-columns: 1fr; } }
+.map { margin: 0; border-radius: 40px 40px 40px 12px; overflow: hidden; background: var(--tint); aspect-ratio: 5 / 4; box-shadow: 0 0 0 1px var(--line), 0 28px 56px -32px var(--shadow); }
+.map iframe { display: block; width: 100%; height: 100%; border: 0; }
+.visit-info { display: grid; gap: 24px; align-content: center; }
+.hours { display: grid; gap: 4px; }
+.hours div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 16px; border-radius: 14px; color: var(--muted); }
+.hours div.today { background: var(--brand); color: var(--on-brand); }
+.hours dt { font-weight: 600; }
+.hours div:not(.today) dt { color: var(--ink); }
+.details { list-style: none; display: grid; gap: 12px; }
+.details li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: center; color: var(--muted); }
+.details .ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--accent-tint); color: var(--brand); }
+.details b, .details a { color: var(--ink); font-weight: 600; }
+
+.on-brand { background: var(--brand); color: var(--on-brand); }
+.sheet { margin: clamp(24px, 4vw, 48px) clamp(8px, 1.6vw, 20px); border-radius: var(--sheet); position: relative; overflow: hidden; isolation: isolate; }
+.close .wrap { display: grid; gap: 20px; justify-items: start; padding-block: clamp(56px, 8vw, 104px); }
+.close::before { content: ''; position: absolute; z-index: -1; right: -60px; bottom: -120px; width: clamp(200px, 28vw, 360px); aspect-ratio: 1; border-radius: 50%; background: var(--accent); opacity: .85; }
+.close h2 { font-size: clamp(2.2rem, 4.8vw, 3.8rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.03em; max-width: 16ch; }
+.close p { color: color-mix(in srgb, var(--on-brand) 82%, transparent); font-size: 1.1rem; max-width: 46ch; }
+.close .cta-row { margin-top: 8px; }
+
+footer { color: var(--muted); font-size: 0.92rem; }
+/* Aire abajo para que el botón flotante del chat no tape el pie. */
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; padding-block: 8px 104px; }
+footer a { color: var(--brand); text-underline-offset: 3px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+@media (prefers-reduced-motion: no-preference) {
+  .enter { animation: rise .9s var(--ease) both; animation-delay: calc(var(--i, 0) * 90ms); }
+  .stage.enter { animation-name: bloom; }
+  @keyframes bloom { from { opacity: 0; transform: translateY(24px) scale(0.97); } }
+  .swash path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s .6s var(--ease) forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .ask .avatar::after { animation: ping 2.4s var(--ease) infinite; }
+  @keyframes ping { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 60% { box-shadow: 0 0 0 8px transparent; } }
+  .panel:not([hidden]) .rows li { animation: rise .55s var(--ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  /* Ambient motion: slow enough to read as alive, not as a distraction. translate
+     composes with each card's own transform (the badge's tilt, the hover lift). */
+  .badge { animation: bob 6s ease-in-out infinite; }
+  .ask { animation: bob 7s ease-in-out -2.5s infinite; }
+  @keyframes bob { 50% { translate: 0 -8px; } }
+  .stage::before, .featured::after { animation: breathe 10s ease-in-out infinite; }
+  @keyframes breathe { 50% { scale: 1.05; translate: -6px 4px; } }
+  /* Scroll-linked motion: plays forward and backward with the visitor. Browsers
+     without scroll timelines (Firefox today) just show the page still. */
+  @supports (animation-timeline: view()) {
+    .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; }
+    .progress { display: block; position: fixed; inset: 0 0 auto; z-index: 20; height: 3px; background: var(--accent); transform-origin: 0 50%; animation: grow-x linear both; animation-timeline: scroll(root); }
+    @keyframes grow-x { from { transform: scaleX(0); } }
+    .hero-copy { animation: lift linear both; animation-timeline: view(); animation-range: exit 20% exit 100%; }
+    @keyframes lift { to { translate: 0 -48px; opacity: 0; } }
+    .stage img { animation: sink linear both; animation-timeline: scroll(root); animation-range: 0 90vh; }
+    @keyframes sink { to { translate: 0 56px; scale: 1.03; } }
+    .sheet { animation: unfold linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+    @keyframes unfold { from { scale: .93; opacity: .85; } }
+    .featured.reveal { animation-name: from-left; }
+    .catalog.reveal { animation-name: from-right; }
+    @keyframes from-left { from { opacity: 0; translate: -48px 0; } }
+    @keyframes from-right { from { opacity: 0; translate: 48px 0; } }
+    .slide-in { animation: slide-in linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+    @keyframes slide-in { from { opacity: 0; translate: -32px 0; } }
+  }
+}
+</style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"></div>
+
+  <header class="site">
+    <div class="wrap">
+      <div class="bar">
+        <!-- Con logo: cambia el <span class="mark"> por <img src="/logo.svg" alt="" width="38" height="38">. -->
+        <a class="logo" href="#inicio" aria-label="[Negocio], inicio">
+          <span class="mark" aria-hidden="true">[N]</span>
+          <b>[Negocio]</b>
+        </a>
+        <nav aria-label="Secciones">
+          <a href="#servicios">Servicios</a>
+          <a href="#visita">Visítanos</a>
+        </nav>
+        <span class="status" id="status" data-closed-text="Cerrado ahora · [Asistente] sí contesta" hidden></span>
+        <a class="btn" href="/widget" data-open-chat>Agendar cita</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-copy">
+          <!-- El subrayado animado va en las últimas 2 o 3 palabras. -->
+          <h1 class="enter">[Promesa del negocio,] <span class="swash">[remate].<svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16C70 6 170 4 296 12" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" pathLength="1"/></svg></span></h1>
+          <p class="lead enter" style="--i:1">[Qué hace el negocio, para quién y dónde. Una invitación a preguntarle a su asistente por precios, horarios o citas.]</p>
+          <div class="cta-row enter" style="--i:2">
+            <a class="btn" href="/widget" data-open-chat>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z"/></svg>
+              Platicar con [Asistente]
+            </a>
+            <a class="btn ghost" href="#servicios">Ver servicios</a>
+          </div>
+          <!-- Tres datos verificables que dan confianza (formas de pago, a quién atiende, factura). -->
+          <ul class="facts enter" style="--i:3">
+            <li>[Dato de confianza]</li>
+            <li>[Dato de confianza]</li>
+            <li>[Dato de confianza]</li>
+          </ul>
+        </div>
+        <div class="stage enter" style="--i:1">
+          <!-- Foto real del negocio, vertical, mínimo 1000 px de ancho. Va en public/ o en el dominio del cliente. -->
+          <img src="[URL de la foto]" width="960" height="1152" fetchpriority="high" alt="[Qué se ve en la foto, en una frase.]">
+          <!-- El servicio de entrada y su precio, si es público. Si no, borra este enlace. -->
+          <a class="float badge" href="#servicios">
+            <small>[Servicio de entrada]</small>
+            <b>[$000]</b>
+          </a>
+          <a class="float ask" href="/widget" data-open-chat>
+            <span class="avatar" aria-hidden="true">[A]</span>
+            <span><b>Pregúntale a [Asistente]</b><small>[Qué resuelve, en pocas palabras.]</small></span>
+            <span class="go" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="services" id="servicios" aria-labelledby="servicios-titulo">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="servicios-titulo" class="slide-in">[Título de servicios.]</h2>
+          <p>[Una o dos líneas: cómo se empieza o qué incluye.]</p>
+        </div>
+        <div class="price-grid">
+          <article class="featured reveal">
+            <span class="tag">Empieza aquí</span>
+            <h3>[Servicio de entrada]</h3>
+            <p class="big">[$000]<small>MXN</small></p>
+            <ul>
+              <li>[Qué incluye.]</li>
+              <li>[Condición o beneficio.]</li>
+            </ul>
+            <a class="btn accent" href="/widget" data-open-chat>Agendar con [Asistente]</a>
+          </article>
+
+          <!-- De 1 a 4 categorías. Con una sola, borra el tablist entero. Fila "desde":
+               <span class="amount"><small>desde</small>$000</span>. Sin precio público:
+               <span class="amount quote">Se cotiza en la consulta</span>. -->
+          <div class="catalog reveal">
+            <div class="tabs" role="tablist" aria-label="Servicios por tipo" hidden>
+              <button type="button" role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true">[Categoría]</button>
+              <button type="button" role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false" tabindex="-1">[Categoría]</button>
+              <button type="button" role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false" tabindex="-1">[Categoría]</button>
+            </div>
+            <div class="panel" id="panel-1" role="tabpanel" aria-labelledby="tab-1">
+              <h3 class="panel-title">[Categoría]</h3>
+              <ul class="rows">
+                <li style="--i:0"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+                <li style="--i:1"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+                <li style="--i:2"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+              </ul>
+            </div>
+            <div class="panel" id="panel-2" role="tabpanel" aria-labelledby="tab-2">
+              <h3 class="panel-title">[Categoría]</h3>
+              <ul class="rows">
+                <li style="--i:0"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+                <li style="--i:1"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+                <li style="--i:2"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+              </ul>
+            </div>
+            <div class="panel" id="panel-3" role="tabpanel" aria-labelledby="tab-3">
+              <h3 class="panel-title">[Categoría]</h3>
+              <ul class="rows">
+                <li style="--i:0"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+                <li style="--i:1"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+                <li style="--i:2"><b>[Servicio]</b><span class="meta">[Detalle · duración]</span><span class="amount">[$000]</span></li>
+              </ul>
+            </div>
+            <div class="fine">
+              <span>[Moneda, impuestos y qué se confirma en persona.]</span>
+              <!-- Solo si el cliente tiene catálogo en vivo (catalog en assistant.config.ts). -->
+              <a class="link-btn" href="/widget" data-open-chat>¿Promociones? Pregúntale a [Asistente]</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="visit" id="visita" aria-labelledby="visita-titulo">
+      <div class="wrap">
+        <!-- Google carga sus cookies con el mapa: menciónalo en privacidad.tsx. La dirección va con + en lugar de espacios. -->
+        <figure class="map reveal">
+          <iframe src="https://www.google.com/maps?q=[Calle+Numero+Colonia+Ciudad]&output=embed" title="Mapa: [Negocio]" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </figure>
+
+        <div class="visit-info">
+          <h2 id="visita-titulo" class="slide-in">[Visítanos en ...]</h2>
+          <!-- Una fila por horario distinto. Días en inglés de tres letras (Mon Tue Wed Thu Fri Sat Sun);
+               horas en 24 h. Sin data-open/data-close, ese día se lee como cerrado. -->
+          <dl class="hours" aria-label="Horario" data-tz="America/Mexico_City">
+            <div data-days="Mon Tue Wed Thu Fri" data-open="09:00" data-close="19:00"><dt>Lunes a viernes</dt><dd>9:00 a 19:00</dd></div>
+            <div data-days="Sat" data-open="09:00" data-close="14:00"><dt>Sábado</dt><dd>9:00 a 14:00</dd></div>
+            <div data-days="Sun"><dt>Domingo</dt><dd>Cerrado</dd></div>
+          </dl>
+          <ul class="details">
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span><b>[Calle y número, colonia, ciudad]</b></span></li>
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></span><span><a href="tel:[+52XXXXXXXXXX]">[Teléfono]</a></span></li>
+            <li><span class="ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h3"/></svg></span><span>[Formas de pago y factura.]</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="close on-brand sheet" aria-labelledby="cierre-titulo">
+      <div class="wrap">
+        <h2 id="cierre-titulo">¿Tienes una duda? [Asistente] te contesta al momento.</h2>
+        <p>[Precios, horarios o una cita: lo que el asistente resuelve, a cualquier hora.]</p>
+        <div class="cta-row">
+          <a class="btn accent" href="/widget" data-open-chat>Platicar con [Asistente]</a>
+          <!-- Número con lada y sin signos, por ejemplo 522221234567. -->
+          <a class="btn line" href="https://wa.me/[Número con lada]" target="_blank" rel="noopener">Escríbenos por WhatsApp</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>© [Negocio] · <a href="/privacidad">Aviso de privacidad</a></p>
+      <p>Sitio y asistente por <a href="https://3dev.mx" target="_blank" rel="noopener">3dev</a></p>
+    </div>
+  </footer>
+
+  <!-- data-accent: el mismo hex que --accent (solo hex; otro valor deja el color por defecto). -->
+  <script src="/embed.js" data-accent="[#hex de --accent]" defer></script>
+  <script>
+    // Every "talk to the assistant" control is a link to the full-page chat, so it still
+    // works if embed.js never loads; when the launcher exists, it opens that instead.
+    document.addEventListener('click', (event) => {
+      const trigger = event.target.closest('[data-open-chat]');
+      const launcher = document.querySelector('.quetzal-launcher');
+      if (!trigger || !launcher) return;
+      event.preventDefault();
+      launcher.click();
+    });
+
+    // Without JS every panel shows, each with its own title; with JS they become tabs.
+    const tablist = document.querySelector('[role="tablist"]');
+    if (tablist) {
+      const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+      const movePill = (tab) => {
+        tablist.style.setProperty('--x', `${tab.offsetLeft}px`);
+        tablist.style.setProperty('--w', `${tab.offsetWidth}px`);
+      };
+      const select = (tab) => {
+        movePill(tab);
+        for (const t of tabs) {
+          const on = t === tab;
+          t.setAttribute('aria-selected', on);
+          t.tabIndex = on ? 0 : -1;
+          document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+        }
+      };
+      tablist.addEventListener('click', (e) => { const t = e.target.closest('[role="tab"]'); if (t) select(t); });
+      tablist.addEventListener('keydown', (e) => {
+        const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (!step) return;
+        const next = tabs[(tabs.indexOf(document.activeElement) + step + tabs.length) % tabs.length];
+        select(next);
+        next.focus();
+      });
+      tablist.hidden = false;
+      select(tabs[0]);
+      tablist.classList.add('has-pill');
+      // Fonts and viewport changes move the tabs; the pill follows.
+      new ResizeObserver(() => movePill(tablist.querySelector('[aria-selected="true"]'))).observe(tablist);
+    }
+
+    // The hours table is the single source: today's row gets marked, and the header
+    // says open or closed in the business's time zone, not the visitor's.
+    const hours = document.querySelector('.hours');
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+      timeZone: hours.dataset.tz, weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+    }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+    const today = hours.querySelector(`[data-days~="${parts.weekday}"]`);
+    const toMinutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+    const now = Number(parts.hour) * 60 + Number(parts.minute);
+    const { open, close } = today?.dataset ?? {};
+    const isOpen = Boolean(open && close) && now >= toMinutes(open) && now < toMinutes(close);
+    today?.classList.add('today');
+    const status = document.getElementById('status');
+    status.textContent = isOpen ? `Abierto, cierra a las ${close}` : status.dataset.closedText;
+    status.classList.toggle('is-open', isOpen);
+    status.hidden = false;
+  </script>
+</body>
+</html>

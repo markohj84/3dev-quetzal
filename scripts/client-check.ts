@@ -8,7 +8,7 @@
  * al dueño y seguimiento), con el texto que sale de su assistant.config.ts.
  * Meta las revisa: quedan PENDING unas horas.
  */
-import { access, readdir } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { clientEnv, envPrefix, isMultiTenant } from '../core/config/env.ts';
 
@@ -47,6 +47,20 @@ console.log(`\nCliente: clients/${folder}\n`);
 for (const file of ['assistant.config.ts', 'voice.md', 'widget.html', 'privacidad.tsx', 'evals.ts']) {
   await step(`archivo ${file}`, () => access(join(dir, file)));
 }
+// Placeholders look like [Negocio], [$000] or [+52…]: a bracket opening on an uppercase
+// letter, $, + or #. CSS attribute selectors and JS indexing ([hidden], tabs[0]) never do.
+const PLACEHOLDER = /\[[A-ZÁÉÍÓÚÑ$+#][^\]\n]{0,80}\]/g;
+for (const file of ['widget.html', 'home.html']) {
+  const text = await readFile(join(dir, file), 'utf8').catch(() => null);
+  if (text === null) {
+    if (file === 'home.html') warn('home.html no existe: "/" del dominio responde 404 (opcional)');
+    continue;
+  }
+  const left = [...new Set(text.match(PLACEHOLDER) ?? [])];
+  if (left.length) bad(`${file} tiene ${left.length} marcador(es) sin llenar: ${left.slice(0, 5).join(', ')}${left.length > 5 ? '…' : ''}`);
+  else ok(`${file} sin marcadores pendientes`);
+}
+
 await step('knowledge/', async () => {
   const md = (await readdir(join(dir, 'knowledge'))).filter((f) => f.endsWith('.md'));
   if (!md.length) throw new Error('sin archivos .md');

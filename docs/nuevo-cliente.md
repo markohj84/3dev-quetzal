@@ -36,7 +36,8 @@ Llena todo lo que está entre `[corchetes]` o marcado `TODO` en:
 | `assistant.config.ts` | `id` único, nombre, Cal.com, burbujas de inicio, correo de avisos, texto del seguimiento |
 | `voice.md` | Identidad, tono, ejemplos, frase exacta para invitar a agendar. Va **literal** al prompt: borra los comentarios de plantilla |
 | `knowledge/*.md` | Lo único que el asistente puede afirmar. Escrito a mano con el dueño |
-| `widget.html` | Nombre, saludo y colores del chat del sitio |
+| `widget.html` | Nombre, saludo y colores del chat del sitio: los mismos 4 colores de `home.html` |
+| `home.html` | Landing opcional (se sirve en "/" del dominio): 4 colores, fuentes, servicios y precios, horario, mapa y WhatsApp. Precios y datos iguales a `knowledge/`. Si el cliente ya tiene sitio, bórralo |
 | `privacidad.tsx` | Aviso de privacidad del cliente |
 | `evals.ts` | La regex `offer` de la invitación y los casos propios del negocio |
 

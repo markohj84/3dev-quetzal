@@ -32,7 +32,8 @@ Producción corre en un solo proyecto de Vercel (`3dev-quetzal`, con
 "Multi-tenant" abajo). En local, y en un cliente que pida su propio proyecto,
 la variable `CLIENT` (default `3dev`) elige la carpeta `clients/<cliente>/`
 (`app/assistant.ts`). Todo lo del cliente vive en su carpeta: config, voz,
-conocimiento, `widget.html`, `privacidad.tsx` y `evals.ts`.
+conocimiento, `widget.html`, `home.html` (landing opcional en "/"),
+`privacidad.tsx` y `evals.ts`.
 `next.config.js` incluye `clients/` en el paquete porque la ruta se decide en
 tiempo de ejecución. Para dar de alta uno nuevo: copiar `clients/_plantilla/`
 y seguir `docs/nuevo-cliente.md`; `scripts/client-check.ts` revisa que esté
