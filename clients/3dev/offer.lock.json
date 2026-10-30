@@ -1,8 +1,8 @@
 {
   "$comment": "Catálogo canónico de la oferta de 3dev. Fuente de verdad de precios y nombres. Cambiar aquí primero, luego seguir docs/strategy/propagacion.md. Lo valida `npm run check:strategy` en este repo y `npm run check:offer` en 3dev-quetzal (contra su copia clients/3dev/offer.lock.json).",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "canonicalUrl": "https://raw.githubusercontent.com/markohj84/3dev/main/docs/strategy/oferta.json",
-  "updated": "2026-10-07",
+  "updated": "2026-10-30",
   "strategy": "docs/strategy/estrategia-marca-v2.md",
   "lines": [
     {
@@ -74,7 +74,41 @@
       "currency": "MXN",
       "items": [
         { "id": "oferta-0", "name": "Oferta 0 — El primer flujo", "setup": 3900, "monthly": 990, "summary": "Un flujo automatizado puntual, sin chatbot", "delivery": "días" },
-        { "id": "oferta-1", "name": "Oferta 1 — Quetzal / Asistente", "setup": 7900, "monthly": 2490, "summary": "Asistente con la voz del negocio para web y WhatsApp", "delivery": "2 a 3 semanas" },
+        {
+          "id": "oferta-1-local",
+          "name": "Oferta 1 — Quetzal / Local",
+          "setup": 5900,
+          "monthly": 490,
+          "summary": "Landing del negocio más asistente web que responde y agenda en el chat",
+          "includes": [
+            "Landing de una página hecha con la plantilla de 3dev, con dominio .com / .com.mx; la mensualidad cubre hospedaje y renovación",
+            "Asistente web con la voz y el conocimiento del negocio",
+            "Agenda dentro del chat con el calendario del negocio (Cal.com)",
+            "Catálogo en una hoja de Google que el negocio edita (promociones, productos)",
+            "Aviso por correo de cada prospecto y panel con conversaciones y leads",
+            "Un cambio de información al mes (precios, horario, servicios)"
+          ],
+          "limits": { "conversationsPerMonth": 300, "extraBlock": { "conversations": 300, "price": 99 }, "extraChange": 150 },
+          "launch": { "setup": 4900, "freeMonths": 6, "monthlyAfter": 299, "slots": 5, "until": "2026-12-31", "communicatedBy": "equipo" },
+          "delivery": "1 a 2 semanas"
+        },
+        {
+          "id": "oferta-1-whatsapp",
+          "name": "Oferta 1 — Quetzal / Local + WhatsApp",
+          "setup": 7900,
+          "monthly": 790,
+          "summary": "Todo lo de Quetzal / Local, más el asistente en el WhatsApp del negocio",
+          "includes": [
+            "Todo lo de Quetzal / Local",
+            "Asistente en WhatsApp que recuerda las conversaciones de los últimos 90 días",
+            "Aviso por WhatsApp de cada prospecto y seguimiento: un solo mensaje a quien dejó teléfono y no agendó",
+            "Tomar la conversación desde el panel y contestar desde el número del negocio"
+          ],
+          "limits": { "conversationsPerMonth": 300, "extraBlock": { "conversations": 300, "price": 99 }, "extraChange": 150, "metaCost": "aparte, a costo, según el volumen del negocio" },
+          "launch": { "setup": 6900, "freeMonths": 6, "monthlyAfter": 599, "slots": 5, "until": "2026-12-31", "communicatedBy": "equipo" },
+          "requires": "Un número que no esté dado de alta en la app WhatsApp Business",
+          "delivery": "2 a 3 semanas"
+        },
         { "id": "oferta-2", "name": "Oferta 2 — Quetzal / Flujos", "setup": 19900, "monthly": 4990, "summary": "El asistente más automatización conectada al negocio", "delivery": "2 a 3 semanas" }
       ],
       "payment": "50% de la implementación para iniciar; mensualidad al activar producción"

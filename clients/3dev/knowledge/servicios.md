@@ -8,7 +8,7 @@ Tres paquetes con alcance, precio y tiempo de entrega cerrados: Web Esencial, We
 
 ## La escalera de ofertas de IA
 
-La línea de automatización e IA de 3dev: una escalera de tres ofertas de automatización e inteligencia artificial para negocios. Cada peldaño resuelve un dolor mayor que el anterior — desde un flujo automatizado puntual (Oferta 0), pasando por un asistente conversacional para web y WhatsApp (Oferta 1 — Quetzal / Asistente), hasta un asistente que además actúa sobre el negocio (Oferta 2 — Quetzal / Flujos). El detalle de cada oferta y sus precios vive en `ofertas.md`.
+La línea de automatización e IA de 3dev: una escalera de tres ofertas de automatización e inteligencia artificial para negocios. Cada peldaño resuelve un dolor mayor que el anterior — desde un flujo automatizado puntual (Oferta 0), pasando por una landing con un asistente que responde y agenda, en web o también en WhatsApp (Oferta 1 — Quetzal / Local y Quetzal / Local + WhatsApp), hasta un asistente que además actúa sobre el negocio (Oferta 2 — Quetzal / Flujos). El detalle de cada oferta y sus precios vive en `ofertas.md`.
 
 ## Proyectos integrados
 

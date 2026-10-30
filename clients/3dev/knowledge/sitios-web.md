@@ -72,4 +72,4 @@ Blogs, sitios de descarga de videos o música, revistas digitales y sistemas com
 
 ## Sitio más asistente
 
-Un sitio y un asistente Quetzal se pueden contratar juntos: el sitio da la presencia y Quetzal atiende a quien llega por el sitio o por WhatsApp. Son dos productos y se cotizan por separado (ver `ofertas.md`).
+Quetzal / Local ya trae una landing de una página donde vive el asistente: para un negocio que solo necesita eso, no hace falta un paquete web aparte. Un sitio de varias secciones o una tienda (Web Completa o Tienda en línea) junto con un asistente Quetzal son dos productos y se cotizan por separado (ver `ofertas.md`).

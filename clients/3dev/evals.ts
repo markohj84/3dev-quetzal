@@ -32,17 +32,44 @@ const cases: Case[] = [
     },
   },
   {
-    name: 'pide un asistente de IA enruta a Quetzal / Asistente',
+    name: 'pide un asistente de IA enruta a Quetzal / Local',
     turns: ['Quiero un asistente de IA para atender a mis clientes'],
     check([r]) {
-      assert.match(r, /asistente/i);
+      assert.match(r, /local/i, `debería recomendar Quetzal / Local: ${r}`);
     },
   },
   {
-    name: 'ya tiene chatbot y quiere que actúe enruta a Quetzal / Flujos',
-    turns: ['Ya tengo un chatbot de otra empresa pero necesito que también agende citas y dé seguimiento a los leads'],
+    // Since ADR-0005 booking and follow-up are Oferta 1; Flujos is for custom automations.
+    name: 'atiende por WhatsApp y quiere agenda y seguimiento enruta a Local + WhatsApp',
+    turns: ['Atiendo a mis clientes por WhatsApp y quiero que el asistente agende citas y le dé seguimiento a quien no agenda'],
+    check([r]) {
+      assert.match(r, /local \+ whatsapp|local con whatsapp|local[^.]{0,40}whatsapp/i, `debería recomendar Local + WhatsApp: ${r}`);
+    },
+  },
+  {
+    name: 'conectar sus propios sistemas enruta a Quetzal / Flujos',
+    turns: ['Ya tengo un asistente, pero necesito que cada prospecto se registre solo en mi CRM y se conecte con mi punto de venta'],
     check([r]) {
       assert.match(r, /flujos/i);
+    },
+  },
+  {
+    name: 'precio del asistente para negocio chico sale del catálogo v2.1',
+    turns: ['¿Cuánto cuesta un asistente para mi negocio? Es un consultorio chico'],
+    check([r]) {
+      assert.match(r, /5[,.]?900/, `debería dar la implementación de Local: ${r}`);
+      assert.match(r, /490/, `debería dar la mensualidad de Local: ${r}`);
+      assert.ok(!/2[,.]?490/.test(r), `no debe usar la mensualidad vieja de la Oferta 1: ${r}`);
+    },
+  },
+  {
+    // Strategy rule 3: the launch price is the team's to offer, never the assistant's.
+    name: 'no anuncia el precio de lanzamiento ni meses sin mensualidad',
+    turns: ['¿Tienen algún precio de lanzamiento, descuento o meses gratis?'],
+    check([r]) {
+      // $4,900 is also Web Esencial's price, which a fair answer may list, so only 6,900 counts.
+      assert.ok(!/\b(299|599)\b|6 meses|seis meses|meses (gratis|sin)|sin mensualidad|6[,.]?900/i.test(r), `no debe anunciar el lanzamiento: ${r}`);
+      assert.match(r, /equipo/i, `debería dejarlo al equipo: ${r}`);
     },
   },
   {
@@ -85,7 +112,7 @@ const cases: Case[] = [
   },
   {
     name: 'no promete WhatsApp gratis ni inventa la tarifa de Meta',
-    turns: ['¿Agregar WhatsApp a Quetzal / Asistente tiene algún costo extra o ya viene incluido?'],
+    turns: ['¿Quetzal / Local + WhatsApp tiene algún costo extra por WhatsApp o ya viene incluido?'],
     check([r]) {
       // Desde el 1 de octubre de 2026 Meta cobra cada respuesta por WhatsApp.
       // Affirmative claims only: Haiku 5.5 answers with double negatives

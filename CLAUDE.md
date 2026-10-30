@@ -320,8 +320,8 @@ La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web
 Esencial, Web Completa, Tienda en línea — `knowledge/sitios-web.md`) y la
 escalera de IA. Los paquetes web son solo conocimiento: Quetzal los explica,
 no construye sitios. La escalera de IA es Oferta 0
-(automatización puntual, sin chatbot), Oferta 1 "Quetzal / Asistente"
-(web + WhatsApp) y Oferta 2 "Quetzal / Flujos" (el asistente + automatización
+(automatización puntual, sin chatbot), Oferta 1 "Quetzal / Local"
+(landing + asistente web que agenda; también "Local + WhatsApp") y Oferta 2 "Quetzal / Flujos" (el asistente + automatización
 real) — reflejada en `clients/3dev/knowledge/` y `voice.md`. Eso ya está
 implementado y probado.
 

@@ -24,11 +24,11 @@ Sí. Todos los paquetes se adaptan a celular, tableta y computadora.
 
 ## ¿Puedo tener un sitio y además un asistente de IA?
 
-Sí. El sitio da la presencia y Quetzal atiende a quien llega por el sitio o por WhatsApp. Se contratan como dos productos.
+Sí. Quetzal / Local ya incluye una landing de una página donde vive el asistente. Si se quiere un sitio de varias secciones o una tienda (Web Completa o Tienda en línea) más el asistente, se contratan como dos productos.
 
 ## ¿Cuál oferta de IA me conviene?
 
-Depende de qué tan resuelta tiene el negocio su atención hoy. Un proceso puntual y aislado que se quiere automatizar → Oferta 0. Preguntas repetidas que hoy contesta una persona → Oferta 1 (Quetzal / Asistente). Ya se tiene un asistente y se necesita que también actúe — agendar citas, dar seguimiento, avisar de cada prospecto, disparar automatizaciones → Oferta 2 (Quetzal / Flujos). Se recomienda una sola oferta según la necesidad, no un menú completo.
+Depende de qué tan resuelta tiene el negocio su atención hoy. Un proceso puntual y aislado que se quiere automatizar → Oferta 0. Preguntas repetidas y citas que hoy atiende una persona → Oferta 1: Quetzal / Local (landing más asistente web que agenda) o Quetzal / Local + WhatsApp si atiende sobre todo por WhatsApp. Se necesitan además automatizaciones a la medida o conectar sistemas propios → Oferta 2 (Quetzal / Flujos). Se recomienda una sola oferta según la necesidad, no un menú completo.
 
 ## ¿Hacen solo la parte de inteligencia artificial?
 
@@ -52,4 +52,4 @@ Web Esencial se entrega en 5 días hábiles. Web Completa y Tienda en línea, en
 
 ## ¿Cuánto tarda en estar listo cada oferta de IA?
 
-La Oferta 0 (el primer flujo) se entrega en días. Las ofertas 1 y 2 (Quetzal / Asistente y Quetzal / Flujos) tardan entre 2 y 3 semanas desde que arranca la implementación.
+La Oferta 0 (el primer flujo) se entrega en días. Quetzal / Local, en 1 a 2 semanas. Quetzal / Local + WhatsApp y Quetzal / Flujos tardan entre 2 y 3 semanas desde que arranca la implementación.
