@@ -109,6 +109,12 @@ catálogo.
 Next.js 15 (App Router), TypeScript, SDK de Anthropic, Zod, Vercel.
 El sitio de 3dev es un repositorio aparte y solo consume el widget por embed.
 
+Sin framework de pruebas: cada archivo con lógica trae su autoprueba al final
+(`node core/tools.ts`) y `npm test` las corre todas, sin red ni llaves. Entra
+al `prebuild` con `check:boundary` y `check:offer`: un deploy con una
+autoprueba rota no pasa. Lo que necesita servicios reales vive en
+`scripts/check-*.mjs` y en los evals.
+
 ## Evals de voz y conocimiento
 
 `clients/3dev/evals.ts` corre casos de humo contra `/api/chat` real (no
