@@ -209,9 +209,9 @@ rechaza el envío, el correo sale igual. No poner `NOTIFY_WHATSAPP_TO` en
 
 El tercer canal es un webhook (`sendWebhook`, pensado para n8n): con
 `<PREFIJO>__NOTIFY_WEBHOOK_URL`, cada aviso sale también como `POST` JSON con
-`event` (`inbound` > `booking` > `lead` > `interest`, la misma precedencia del
-asunto del correo), `clientId`, `channel`, `contactId`, `at`, `lead`,
-`booking`, `inbound`, `reachAt`, `panelUrl` y la transcripción (lo ausente va
+`event` (`failure` > `inbound` > `booking` > `lead` > `interest`, la misma
+precedencia del asunto del correo), `clientId`, `channel`, `contactId`, `at`,
+`lead`, `booking`, `inbound`, `failure`, `reachAt`, `panelUrl` y la transcripción (lo ausente va
 `null`; ejemplo en `docs/superpowers/specs/2026-10-23-eventos-n8n-design.md`).
 La URL es secreta: quien la tenga puede escribirle al flujo, por eso nunca va
 en la config. Con `<PREFIJO>__NOTIFY_WEBHOOK_SECRET` lleva
@@ -220,6 +220,24 @@ reintentos: con n8n caído, ese evento se pierde. Las rutas mandan todos los
 avisos (correo, WhatsApp y webhook) con `after()`, después de responder: un
 canal lento no retrasa al asistente. Las automatizaciones a la
 medida de la Oferta 2 se arman en n8n sobre estos eventos, sin tocar este repo.
+
+## Alerta de falla
+
+Cuando el asistente no puede contestar (`respond()` truena: modelo caído,
+saldo agotado, Redis), la ruta ya no se queda solo con un log. Guarda el
+mensaje de la persona sin respuesta (`appendInbound`; en WhatsApp también en
+la sesión, como en una conversación tomada) y avisa con `reportFailure`
+(`app/failure.ts`): evento `failure` con el mensaje y el error, a lo más **uno
+por cliente y hora**. La web sigue contestando 502 y por WhatsApp la persona
+sigue sin recibir respuesta: el aviso es para que alguien la conteste a mano y
+arregle la causa. Sale por los canales de `notify` del cliente que falló; con
+`ALERT_EMAIL` (variable de la plataforma, sin prefijo) sale solo por correo a
+esa dirección, con la llave de Resend y el remitente de ese cliente. **Poner
+`ALERT_EMAIL` antes de dar de alta un cliente que no sea de 3dev**, o el aviso
+de falla le llega a su dueño y no a quien opera. No cubre un envío que Meta
+rechaza (token vencido, pago, número inválido): eso sigue siendo solo un log
+(`whatsapp delivery failed`, `entrega fallida`). Prueba:
+`scripts/check-failure.mjs` contra un dev server sin modelo (ver su encabezado).
 
 ## Seguimiento automático
 

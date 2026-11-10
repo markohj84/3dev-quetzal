@@ -8,6 +8,7 @@ import { withStart } from '../../../core/engine/prompt';
 import { panelUrl } from '../../panel/links';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
+import { reportFailure } from '../../failure';
 
 // contactId here is Meta's own phone number id, not caller-supplied — safe to key on directly.
 const rateLimiter = createRateLimiter(20, 60);
@@ -78,7 +79,9 @@ export async function POST(request: Request) {
     return null;
   });
   const now = new Date();
-  if (handoff && isTaken(handoff, now)) {
+  // Heard, not answered (the owner has the conversation, or the assistant failed):
+  // the message stays in the log, and in the session for whoever answers next.
+  const keepUnanswered = async () => {
     await createConversationLog(config.id)
       .appendInbound({ channel: 'whatsapp', contactId: inbound.contactId, userText: inbound.text, at: now })
       .catch((error) => console.error(`[${config.id}] conversation log failed`, error));
@@ -88,6 +91,9 @@ export async function POST(request: Request) {
       // withStart: a session born here must still mark its start, or this thread comes back as "earlier".
       .set(inbound.contactId, { ...withStart(state, now), history: [...state.history, { role: 'user', content: inbound.text }] })
       .catch((error) => console.error(`[${config.id}] session append failed`, error));
+  };
+  if (handoff && isTaken(handoff, now)) {
+    await keepUnanswered();
     if (shouldNotify(handoff, now)) {
       const profile = await profiles.get(inbound.contactId).catch(() => null);
       after(() => createLeadNotifier(config.notify, secrets).notify({
@@ -216,6 +222,19 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error(`[${config.id}] whatsapp failed`, error);
+    await keepUnanswered();
+    await reportFailure(
+      { config, secrets },
+      {
+        channel: 'whatsapp',
+        contactId: inbound.contactId,
+        transcript: state.history,
+        reachAt: `https://wa.me/${toMetaRecipient(inbound.contactId)}`,
+        panelUrl: panelUrl(config, inbound.contactId),
+      },
+      inbound.text,
+      error,
+    );
   }
 
   return new Response('ok', { status: 200 });

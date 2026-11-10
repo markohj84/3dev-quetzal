@@ -23,6 +23,8 @@ export interface LeadAlert {
   panelUrl?: string;
   /** Set when the person wrote into a conversation the owner has taken. */
   inbound?: { name: string; text: string };
+  /** Set when the assistant could not answer: the message left unanswered, and why. */
+  failure?: { text: string; error: string };
 }
 
 export interface LeadNotifier {
@@ -57,6 +59,18 @@ export function createLeadNotifier(config: NotifyConfig, secrets: NotifySecrets 
   };
 }
 
+/**
+ * Who hears that the assistant could not answer. With an operator address it
+ * is theirs alone, by email, sent with the client's own key and sender: an
+ * outage is the platform's to fix, not news for the client's flows. Without
+ * one, whoever gets this client's alerts.
+ */
+export function createFailureNotifier(config: NotifyConfig, secrets: NotifySecrets = {}, operatorEmail?: string): LeadNotifier {
+  return operatorEmail
+    ? createLeadNotifier({ email: operatorEmail, fromEmail: config.fromEmail }, { resendApiKey: secrets.resendApiKey })
+    : createLeadNotifier(config, secrets);
+}
+
 /** Resend's plain HTTP API directly; a single POST doesn't need the SDK. */
 async function sendEmail(
   to: string | undefined,
@@ -71,6 +85,21 @@ async function sendEmail(
     return;
   }
 
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from, to: [to], ...emailContent(alert) }),
+  });
+
+  if (!res.ok) {
+    console.error('Resend error', res.status, await res.text());
+  }
+}
+
+export function emailContent(alert: LeadAlert): { subject: string; text: string } {
   const transcript = alert.transcript
     .map((t) => `${t.role === 'user' ? 'Prospecto' : 'Asistente'}: ${t.content}`)
     .join('\n\n');
@@ -100,33 +129,33 @@ async function sendEmail(
       '\n\n---\n\n'
     : '';
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: alert.inbound
-        ? `${alert.inbound.name} te escribió (conversación tomada)`
-        : alert.booking
-          ? `Cita agendada — ${alert.booking.nombre}`
-          : alert.captured
-            ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
-            : `Nuevo interés — canal ${alert.channel}`,
-      // A booking made in the chat does have a conversation behind it.
-      text: alert.inbound
-        ? `${alert.inbound.name}: ${alert.inbound.text}\n\n${alert.panelUrl ? `Contéstale en el panel: ${alert.panelUrl}` : 'Contéstale desde el panel.'}`
-        : (alert.panelUrl ? `Ver en el panel: ${alert.panelUrl}\n\n` : '') +
-          (booking ? [booking, transcript].filter(Boolean).join('\n\n---\n\n') : reach + header + transcript),
-    }),
-  });
+  const panel = alert.panelUrl ? `Ver en el panel: ${alert.panelUrl}\n\n` : '';
 
-  if (!res.ok) {
-    console.error('Resend error', res.status, await res.text());
+  if (alert.failure) {
+    return {
+      subject: `El asistente no pudo contestar — canal ${alert.channel}`,
+      // The unanswered message first: on WhatsApp it is the one someone has to answer by hand.
+      text:
+        panel +
+        reach +
+        `Mensaje sin respuesta: ${alert.failure.text}\n\nError: ${alert.failure.error}` +
+        (transcript ? `\n\n---\n\n${transcript}` : ''),
+    };
   }
+
+  return {
+    subject: alert.inbound
+      ? `${alert.inbound.name} te escribió (conversación tomada)`
+      : alert.booking
+        ? `Cita agendada — ${alert.booking.nombre}`
+        : alert.captured
+          ? `Lead capturado — ${alert.captured.nombre} · canal ${alert.channel}`
+          : `Nuevo interés — canal ${alert.channel}`,
+    // A booking made in the chat does have a conversation behind it.
+    text: alert.inbound
+      ? `${alert.inbound.name}: ${alert.inbound.text}\n\n${alert.panelUrl ? `Contéstale en el panel: ${alert.panelUrl}` : 'Contéstale desde el panel.'}`
+      : panel + (booking ? [booking, transcript].filter(Boolean).join('\n\n---\n\n') : reach + header + transcript),
+  };
 }
 
 /** The four template variables, in order: kind of alert, name, contact, detail. */
@@ -139,6 +168,10 @@ export function whatsAppAlertParams(alert: LeadAlert): string[] {
     const short = clean.length > room ? `${clean.slice(0, room - 1).trimEnd()}…` : clean;
     return `${short} ${alert.panelUrl}`.trim();
   };
+  if (alert.failure) {
+    const contact = alert.reachAt ?? `sin contacto (llegó por ${alert.channel})`;
+    return ['el asistente no pudo contestar', 'sin nombre', contact, withLink(alert.failure.text)].map(templateParam);
+  }
   if (alert.inbound) {
     return ['te escribió (conversación tomada)', alert.inbound.name, alert.reachAt ?? '—', withLink(alert.inbound.text)].map(templateParam);
   }
@@ -162,7 +195,8 @@ async function sendWhatsApp(config: NotifyConfig['whatsapp'], alert: LeadAlert, 
 }
 
 /** The same order the email subject uses: the most specific thing that happened wins. */
-export function alertEvent(alert: LeadAlert): 'inbound' | 'booking' | 'lead' | 'interest' {
+export function alertEvent(alert: LeadAlert): 'failure' | 'inbound' | 'booking' | 'lead' | 'interest' {
+  if (alert.failure) return 'failure';
   if (alert.inbound) return 'inbound';
   if (alert.booking) return 'booking';
   if (alert.captured) return 'lead';
@@ -181,6 +215,7 @@ async function sendWebhook(alert: LeadAlert, webhook: NotifySecrets['webhook']):
     lead: alert.captured ?? null,
     booking: alert.booking ?? null,
     inbound: alert.inbound ?? null,
+    failure: alert.failure ?? null,
     reachAt: alert.reachAt ?? null,
     panelUrl: alert.panelUrl ?? null,
     transcript: alert.transcript,
@@ -266,6 +301,62 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(alertEvent({ channel: 'calendly', contactId: 'x', transcript: [], captured: { nombre: 'A', contacto: 'a' }, booking: { nombre: 'A' } }), 'booking');
   assert.equal(alertEvent({ channel: 'whatsapp', contactId: 'x', transcript, booking: { nombre: 'A' }, inbound: { name: 'A', text: 'hola' } }), 'inbound');
 
+  // The assistant could not answer: whoever operates it hears about it, with the message that went unanswered.
+  const failure = { text: '¿Tienen cita mañana?', error: '400 Your credit balance is too low' };
+  const reach = 'https://wa.me/522225551234';
+  assert.equal(
+    alertEvent({ channel: 'whatsapp', contactId: 'x', transcript, failure, inbound: { name: 'A', text: 'hola' } }),
+    'failure',
+    'que el asistente no contestó gana sobre todo lo demás',
+  );
+  assert.deepEqual(
+    whatsAppAlertParams({ channel: 'whatsapp', contactId: '5212225551234', transcript, reachAt: reach, failure }),
+    ['el asistente no pudo contestar', 'sin nombre', reach, '¿Tienen cita mañana?'],
+  );
+  const failed = emailContent({ channel: 'whatsapp', contactId: '5212225551234', transcript, reachAt: reach, panelUrl: panel, failure });
+  assert.equal(failed.subject, 'El asistente no pudo contestar — canal whatsapp');
+  assert.ok(failed.text.includes('¿Tienen cita mañana?'), 'el mensaje que se quedó sin respuesta');
+  assert.ok(failed.text.includes('credit balance is too low'), 'y por qué falló');
+  assert.ok(failed.text.includes(panel) && failed.text.includes(reach), 'y dónde contestarle a la persona');
+  assert.ok(failed.text.includes('Prospecto: Quiero un sitio'), 'con lo que se había hablado antes');
+
+  // The alerts that already existed read the same as before.
+  assert.equal(emailContent({ channel: 'web', contactId: 'x', transcript }).subject, 'Nuevo interés — canal web');
+  assert.deepEqual(
+    emailContent({ channel: 'web', contactId: 'x', transcript, captured: { nombre: 'Ana', contacto: 'ana@x.mx', necesidad: 'web' } }),
+    {
+      subject: 'Lead capturado — Ana · canal web',
+      text: 'Nombre: Ana\nContacto: ana@x.mx\nNecesidad: web\n\n---\n\nProspecto: Quiero un sitio\npara mi   taller\n\nAsistente: ¿Qué tipo de taller?',
+    },
+  );
+  assert.deepEqual(
+    emailContent({ channel: 'whatsapp', contactId: 'x', transcript, reachAt: reach, panelUrl: panel }),
+    {
+      subject: 'Nuevo interés — canal whatsapp',
+      text: `Ver en el panel: ${panel}\n\nContactar por whatsapp: ${reach}\n\nProspecto: Quiero un sitio\npara mi   taller\n\nAsistente: ¿Qué tipo de taller?`,
+    },
+  );
+  assert.deepEqual(
+    emailContent({ channel: 'web', contactId: 'x', transcript, booking: { nombre: 'Luis', email: 'l@x.mx', inicia: 'jueves 10:00' } }),
+    {
+      subject: 'Cita agendada — Luis',
+      text: 'Nombre: Luis\nCorreo: l@x.mx\nCuándo: jueves 10:00\n\n---\n\nProspecto: Quiero un sitio\npara mi   taller\n\nAsistente: ¿Qué tipo de taller?',
+    },
+  );
+  assert.deepEqual(
+    emailContent({ channel: 'whatsapp', contactId: 'x', transcript: [], panelUrl: panel, inbound: { name: 'Ana', text: '¿Sigues ahí?' } }),
+    { subject: 'Ana te escribió (conversación tomada)', text: `Ana: ¿Sigues ahí?\n\nContéstale en el panel: ${panel}` },
+  );
+
+  await createFailureNotifier(off, { webhook: { url, clientId: 'acme' } }).notify({ channel: 'web', contactId: 'x', transcript, failure });
+  assert.equal(received.length, 1, 'sin operador, el aviso sale por los canales del cliente');
+  const failureEvent = JSON.parse(received[0].body);
+  assert.equal(failureEvent.event, 'failure');
+  assert.deepEqual(failureEvent.failure, failure);
+  await createFailureNotifier(off, { webhook: { url, clientId: 'acme' } }, 'operador@plataforma.example').notify({ channel: 'web', contactId: 'x', transcript, failure });
+  assert.equal(received.length, 1, 'con operador, el aviso es solo suyo: no llega al flujo del cliente');
+  received.length = 0;
+
   await createLeadNotifier(off, { webhook: { url, secret: 's3cr3t', clientId: 'acme' } }).notify({
     channel: 'whatsapp', contactId: '5212225551234', transcript, reachAt: '522225551234',
     captured: { nombre: 'Ana', contacto: '222 555 1234', necesidad: 'limpieza' },
@@ -280,6 +371,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.deepEqual(sent.lead, { nombre: 'Ana', contacto: '222 555 1234', necesidad: 'limpieza' });
   assert.equal(sent.booking, null, 'lo ausente va como null');
   assert.equal(sent.inbound, null);
+  assert.equal(sent.failure, null);
   assert.equal(sent.panelUrl, null);
   assert.equal(sent.reachAt, '522225551234');
   assert.deepEqual(sent.transcript, transcript);

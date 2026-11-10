@@ -145,6 +145,10 @@ de proyecto de la sección 5:
 5. `node --env-file=.env.local scripts/panel-user.mjs add <correo> <id>` para el panel.
 6. Los evals del cliente (un dev server por cliente con `CLIENT=<carpeta>`) y
    `scripts/check-tenants.mjs` con `MULTI_TENANT=1`.
+7. Si es el primer cliente que no es de 3dev: `ALERT_EMAIL` (sin prefijo) en el
+   proyecto, con el correo de quien opera la plataforma. Sin ella, cuando el
+   asistente no puede contestar el aviso le llega al dueño del negocio y no a
+   3dev ("Alerta de falla" en `CLAUDE.md`).
 
 ---
 
@@ -167,7 +171,9 @@ Atajo: importa `docs/n8n-eventos.json` (pasos 1–3 ya armados), cambia el
    Probado contra n8n 2.38 con acentos, emoji, saltos de línea y ` `, y
    con los eventos reales de `npm run eval:3dev`.
 3. Un **Switch** por `event` (`interest`, `lead`, `booking`, `inbound`) y, en
-   cada rama, la automatización del cliente (CRM, hoja, aviso interno).
+   cada rama, la automatización del cliente (CRM, hoja, aviso interno). Hay un
+   quinto evento, `failure` (el asistente no pudo contestar): sin `ALERT_EMAIL`
+   en el proyecto también llega aquí; lo que no tenga rama se descarta.
 4. Agrega n8n (y cada sistema al que el flujo mande los datos) a la lista de
    proveedores de `clients/<cliente>/privacidad.tsx`: el evento lleva la
    transcripción y los datos de contacto.

@@ -62,6 +62,9 @@ hoja, correo, WhatsApp interno).
   `alert.inbound`; ausentes van como `null`. `reachAt` y `panelUrl` igual.
 - `at` es la hora del envío.
 - `clientId` deja a un solo n8n atender a varios clientes.
+- Desde el 2026-11-09 hay un quinto evento, `failure` (el asistente no pudo
+  contestar), primero en la precedencia, con `failure: { text, error }`
+  (`null` en los demás). Ver "Alerta de falla" en `CLAUDE.md`.
 
 ## Piezas
 

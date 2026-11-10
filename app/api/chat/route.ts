@@ -6,6 +6,7 @@ import { createConversationLog, createLeadStore, createFollowUpStore, createUsag
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
 import { panelUrl } from '../../panel/links';
+import { reportFailure } from '../../failure';
 
 const adapter = createWebAdapter();
 // Keyed by IP, not sessionId: the widget mints a fresh sessionId per page load,
@@ -104,6 +105,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error(`[${config.id}] chat failed`, error);
+    // What the person asked still happened: it stays in the log, and someone is told.
+    await createConversationLog(config.id)
+      .appendInbound({ channel: 'web', contactId: inbound.contactId, userText: inbound.text, at: new Date() })
+      .catch((logError) => console.error(`[${config.id}] conversation log failed`, logError));
+    await reportFailure(
+      assistant,
+      { channel: 'web', contactId: inbound.contactId, transcript: state.history, panelUrl: panelUrl(config, inbound.contactId) },
+      inbound.text,
+      error,
+    );
     return NextResponse.json({ error: 'assistant unavailable' }, { status: 502 });
   }
 }
