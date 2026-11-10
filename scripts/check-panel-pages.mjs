@@ -91,7 +91,9 @@ try {
   assert.ok([302, 303, 307].includes(r.status), `RSC sin sesión debe redirigir, respondió ${r.status}`);
   r = await get('/panel/entrar');
   assert.equal(r.status, 200);
+  assert.equal(r.headers.get('x-frame-options'), 'DENY', 'el panel no se deja enmarcar desde otro sitio');
   assert.match(await r.text(), /Enviarme un código/);
+  assert.equal((await get('/widget')).headers.get('x-frame-options'), null, 'el chat sí: se incrusta en el sitio del cliente');
 
   // The form must take the whole code Supabase sends, whatever length the project is set to.
   const otpLength = (await must(admin.auth.admin.generateLink({ type: 'magiclink', email: OWNER }))).properties.email_otp.length;

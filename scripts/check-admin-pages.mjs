@@ -52,6 +52,7 @@ try {
   assert.ok([302, 303, 307].includes(r.status), `RSC sin sesión debe redirigir, respondió ${r.status}`);
   r = await get('/admin/entrar');
   assert.equal(r.status, 200);
+  assert.equal(r.headers.get('x-frame-options'), 'DENY', 'la administración no se deja enmarcar desde otro sitio');
   assert.match(await r.text(), /Administración de 3dev/);
 
   // Un dueño de cliente no es admin: ni la página ni el RSC dan cifras.
