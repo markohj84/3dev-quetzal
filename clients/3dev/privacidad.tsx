@@ -6,9 +6,9 @@ export const metadata: Metadata = {
     'Cómo 3dev recopila, usa y protege los datos personales en Quetzal, su asistente por web y WhatsApp.',
 };
 
-// TODO antes de publicar: revisa los campos marcados con [ ] y valida el texto
-// con tu asesor legal. Esto es una plantilla basada en la LFPDPPP (México).
-const ACTUALIZADO = '26 de septiembre de 2026';
+// Basado en la LFPDPPP (México); falta validarlo con asesor legal. Al cambiar
+// el texto, cambia también esta fecha: la sección 8 promete publicarla.
+const ACTUALIZADO = '21 de octubre de 2026';
 const CONTACTO = 'contacto@3dev.mx';
 
 export default function PrivacidadPage() {

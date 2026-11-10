@@ -6,9 +6,9 @@ export const metadata: Metadata = {
     'Cómo 3dev trata los datos personales que dejas en el demo de Clínica Dental Nogal.',
 };
 
-// TODO antes de publicar: revisa los campos marcados con [ ] y valida el texto
-// con tu asesor legal. Esto es una plantilla basada en la LFPDPPP (México).
-const ACTUALIZADO = '26 de septiembre de 2026';
+// Basado en la LFPDPPP (México); falta validarlo con asesor legal. Al cambiar
+// el texto, cambia también esta fecha: el aviso promete publicarla.
+const ACTUALIZADO = '19 de octubre de 2026';
 const CONTACTO = 'contacto@3dev.mx';
 
 export default function PrivacidadPage() {

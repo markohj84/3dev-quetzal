@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 // PLANTILLA: cambia todo lo que está entre [corchetes], ajusta la lista de
 // proveedores a los que use este cliente y valida el texto con su asesor legal. Esto es una plantilla basada en la LFPDPPP (México).
-const ACTUALIZADO = '26 de septiembre de 2026';
+const ACTUALIZADO = '[fecha en que se publica]';
 const CONTACTO = '[correo para privacidad]';
 
 export default function PrivacidadPage() {
