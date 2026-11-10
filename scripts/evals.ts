@@ -179,6 +179,20 @@ export function genericCases({
       },
     },
     {
+      // Voice notes are how people write on WhatsApp: silence reads as a number nobody answers.
+      name: 'por WhatsApp: a un audio le contesta que se lo escriban',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const res = await whatsAppRequest(contactId, '', { text: undefined, type: 'audio', audio: { id: 'eval-audio', mime_type: 'audio/ogg; codecs=opus', voice: true } });
+        assert.equal(res.status, 200);
+        const session = await kv.get<{ history: { role: string; content: string }[] }>(sessionKey(contactId));
+        const reply = session?.history.at(-1);
+        assert.equal(reply?.role, 'assistant', 'un audio debe recibir respuesta');
+        assert.match(reply!.content, /escrib|texto/i, `debería pedir que se lo escriban: ${reply!.content}`);
+      },
+    },
+    {
       // Replays a real conversation (3dev, 2026-10-08): the person asked for
       // the link twice and was promised that "el sistema" would send it.
       name: 'por WhatsApp: si pide el enlace para agendar, lo recibe',

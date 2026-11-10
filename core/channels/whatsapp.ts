@@ -74,7 +74,8 @@ export function createWhatsAppAdapter(opts: {
       const text =
         msg.text?.body ??
         msg.interactive?.button_reply?.title ??
-        msg.interactive?.list_reply?.title;
+        msg.interactive?.list_reply?.title ??
+        mediaNote(msg);
       if (!text) return null;
 
       return {
@@ -130,6 +131,31 @@ export function createWhatsAppAdapter(opts: {
       }
     },
   };
+}
+
+// A sticker or a reaction is a gesture, and silence is the right answer to it: neither is here.
+const MEDIA: Record<string, string> = {
+  audio: 'un audio',
+  image: 'una imagen',
+  video: 'un video',
+  document: 'un documento',
+  location: 'su ubicación',
+  contacts: 'un contacto',
+};
+
+/**
+ * Voice notes and photos are how people write here, and the assistant only
+ * reads text. Rather than leave them unanswered, the turn says what arrived:
+ * the reply is still the assistant's, in its own voice, and the owner reads
+ * the same line in the transcript. A caption is the person's own words.
+ */
+function mediaNote(msg: any): string | undefined {
+  const kind = Object.keys(MEDIA).find((k) => msg[k]);
+  if (!kind) return undefined;
+  const caption = typeof msg[kind].caption === 'string' ? msg[kind].caption.trim() : '';
+  return caption
+    ? `${caption}\n\n[Con este mensaje envió ${MEDIA[kind]}. El asistente solo lee texto.]`
+    : `[Envió ${MEDIA[kind]}. El asistente solo lee texto: hay que pedirle que lo escriba.]`;
 }
 
 /** Strips markup the channel cannot render rather than showing it raw. */
@@ -260,7 +286,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   );
 
   assert.equal(adapter.parse({ entry: [{ changes: [{ value: { statuses: [{}] } }] }] }), null, 'un acuse no es mensaje');
-  assert.equal(adapter.parse(inbound({ from: '52', image: {}, timestamp: '1' })), null, 'una imagen sin texto no es turno');
+  // Voice notes and photos are how people write on WhatsApp: a turn the assistant answers, not silence.
+  const audio = adapter.parse(inbound({ from: '52', type: 'audio', audio: { id: 'a1', voice: true }, timestamp: '1' }));
+  assert.match(audio?.text ?? '', /^\[Envió un audio\. /, 'un audio es un turno: el asistente contesta que solo lee texto');
+  const foto = adapter.parse(inbound({ from: '52', type: 'image', image: { id: 'i1', caption: '¿Tienen este modelo?' }, timestamp: '1' }));
+  assert.ok(foto?.text.startsWith('¿Tienen este modelo?'), 'el pie de foto es lo que la persona escribió');
+  assert.match(foto?.text ?? '', /envió una imagen/, 'y se dice que venía con una imagen');
+  assert.equal(adapter.parse(inbound({ from: '52', type: 'sticker', sticker: { id: 's1' }, timestamp: '1' })), null, 'un sticker es un gesto: no pide respuesta');
+  assert.equal(adapter.parse(inbound({ from: '52', type: 'reaction', reaction: { emoji: '👍' }, timestamp: '1' })), null, 'una reacción tampoco');
   assert.equal(adapter.parse(null), null);
 
   // Otro número de la misma app: no es nuestro turno. Si contestáramos, la

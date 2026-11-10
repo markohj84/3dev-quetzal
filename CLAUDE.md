@@ -249,6 +249,16 @@ más tarde y lo encuentre atendido, o lo atienda si aquella entrega murió (la
 marca "en curso" vence a los 5 min; la de "atendido", a las 24 h). Sin esto,
 una respuesta lenta salía dos veces, con su lead y su aviso duplicados.
 
+## Audios y fotos por WhatsApp
+
+El asistente solo lee texto. Un audio, imagen, video, documento, ubicación o
+contacto llega al motor como un turno que dice qué se envió (`mediaNote`,
+`core/channels/whatsapp.ts`; el pie de una foto va como texto de la persona),
+y el asistente contesta, en su voz, que se lo escriban. Esa misma línea es la
+que el dueño lee en la transcripción. Stickers y reacciones se ignoran: son un
+gesto, no una pregunta. No hay transcripción de audio ni lectura de imágenes:
+no venderlo.
+
 ## Seguimiento automático
 
 Un cron diario (`vercel.json`, 16:00 UTC = 10:00 en México) llama
