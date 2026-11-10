@@ -223,8 +223,9 @@ medida de la Oferta 2 se arman en n8n sobre estos eventos, sin tocar este repo.
 
 ## Alerta de falla
 
-Cuando el asistente no puede contestar (`respond()` truena: modelo caído,
-saldo agotado, Redis), la ruta ya no se queda solo con un log. Guarda el
+Cuando el asistente no puede contestar (`respond()` truena: modelo caído o
+saldo agotado; o la sesión no se pudo guardar), la ruta ya no se queda solo
+con un log. Guarda el
 mensaje de la persona sin respuesta (`appendInbound`; en WhatsApp también en
 la sesión, como en una conversación tomada) y avisa con `reportFailure`
 (`app/failure.ts`): evento `failure` con el mensaje y el error, a lo más **uno
