@@ -297,6 +297,13 @@ reintentos, y las rutas tratan sus fallas como no fatales: una base caída
 cuesta una línea de log, nunca la respuesta ni el aviso. Pruebas contra la base real:
 `scripts/check-purge.mjs` y `scripts/check-db.mjs`.
 
+Cuando alguien pide que se borren sus datos (el aviso de privacidad lo
+promete): `node --env-file=.env.local scripts/forget-contact.mjs <clientId>
+<contactId>` cuenta lo que hay de esa persona en ese cliente y, con `--borrar`,
+lo borra: contacto, mensajes, leads, uso, marcas de seguimiento y la sesión.
+No alcanza su cita en Cal.com, los correos de aviso ya enviados ni lo que un
+flujo de n8n haya copiado. Prueba: `scripts/check-forget.mjs`.
+
 `npm run report:3dev -- [días]` (default 7) resume el uso real: personas,
 mensajes, leads, citas (de Cal.com), seguimientos. Excluye `eval-*` y los
 números de `REPORT_EXCLUDE` en `.env.local` (el del dueño).
