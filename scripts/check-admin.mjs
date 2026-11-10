@@ -7,13 +7,13 @@ const URL_ = process.env.SUPABASE_URL;
 const admin = createClient(URL_, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const anonClient = () => createClient(URL_, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const must = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
-const A = 'eval-adm-a', B = 'eval-adm-b';
+const A = 'eval-adm-a', B = 'eval-adm-b', C = 'eval-adm-c';
 const E = { admin: 'eval-adm-root@3dev.test', owner: 'eval-adm-owner@3dev.test' };
 
 const userId = async (email) => (await admin.auth.admin.listUsers({ perPage: 1000 })).data.users.find((u) => u.email === email)?.id;
 async function cleanup() {
   for (const email of Object.values(E)) { const id = await userId(email); if (id) await admin.auth.admin.deleteUser(id); }
-  for (const c of [A, B]) {
+  for (const c of [A, B, C]) {
     await must(admin.from('usage').delete().eq('client_id', c));
     await must(admin.from('handoffs').delete().eq('client_id', c));
     await must(admin.from('follow_ups').delete().eq('client_id', c));
@@ -83,6 +83,26 @@ try {
   assert.deepEqual([ta[0].replies, ta[0].input_tokens, ta[0].output_tokens, ta[0].cache_read_tokens, ta[0].cache_write_tokens].map(Number), [2, 1500, 300, 5000, 2000], 'suma sin eval* ni lo viejo');
   assert.equal((await must(asAdmin.rpc('admin_tokens', { days: 90 }))).find((t) => t.client_id === A).input_tokens > 1500, true, 'a 90 días entra lo de hace 40');
 
+  // People per calendar month, cut in Mexico City time (UTC−6, no daylight saving since 2022):
+  // half an hour either side of the month's first midnight there is the same month in UTC.
+  const mx = new Date(Date.now() - 6 * 3600_000);
+  const monthStart = Date.UTC(mx.getUTCFullYear(), mx.getUTCMonth(), 1) + 6 * 3600_000;
+  const before = new Date(monthStart - 30 * 60_000).toISOString(), after = new Date(monthStart + 30 * 60_000).toISOString();
+  await must(admin.from('contacts').insert(['adm-m1', 'adm-m2', 'adm-m3', 'eval-m4'].map((id) => ({ client_id: C, contact_id: id, channel: 'web', left_contact: false }))));
+  await must(admin.from('messages').insert([
+    { client_id: C, contact_id: 'adm-m1', role: 'user', content: 'este mes', at: after },
+    { client_id: C, contact_id: 'adm-m1', role: 'user', content: 'otra vez', at: after },
+    { client_id: C, contact_id: 'adm-m2', role: 'user', content: 'el mes pasado', at: before },
+    { client_id: C, contact_id: 'adm-m3', role: 'user', content: 'los dos meses', at: before },
+    { client_id: C, contact_id: 'adm-m3', role: 'user', content: 'los dos meses', at: after },
+    { client_id: C, contact_id: 'adm-m2', role: 'assistant', content: 'una respuesta no es una persona', at: after },
+    { client_id: C, contact_id: 'eval-m4', role: 'user', content: 'ruido', at: after },
+  ]));
+  const month = async (sb, monthsAgo) => (await must(sb.rpc('admin_people_month', { months_ago: monthsAgo }))).find((r) => r.client_id === C);
+  assert.equal(Number((await month(asAdmin, 0)).people), 2, 'este mes: m1 y m3, una vez cada quien, sin eval* ni respuestas');
+  assert.equal(Number((await month(asAdmin, 1)).people), 2, 'el mes pasado: m2 y m3 (media hora antes de la medianoche de México)');
+  assert.equal(await month(asAdmin, 2), undefined, 'hace dos meses no escribió nadie');
+
   // Everyone else gets nothing.
   const asOwner = await signedIn(E.owner);
   const ownerRows = await must(asOwner.rpc('admin_usage', { days: 7 }));
@@ -90,6 +110,8 @@ try {
   assert.ok((await anonClient().rpc('admin_usage', { days: 7 })).error, 'sin sesión no se puede ejecutar');
   assert.equal((await must(asOwner.rpc('admin_tokens', { days: 90 }))).length, 0, 'un dueño de cliente no ve los tokens de nadie');
   assert.ok((await anonClient().rpc('admin_tokens', { days: 7 })).error, 'sin sesión no se pueden leer los tokens');
+  assert.equal((await must(asOwner.rpc('admin_people_month', { months_ago: 0 }))).length, 0, 'un dueño de cliente no ve el mes de nadie');
+  assert.ok((await anonClient().rpc('admin_people_month', { months_ago: 0 })).error, 'sin sesión no se puede leer el mes');
   assert.ok((await anonClient().from('usage').select('id')).data?.length === 0 || (await anonClient().from('usage').select('id')).error, 'la tabla usage no se lee con la llave pública');
   assert.deepEqual(await must(asOwner.from('platform_admins').select('user_id')), [], 'nadie lee la lista de admins que no es la suya');
   assert.equal((await must(asAdmin.from('platform_admins').select('user_id'))).length, 1, 'el admin se ve a sí mismo');

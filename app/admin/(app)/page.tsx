@@ -1,7 +1,8 @@
 import { requireAdmin } from '../access';
-import { activity, sinceLabel } from '../shape';
+import { activity, monthUsage, sinceLabel } from '../shape';
 import { parseDays } from '../../panel/shape';
 import { clientCost, type TokenRow } from '../pricing';
+import { listTenants } from '../../assistant';
 
 interface UsageRow {
   client_id: string;
@@ -27,6 +28,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     list.push({ model: String(t.model), input: Number(t.input_tokens), output: Number(t.output_tokens), cacheRead: Number(t.cache_read_tokens), cacheWrite: Number(t.cache_write_tokens) });
     tokensByClient.set(String(t.client_id), list);
   }
+  // Plans are sold by the calendar month, which the period above (a rolling window) cannot answer.
+  const monthPeople = async (monthsAgo: number) => {
+    const { data: monthData, error: monthError } = await sb.rpc('admin_people_month', { months_ago: monthsAgo });
+    if (monthError) throw monthError;
+    return new Map(((monthData ?? []) as { client_id: string; people: number }[]).map((m) => [m.client_id, Number(m.people)]));
+  };
+  const [thisMonth, lastMonth] = await Promise.all([monthPeople(0), monthPeople(1)]);
+  // The plan lives in the client's config: a client this deploy does not serve shows the bare count.
+  const limits = new Map((await listTenants()).map((t) => [t.config.id, t.config.plan?.conversationsPerMonth]));
   const money = (usd: number | null, tokens: number) => (tokens === 0 ? '—' : usd === null ? `${Math.round(tokens / 1000)}k tokens (sin precio)` : `US$${usd.toFixed(usd < 1 ? 3 : 2)}`);
   const now = new Date();
   const total = (key: 'people' | 'messages' | 'leads' | 'follow_ups') => rows.reduce((sum, r) => sum + Number(r[key]), 0);
@@ -62,6 +72,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   {Number(r.taken_now) > 0 && <span className="on"> · {r.taken_now} tomada(s) ahora</span>}
                   <span className={state === 'activo' ? 'on' : undefined}> · {state}</span>
                 </div>
+                <div className="tags">
+                  Personas este mes: {monthUsage(thisMonth.get(r.client_id) ?? 0, limits.get(r.client_id))} · mes pasado:{' '}
+                  {monthUsage(lastMonth.get(r.client_id) ?? 0, limits.get(r.client_id))}
+                </div>
               </li>
             );
           })}
@@ -70,6 +84,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <p className="sub">
         Solo agregados: aquí no se ven conversaciones ni datos de contacto. El costo es solo el de los modelos de
         Anthropic y existe desde que se empezó a registrar; no incluye plantillas de WhatsApp, Supabase ni Vercel.
+        Las personas por mes van por mes calendario (hora de México) contra lo que incluye el plan del cliente; pasado
+        el plan el asistente sigue contestando y el excedente se cobra por bloques.
       </p>
     </>
   );

@@ -56,5 +56,8 @@ export default AssistantConfig.parse({
       'promociones vigentes de la clínica y productos de higiene dental a la venta, con su precio y existencias',
   },
 
+  // Lo que incluye Quetzal / Local: así se ve en /admin un cliente con plan.
+  plan: { conversationsPerMonth: 300 },
+
   outOfScope: ['Diagnósticos y recetas', 'Temas de conocimiento general'],
 });

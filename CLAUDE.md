@@ -354,8 +354,17 @@ línea de log), `admin_tokens(days)` la agrega por cliente y modelo (solo
 `platform_admins`) y `app/admin/pricing.ts` la convierte a dólares: **agregar
 ahí el precio de cada modelo nuevo**, o el panel muestra tokens "sin precio".
 El costo existe desde el día del deploy y es solo el de Anthropic (sin
-plantillas de WhatsApp, Supabase ni Vercel). Fuera de la v1: citas (viven en
+plantillas de WhatsApp, Supabase ni Vercel). **Plan por mes**: la oferta se
+vende por personas al mes y el excedente por bloques, y el periodo de arriba
+es una ventana móvil. `admin_people_month(months_ago)` cuenta las personas
+distintas que escribieron en un mes calendario (hora de México; solo
+`platform_admins`) y `/admin` muestra este mes y el pasado contra
+`plan.conversationsPerMonth` de la config del cliente, con los bloques extra
+(`monthUsage`, `app/admin/shape.ts`); un cliente sin `plan` muestra solo la
+cuenta. Nunca corta el servicio: pasado el plan el asistente sigue contestando
+y el excedente se cobra a mano. Fuera de la v1: citas (viven en
 Cal.com con la llave de cada cliente) y detalle por cliente.
+
 ## Hoja de ruta (visión del modelo de negocio, no estado actual)
 
 La oferta activa de 3dev tiene dos líneas: paquetes de sitio web (Web

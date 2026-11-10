@@ -1,5 +1,5 @@
 // /admin contra el dev server, con sesión real y sin mandar correos.
-//   npm run dev                                  # cualquier cliente
+//   npm run dev                                  # cualquier cliente; con MULTI_TENANT=1 revisa además el plan del demo
 //   node --env-file=.env.local scripts/check-admin-pages.mjs
 import assert from 'node:assert';
 import { createClient } from '@supabase/supabase-js';
@@ -39,6 +39,12 @@ try {
 
   await must(admin.from('usage').insert({ client_id: C, contact_id: 'admpg-1', model: 'claude-haiku-5-5', input_tokens: 1_000_000, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 }));
 
+  // Two more people on the 15th of last month, Mexico City time (UTC−6): out of the 7 days, in last month's count.
+  const mx = new Date(Date.now() - 6 * 3600_000);
+  const lastMonth = new Date(Date.UTC(mx.getUTCFullYear(), mx.getUTCMonth() - 1, 15, 18)).toISOString();
+  await must(admin.from('contacts').insert(['admpg-2', 'admpg-3'].map((id) => ({ client_id: C, contact_id: id, channel: 'web', left_contact: false }))));
+  await must(admin.from('messages').insert(['admpg-2', 'admpg-3'].map((id) => ({ client_id: C, contact_id: id, role: 'user', content: 'x', at: lastMonth }))));
+
   // Sin sesión: a entrar, también por petición RSC; nunca cifras.
   let r = await get('/admin');
   assert.ok([302, 303, 307].includes(r.status) && r.headers.get('location')?.includes('/admin/entrar'), `sin sesión: ${r.status}`);
@@ -65,6 +71,11 @@ try {
   assert.doesNotMatch(page, /secreto-de-la-conversacion/, 'solo agregados');
   assert.match(page, /costo US\$0\.100/, 'el costo sale del uso guardado y la tabla de precios');
   assert.match(page, /US\$0\.100 por persona/);
+  assert.match(page, /Personas este mes: 1 · mes pasado: 2/, 'el mes calendario se cuenta aparte del periodo');
+  // A client with a plan is measured against it. Only when this dev server also serves the demo.
+  const servesDemo = /Nogal/i.test(await (await fetch(`${BASE}/widget`, { headers: { 'x-forwarded-host': 'demo.3dev.mx' } })).text());
+  if (servesDemo) assert.match(page, /Personas este mes: \d+ de 300/, 'el demo trae plan de 300');
+  else console.log('plan del demo: saltado (este dev server no atiende demo.3dev.mx)');
   console.log('check-admin-pages: passed');
 } finally {
   await cleanup();

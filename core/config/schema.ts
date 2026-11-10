@@ -117,6 +117,16 @@ export const CatalogConfig = z.object({
   maxRows: z.number().int().positive().default(300),
 });
 
+/**
+ * What the client's plan includes each month. Never enforced: past it the
+ * assistant keeps answering and the excess is billed, so this only tells the
+ * operator's panel what to measure the month against.
+ */
+export const PlanConfig = z.object({
+  /** People who may write in a calendar month before the excess is billed. */
+  conversationsPerMonth: z.number().int().positive(),
+});
+
 export const AssistantConfig = z.object({
   /** Slug used for storage keys and logs. */
   id: z.string().regex(/^[a-z0-9-]+$/),
@@ -139,6 +149,7 @@ export const AssistantConfig = z.object({
   notify: NotifyConfig.default({}),
   followUp: FollowUpConfig.optional(),
   catalog: CatalogConfig.optional(),
+  plan: PlanConfig.optional(),
 
   /**
    * Topics the assistant must decline. Declarative on purpose — never
@@ -151,3 +162,19 @@ export type AssistantConfig = z.infer<typeof AssistantConfig>;
 export type SchedulingConfig = z.infer<typeof SchedulingConfig>;
 export type NotifyConfig = z.infer<typeof NotifyConfig>;
 export type CatalogConfig = z.infer<typeof CatalogConfig>;
+
+// Self-check: `node core/config/schema.ts`
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const assert = (await import('node:assert')).default;
+  const base = {
+    id: 'acme',
+    name: 'Asistente',
+    organization: 'Acme',
+    scheduling: { provider: 'none' },
+    channels: { web: {}, whatsapp: {} },
+  };
+  assert.equal(AssistantConfig.parse(base).plan, undefined, 'un cliente sin plan no tiene tope que medir');
+  assert.equal(AssistantConfig.parse({ ...base, plan: { conversationsPerMonth: 300 } }).plan?.conversationsPerMonth, 300);
+  assert.throws(() => AssistantConfig.parse({ ...base, plan: { conversationsPerMonth: 0 } }), 'un plan de cero no es un plan');
+  console.log('schema.ts self-check passed');
+}

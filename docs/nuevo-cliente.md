@@ -33,7 +33,7 @@ Llena todo lo que está entre `[corchetes]` o marcado `TODO` en:
 
 | Archivo | Qué cambia |
 |---|---|
-| `assistant.config.ts` | `id` único, nombre, Cal.com, burbujas de inicio, correo de avisos, texto del seguimiento |
+| `assistant.config.ts` | `id` único, nombre, Cal.com, burbujas de inicio, correo de avisos, texto del seguimiento, `plan` (personas al mes que incluye lo que contrató; `/admin` mide el mes contra eso) |
 | `voice.md` | Identidad, tono, ejemplos, frase exacta para invitar a agendar. Va **literal** al prompt: borra los comentarios de plantilla |
 | `knowledge/*.md` | Lo único que el asistente puede afirmar. Escrito a mano con el dueño |
 | `widget.html` | Nombre, saludo y colores del chat del sitio: los mismos 4 colores de `home.html` |

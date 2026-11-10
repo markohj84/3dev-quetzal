@@ -66,6 +66,10 @@ export default AssistantConfig.parse({
     countryCode: '52',
   },
 
+  // TODO: personas al mes que incluye su plan (Oferta 1: 300). /admin mide cada mes contra esto;
+  // pasado el plan el asistente sigue contestando y el excedente se cobra.
+  plan: { conversationsPerMonth: 300 },
+
   // TODO: temas que el asistente debe declinar.
   outOfScope: ['Temas de conocimiento general', 'Asesoría ajena al negocio'],
 });

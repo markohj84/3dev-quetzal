@@ -20,6 +20,17 @@ export function sinceLabel(lastAt: string | null, now: Date): string {
   return `hace ${days} ${days === 1 ? 'día' : 'días'}`;
 }
 
+/**
+ * People who wrote in a calendar month against what the client's plan
+ * includes. Past it the assistant keeps answering and the excess is billed in
+ * blocks the size of the plan: one person over already opens a block.
+ */
+export function monthUsage(people: number, limit?: number): string {
+  if (!limit) return String(people);
+  const blocks = Math.max(0, Math.ceil((people - limit) / limit));
+  return `${people} de ${limit}` + (blocks ? ` (${blocks} ${blocks === 1 ? 'bloque' : 'bloques'} extra)` : '');
+}
+
 // Self-check: `node app/admin/shape.ts`
 if (import.meta.url === `file://${process.argv[1]}`) {
   const now = new Date('2026-10-24T12:00:00Z');
@@ -36,5 +47,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(sinceLabel(ago(5), now), 'hace 5 h');
   assert.equal(sinceLabel(ago(24 * 3), now), 'hace 3 días');
   assert.equal(sinceLabel(ago(24), now), 'hace 1 día');
+
+  assert.equal(monthUsage(12), '12', 'sin plan, solo la cuenta');
+  assert.equal(monthUsage(12, 300), '12 de 300');
+  assert.equal(monthUsage(300, 300), '300 de 300', 'justo el plan no es excedente');
+  assert.equal(monthUsage(301, 300), '301 de 300 (1 bloque extra)', 'una persona de más ya abre un bloque');
+  assert.equal(monthUsage(600, 300), '600 de 300 (1 bloque extra)');
+  assert.equal(monthUsage(601, 300), '601 de 300 (2 bloques extra)');
   console.log('admin/shape.ts self-check passed');
 }
