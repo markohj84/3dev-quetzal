@@ -15,6 +15,9 @@ export interface InboundMessage {
   /** The name the platform shows for this person, if any. Self-chosen:
    * it can be a nickname, an emoji or a business name. */
   displayName?: string;
+  /** The platform's own id for this message, when it gives one: what tells
+   * a second delivery of the same message from a new one. */
+  id?: string;
 }
 
 export interface OutboundMessage {

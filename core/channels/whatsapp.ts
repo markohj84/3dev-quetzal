@@ -82,6 +82,7 @@ export function createWhatsAppAdapter(opts: {
         text,
         receivedAt: new Date(Number(msg.timestamp) * 1000),
         displayName: value?.contacts?.[0]?.profile?.name || undefined,
+        id: msg.id,
       };
     },
 
@@ -232,6 +233,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(texto?.contactId, '5212223334455', 'el contactId conserva el wa_id tal cual');
   assert.equal(texto?.receivedAt.getTime(), 1790000000 * 1000, 'el timestamp de Meta viene en segundos');
   assert.equal(texto?.displayName, undefined, 'sin contacts no hay nombre de perfil');
+  assert.equal(
+    adapter.parse(inbound({ id: 'wamid.HBgM', from: '52', text: { body: 'hola' }, timestamp: '1' }))?.id,
+    'wamid.HBgM',
+    'el id de Meta es lo que distingue una segunda entrega del mismo mensaje',
+  );
   assert.equal(
     adapter.parse({ entry: [{ changes: [{ value: {
       metadata: { phone_number_id: '1' },

@@ -35,6 +35,26 @@ export function createSessionStore(clientId: string): SessionStore {
   };
 }
 
+const BUSY_SECONDS = 5 * 60;
+const DONE_SECONDS = 60 * 60 * 24;
+const inboundKey = (clientId: string, messageId: string) => `inbound:${clientId}:${messageId}`;
+
+/**
+ * A webhook delivers at least once: the same message comes again when the
+ * first delivery took long or failed. 'new' the first time, 'busy' while that
+ * delivery is still being handled, 'done' once it finished. The busy mark
+ * lapses on its own, so a delivery that died is handled when it comes back.
+ */
+export async function claimMessage(clientId: string, messageId: string): Promise<'new' | 'busy' | 'done'> {
+  const key = inboundKey(clientId, messageId);
+  if (await kv.set(key, 'busy', { nx: true, ex: BUSY_SECONDS })) return 'new';
+  return (await kv.get<string>(key)) === 'done' ? 'done' : 'busy';
+}
+
+export async function finishMessage(clientId: string, messageId: string): Promise<void> {
+  await kv.set(inboundKey(clientId, messageId), 'done', { ex: DONE_SECONDS });
+}
+
 export interface RateLimiter {
   /** True if this call is within limit; false if the caller should be rejected. */
   check(key: string): Promise<boolean>;

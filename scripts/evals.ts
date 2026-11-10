@@ -162,6 +162,23 @@ export function genericCases({
       },
     },
     {
+      // Meta delivers at least once: a webhook that takes long, or fails, is sent again.
+      name: 'por WhatsApp: el mismo mensaje entregado dos veces se contesta una sola vez',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const id = `wamid.${contactId}`;
+        const text = '¿Qué servicios tienen?';
+        // The copy arrives while the first is still being answered: Meta is told to come back.
+        const [first, copy] = await Promise.all([whatsAppRequest(contactId, text, { id }), whatsAppRequest(contactId, text, { id })]);
+        assert.deepEqual([first.status, copy.status].sort(), [200, 503], 'la copia que llega mientras se contesta recibe 503');
+        // And when it comes back, the message is already answered.
+        assert.equal((await whatsAppRequest(contactId, text, { id })).status, 200);
+        const session = await kv.get<{ history: { role: string }[] }>(sessionKey(contactId));
+        assert.deepEqual(session?.history.map((t) => t.role), ['user', 'assistant'], `debió contestar una sola vez: ${JSON.stringify(session?.history)}`);
+      },
+    },
+    {
       // Replays a real conversation (3dev, 2026-10-08): the person asked for
       // the link twice and was promised that "el sistema" would send it.
       name: 'por WhatsApp: si pide el enlace para agendar, lo recibe',
@@ -269,15 +286,15 @@ async function sendTurn(sessionId: string, text: string): Promise<string> {
   return data.text;
 }
 
-/** The signed webhook POST alone: a taken conversation leaves no reply to read back. */
-export async function postWhatsApp(contactId: string, text: string): Promise<void> {
+/** The signed webhook POST as Meta sends it. `message` adds to, or replaces, the fields of a plain text message. */
+export async function whatsAppRequest(contactId: string, text: string, message: Record<string, unknown> = {}): Promise<Response> {
   const body = JSON.stringify({
     entry: [{ changes: [{ value: {
       metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID },
-      messages: [{ from: contactId, timestamp: String(Math.floor(Date.now() / 1000)), text: { body: text } }],
+      messages: [{ from: contactId, timestamp: String(Math.floor(Date.now() / 1000)), text: { body: text }, ...message }],
     } }] }],
   });
-  const res = await fetch(`${BASE_URL}/api/whatsapp`, {
+  return fetch(`${BASE_URL}/api/whatsapp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -285,6 +302,11 @@ export async function postWhatsApp(contactId: string, text: string): Promise<voi
     },
     body,
   });
+}
+
+/** That POST alone: a taken conversation leaves no reply to read back. */
+export async function postWhatsApp(contactId: string, text: string): Promise<void> {
+  const res = await whatsAppRequest(contactId, text);
   if (!res.ok) throw new Error(`/api/whatsapp respondió ${res.status} — ¿el dev server tiene el mismo WHATSAPP_APP_SECRET?`);
 }
 

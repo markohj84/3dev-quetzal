@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
-import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter, claimMessage, finishMessage } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
 import { isTaken, shouldNotify } from '../../../core/handoff';
 import { withStart } from '../../../core/engine/prompt';
@@ -68,6 +68,17 @@ export async function POST(request: Request) {
     return new Response('ok', { status: 200 });
   }
 
+  // Meta sends a message again when this takes long or fails. A copy of one already
+  // handled is dropped; a copy of one still being handled gets a 503, so Meta comes
+  // back later and finds it done, or handles it if that first delivery died.
+  // A mark that cannot be read must not cost the person their answer.
+  const claim = inbound.id ? await claimMessage(config.id, inbound.id).catch(() => 'new' as const) : 'new';
+  if (claim === 'done') return new Response('ok', { status: 200 });
+  if (claim === 'busy') return new Response('busy', { status: 503 });
+  const finish = async () => {
+    if (inbound.id) await finishMessage(config.id, inbound.id).catch((error) => console.error(`[${config.id}] inbound mark failed`, error));
+  };
+
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
   const profiles = createProfileStore(config.id);
 
@@ -106,6 +117,7 @@ export async function POST(request: Request) {
       }));
       await handoffs.markNotified(inbound.contactId).catch((error) => console.error(`[${config.id}] handoff notify mark failed`, error));
     }
+    await finish();
     return new Response('ok', { status: 200 });
   }
   if (handoff) {
@@ -237,5 +249,6 @@ export async function POST(request: Request) {
     );
   }
 
+  await finish();
   return new Response('ok', { status: 200 });
 }

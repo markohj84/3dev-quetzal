@@ -239,6 +239,16 @@ rechaza (token vencido, pago, número inválido): eso sigue siendo solo un log
 (`whatsapp delivery failed`, `entrega fallida`). Prueba:
 `scripts/check-failure.mjs` contra un dev server sin modelo (ver su encabezado).
 
+## Entregas repetidas de WhatsApp
+
+Meta entrega cada mensaje al menos una vez y lo reenvía cuando el webhook
+tarda o falla. La ruta marca el id del mensaje en Redis (`claimMessage`,
+`core/store/session-store.ts`): la copia de uno ya atendido se descarta con
+200; la de uno que se sigue atendiendo recibe **503**, para que Meta vuelva
+más tarde y lo encuentre atendido, o lo atienda si aquella entrega murió (la
+marca "en curso" vence a los 5 min; la de "atendido", a las 24 h). Sin esto,
+una respuesta lenta salía dos veces, con su lead y su aviso duplicados.
+
 ## Seguimiento automático
 
 Un cron diario (`vercel.json`, 16:00 UTC = 10:00 en México) llama
