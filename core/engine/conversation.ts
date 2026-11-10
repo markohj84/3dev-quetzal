@@ -4,7 +4,7 @@ import type { ChannelAdapter, OutboundMessage } from '../channels/types';
 import type { Scheduler } from '../scheduling/types';
 import type { Booking } from '../scheduling/calendly-webhook';
 import type { Corpus } from './knowledge';
-import { buildContactNote, buildSystemPrompt, withStart, type KnownContact } from './prompt';
+import { buildContactNote, buildSystemPrompt, recentTurns, withStart, type KnownContact } from './prompt';
 import {
   bookMeetingTool,
   captureLeadTool,
@@ -189,7 +189,7 @@ export function createEngine(deps: EngineDeps) {
         return response;
       }) as typeof client.messages.create;
 
-      const history: Turn[] = [...state.history, { role: 'user', content: userText }];
+      const history: Turn[] = recentTurns([...state.history, { role: 'user', content: userText }]);
 
       const systemPrompt = buildSystemPrompt({
         config,

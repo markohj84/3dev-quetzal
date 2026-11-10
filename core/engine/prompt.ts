@@ -121,6 +121,21 @@ export function withStart<S extends StateWithStart>(state: S, now: Date): S & { 
   return { ...state, startedAt: state.startedAt ?? now.toISOString() };
 }
 
+/**
+ * A session lives for as long as someone keeps writing, and every reply
+ * re-reads all of it: without a ceiling, what one reply costs grows with every
+ * turn before it. Real conversations end far below this.
+ */
+const MAX_TURNS = 40;
+
+/** The turns the model re-reads. Once cut, they still open on the person's turn. */
+export function recentTurns<T extends { role: string }>(history: T[]): T[] {
+  if (history.length <= MAX_TURNS) return history;
+  const recent = history.slice(-MAX_TURNS);
+  const start = recent.findIndex((t) => t.role === 'user');
+  return start > 0 ? recent.slice(start) : recent;
+}
+
 const SPEAKER: Record<EarlierMessage['role'], string> = { user: 'Person', assistant: 'Assistant', human: 'Team' };
 const EARLIER_CHARS = 600;
 
@@ -247,6 +262,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(withStart(fresh, new Date('2026-10-22T12:00:00Z')).startedAt, '2026-10-22T10:00:00.000Z', 'nunca se mueve');
   const legacy = withStart({ history: [{ role: 'user', content: 'hola' }], hasOffered: false }, new Date('2026-10-22T11:00:00Z'));
   assert.equal(legacy.startedAt, '2026-10-22T11:00:00.000Z', 'una sesión vieja sin startedAt lo recibe una vez');
+
+  const turn = (i: number) => ({ role: i % 2 ? 'assistant' : 'user', content: `t${i}` });
+  const normal = Array.from({ length: 11 }, (_, i) => turn(i));
+  assert.equal(recentTurns(normal), normal, 'una conversación normal va completa');
+  // 101 turns ending on the person's: the last 40 would open on the assistant's (t61).
+  const kept = recentTurns(Array.from({ length: 101 }, (_, i) => turn(i)));
+  assert.equal(kept.at(-1)!.content, 't100', 'el turno que se está contestando siempre va');
+  assert.equal(kept[0].content, 't62', 'lo viejo se suelta, y lo que queda abre con un turno de la persona');
+  assert.equal(kept.length, 39);
+  // The follow-up nudge opens a session on the assistant's turn: a short thread is never touched.
+  const nudged = [{ role: 'assistant', content: '¿Agendamos?' }, { role: 'user', content: 'sí' }];
+  assert.equal(recentTurns(nudged), nudged);
 
   console.log('prompt.ts self-check passed');
 }

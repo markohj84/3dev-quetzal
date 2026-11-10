@@ -267,7 +267,11 @@ los aplica la base: `purge_expired()` corre cada noche con `pg_cron`
 `left_contact`— 90 días, marcas de seguimiento 90 días). El esquema vive en `supabase/migrations/` y se aplica
 con `npx supabase db push --db-url` (la conexión directa está en
 `POSTGRES_URL_NON_POOLING`, en Vercel). Redis solo guarda la sesión de 24 h
-y el límite de mensajes. Cada llamada a la base tiene timeout de 3 s y sin
+y el límite de mensajes. La sesión tiene tope: el chat web recorta cada
+mensaje a 4,000 caracteres (`core/channels/web.ts`; el endpoint es público) y
+el motor relee y guarda solo los últimos 40 turnos (`recentTurns`,
+`core/engine/prompt.ts`), para que el costo de una respuesta no crezca con
+cada turno anterior. Cada llamada a la base tiene timeout de 3 s y sin
 reintentos, y las rutas tratan sus fallas como no fatales: una base caída
 cuesta una línea de log, nunca la respuesta ni el aviso. Pruebas contra la base real:
 `scripts/check-purge.mjs` y `scripts/check-db.mjs`.

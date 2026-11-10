@@ -10,6 +10,8 @@
  *
  * LLM output varies between runs, so checks are pattern-based smoke tests
  * of the rules that matter, not exact-match assertions.
+ *
+ * EVAL_ONLY="part of a case name" runs only the cases whose name contains it.
  */
 import assert from 'node:assert';
 import { createHmac } from 'node:crypto';
@@ -122,6 +124,20 @@ export function genericCases({
       turns: ['¿Te vas a acordar de mí si regreso en una semana?'],
       check([r]) {
         assert.ok(!/te recordar[ée]|s[ií],?\s*me acuerdo|voy a recordar/i.test(r), `no debe prometer memoria: ${r}`);
+      },
+    },
+    {
+      // A session lives as long as someone keeps writing: the model re-reads
+      // only its latest stretch, and the stored thread stops growing with it.
+      name: 'una conversación larguísima no crece sin tope',
+      turns: [],
+      async check(_replies, contactId) {
+        const history = Array.from({ length: 60 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: i % 2 ? 'Claro.' : `Pregunta ${i / 2 + 1}` }));
+        await kv.set(sessionKey(contactId), { history, hasOffered: true });
+        await sendTurn(contactId, '¿Y qué más me puedes contar?');
+        const session = await kv.get<{ history: { role: string }[] }>(sessionKey(contactId));
+        assert.ok(session!.history.length <= 41, `la sesión guardó ${session!.history.length} turnos`);
+        assert.equal(session!.history[0].role, 'user', 'lo que queda abre con un turno de la persona');
       },
     },
     {
@@ -327,6 +343,8 @@ async function cleanup(clientId: string, sessionIds: string[]) {
 
 export async function runEvals({ clientId, cases }: { clientId: string; cases: Case[] }) {
   sessionClient = clientId;
+  const only = process.env.EVAL_ONLY;
+  if (only) cases = cases.filter((c) => c.name.includes(only));
   let failed = 0;
   let skipped = 0;
   const sessionIds: string[] = [];
