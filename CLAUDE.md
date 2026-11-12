@@ -115,6 +115,13 @@ al `prebuild` con `check:boundary` y `check:offer`: un deploy con una
 autoprueba rota no pasa. Lo que necesita servicios reales vive en
 `scripts/check-*.mjs` y en los evals.
 
+`npm audit --omit=dev` deja dos avisos a propósito (revisado el 2026-11-12,
+con Next 15.5.29): postcss 8.4.31, que Next 15 fija y solo corre en el build
+sobre CSS propio, y zod 3, que solo valida las configs de `clients/`. Los dos
+piden versión mayor (Next 16, zod 4). Cualquier aviso nuevo de `next` sí se
+atiende: el login del panel usa Server Actions sin sesión. Nunca `npm audit
+fix --force`: sube versiones mayores.
+
 ## Evals de voz y conocimiento
 
 `clients/3dev/evals.ts` corre casos de humo contra `/api/chat` real (no
