@@ -47,8 +47,12 @@ export async function withTurn<T>(clientId: string, contactId: string, reply: ()
   const giveUp = Date.now() + TURN_WAIT_MS;
   let held = false;
   try {
+    let pause = 250;
     while (!(held = (await kv.set(key, mine, { nx: true, ex: TURN_SECONDS })) === 'OK') && Date.now() < giveUp) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, pause));
+      // Up to a second between tries: a full wait costs ~30 calls to Redis, not 120,
+      // so a burst sent to one conversation cannot turn into a flood of them.
+      pause = Math.min(pause * 2, 1000);
     }
   } catch (error) {
     console.error(`[${clientId}] turn lock failed`, error);
