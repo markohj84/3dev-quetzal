@@ -71,6 +71,15 @@ archivo local del cliente o el panel del proveedor). Claude Code bloquea
 escribir secretos y mover dominios en Vercel: eso lo hace Marco (consola de
 Vercel o un script que él corre).
 
+Después de cada push a `main`: `git fetch && node --env-file=.env.local
+scripts/check-prod.mjs` (con `--chat`, además le pregunta algo a cada
+asistente y borra lo que guardó). Cada respuesta trae `X-Commit` (de
+`VERCEL_GIT_COMMIT_SHA`, `next.config.js`) y el script lo compara con
+`origin/main`: un push no siempre dispara el deploy, y `vercel ls --meta
+githubCommitSha=` no sirve para confirmarlo porque no filtra. Revisa también
+las protecciones: panel sin marcos, webhook con firma falsa 403, cron sin
+secreto 403 y un dominio ajeno 404.
+
 ## Reglas de producto que no se negocian
 
 1. **El asistente no inventa datos.** Ninguna cifra, duración, nombre o

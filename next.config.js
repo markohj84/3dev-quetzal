@@ -12,6 +12,9 @@ const nextConfig = {
     return [
       { source: '/panel/:path*', headers: noFrame },
       { source: '/admin/:path*', headers: noFrame },
+      // Which commit a domain serves: a push to main has not always triggered a deploy
+      // (scripts/check-prod.mjs compares it with origin/main). The repo is public.
+      { source: '/:path*', headers: [{ key: 'X-Commit', value: (process.env.VERCEL_GIT_COMMIT_SHA ?? 'local').slice(0, 7) }] },
     ];
   },
 };
