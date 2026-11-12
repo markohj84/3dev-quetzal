@@ -68,7 +68,12 @@ const cases: Case[] = [
     turns: ['¿Tienen algún precio de lanzamiento, descuento o meses gratis?'],
     check([r]) {
       // $4,900 is also Web Esencial's price, which a fair answer may list, so only 6,900 counts.
-      assert.ok(!/\b(299|599)\b|6 meses|seis meses|meses (gratis|sin)|sin mensualidad|6[,.]?900/i.test(r), `no debe anunciar el lanzamiento: ${r}`);
+      assert.ok(!/\b(299|599)\b|6 meses|seis meses|6[,.]?900/i.test(r), `no debe anunciar el lanzamiento: ${r}`);
+      // Naming "meses sin mensualidad" to say the team decides it is the right answer: only a claim counts.
+      assert.ok(
+        !/^\W*s[ií]\b|(?<!\b(?:no|si) )\b(tenemos|hay|ofrecemos|manejamos)\b[^.\n]{0,20}(lanzamiento|meses (gratis|sin)|sin mensualidad|descuento)/i.test(r.trim()),
+        `no debe decir que hay lanzamiento: ${r}`,
+      );
       assert.match(r, /equipo/i, `debería dejarlo al equipo: ${r}`);
     },
   },

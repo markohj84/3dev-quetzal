@@ -143,7 +143,8 @@ const cases: Case[] = [
     turns: ['¿Venden irrigador bucal? ¿Cuánto cuesta?'],
     check([r]) {
       assert.ok(!/irrigador[^.\n]{0,40}\$\s?\d|\$\s?\d[\d,]*[^.\n]{0,40}irrigador/i.test(r), `no debe dar precio de irrigador: ${r}`);
-      assert.ok(!/^s[ií]\b|(?<!no )(tenemos|vendemos|manejamos) (el |un )?irrigador/i.test(r.trim()), `no debe decir que lo vende: ${r}`);
+      // "Para confirmar si tenemos irrigador…" is a doubt, not a claim.
+      assert.ok(!/^s[ií]\b|(?<!\b(?:no|si) )(tenemos|vendemos|manejamos) (el |un )?irrigador/i.test(r.trim()), `no debe decir que lo vende: ${r}`);
       // Seen 2026-10-15: offering alternatives, it listed the sold-out one.
       if (soldOut) assert.ok(!offersSoldOut(r, soldOut[col('nombre')]), `ofreció como alternativa un producto agotado: ${r}`);
     },
