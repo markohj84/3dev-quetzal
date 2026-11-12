@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis';
 import type { ConversationState } from '../engine';
-import { isMultiTenant } from '../config/env';
 
 /** Names match what Vercel's Upstash Marketplace integration injects, not @upstash/redis's own convention. */
 const kv = new Redis({
@@ -22,17 +21,48 @@ export const sessionKey = (clientId: string, contactId: string) => `session:${cl
 export function createSessionStore(clientId: string): SessionStore {
   return {
     async get(contactId) {
-      const own = await kv.get<ConversationState>(sessionKey(clientId, contactId));
-      if (own) return own;
-      // ponytail: sessions opened before the key carried the client; a project of one client still owns them.
-      // Without this a person mid-conversation at deploy time is offered the meeting a second time.
-      // Delete after one release (sessions last 24 h).
-      return isMultiTenant() ? null : ((await kv.get<ConversationState>(`session:${contactId}`)) ?? null);
+      return (await kv.get<ConversationState>(sessionKey(clientId, contactId))) ?? null;
     },
     async set(contactId, state) {
       await kv.set(sessionKey(clientId, contactId), state, { ex: SESSION_TTL_SECONDS });
     },
   };
+}
+
+// A turn held longer than this has died, and the next one stops waiting for it.
+const TURN_SECONDS = 90;
+const TURN_WAIT_MS = 30_000;
+
+/**
+ * One conversation, one reply at a time. People write in bursts, and two
+ * messages answered at once each read the thread without the other: the later
+ * write erases the earlier exchange, and the one-offer rule is checked against
+ * a state that is already stale. The second waits for the first. If the first
+ * never finishes, or the lock cannot be taken at all, it goes ahead anyway:
+ * an answer out of turn beats no answer.
+ */
+export async function withTurn<T>(clientId: string, contactId: string, reply: () => Promise<T>): Promise<T> {
+  const key = `turn:${clientId}:${contactId}`;
+  const mine = crypto.randomUUID();
+  const giveUp = Date.now() + TURN_WAIT_MS;
+  let held = false;
+  try {
+    while (!(held = (await kv.set(key, mine, { nx: true, ex: TURN_SECONDS })) === 'OK') && Date.now() < giveUp) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  } catch (error) {
+    console.error(`[${clientId}] turn lock failed`, error);
+  }
+  try {
+    return await reply();
+  } finally {
+    // Only our own mark: one that lapsed and was taken by a later turn is theirs to release.
+    if (held) {
+      await kv
+        .eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0", [key], [mine])
+        .catch((error) => console.error(`[${clientId}] turn release failed`, error));
+    }
+  }
 }
 
 const BUSY_SECONDS = 5 * 60;

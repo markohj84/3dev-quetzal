@@ -1,7 +1,8 @@
 import { NextResponse, after } from 'next/server';
-import { getAssistantOrNull } from '../../assistant';
+import { getAssistantOrNull, type Assistant } from '../../assistant';
 import { createWebAdapter } from '../../../core/channels/web';
-import { createSessionStore, createRateLimiter } from '../../../core/store/session-store';
+import type { InboundMessage } from '../../../core/channels/types';
+import { createSessionStore, createRateLimiter, withTurn } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createUsageLog } from '../../../core/store/db';
 import { createLeadNotifier } from '../../../core/notify';
 import { leadPhone } from '../../../core/followup';
@@ -16,8 +17,7 @@ const rateLimiter = createRateLimiter(20, 60);
 export async function POST(request: Request) {
   const assistant = await getAssistantOrNull();
   if (!assistant) return NextResponse.json({ error: 'not found' }, { status: 404 });
-  const { engine, config, secrets } = assistant;
-  const sessions = createSessionStore(config.id);
+  const { config } = assistant;
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
   if (!(await rateLimiter.check(`${config.id}:${ip}`))) {
@@ -29,6 +29,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid payload' }, { status: 400 });
   }
 
+  // One conversation, one reply at a time: a second message waits for the first to be answered.
+  return withTurn(config.id, inbound.contactId, () => answer(assistant, inbound));
+}
+
+async function answer(assistant: Assistant, inbound: InboundMessage) {
+  const { engine, config, secrets } = assistant;
+  const sessions = createSessionStore(config.id);
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
 
   try {

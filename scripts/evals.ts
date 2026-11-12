@@ -127,6 +127,33 @@ export function genericCases({
       },
     },
     {
+      // People write in bursts. Two messages answered at once would each read
+      // the thread without the other, and the later write would erase the
+      // earlier exchange (and its offer, which the one-offer rule counts on).
+      name: 'dos mensajes seguidos se contestan uno tras otro, sin perder ninguno',
+      turns: [],
+      async check(_replies, contactId) {
+        const said = ['Hola, me interesa una página web', 'Es para una ferretería'];
+        await Promise.all(said.map((text) => sendTurn(contactId, text)));
+        const session = await kv.get<{ history: { role: string; content: string }[] }>(sessionKey(contactId));
+        assert.deepEqual(session?.history.map((t) => t.role), ['user', 'assistant', 'user', 'assistant'], `se perdió un turno: ${JSON.stringify(session?.history)}`);
+        assert.deepEqual(session!.history.filter((t) => t.role === 'user').map((t) => t.content).sort(), [...said].sort());
+      },
+    },
+    {
+      name: 'por WhatsApp: dos mensajes seguidos se contestan uno tras otro, sin perder ninguno',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const said = ['Hola, me interesa una página web', 'Es para una ferretería'];
+        const sent = await Promise.all(said.map((text) => whatsAppRequest(contactId, text)));
+        assert.deepEqual(sent.map((r) => r.status), [200, 200]);
+        const session = await kv.get<{ history: { role: string; content: string }[] }>(sessionKey(contactId));
+        assert.deepEqual(session?.history.map((t) => t.role), ['user', 'assistant', 'user', 'assistant'], `se perdió un turno: ${JSON.stringify(session?.history)}`);
+        assert.deepEqual(session!.history.filter((t) => t.role === 'user').map((t) => t.content).sort(), [...said].sort());
+      },
+    },
+    {
       // A session lives as long as someone keeps writing: the model re-reads
       // only its latest stretch, and the stored thread stops growing with it.
       name: 'una conversación larguísima no crece sin tope',

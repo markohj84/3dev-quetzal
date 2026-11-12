@@ -256,6 +256,19 @@ más tarde y lo encuentre atendido, o lo atienda si aquella entrega murió (la
 marca "en curso" vence a los 5 min; la de "atendido", a las 24 h). Sin esto,
 una respuesta lenta salía dos veces, con su lead y su aviso duplicados.
 
+## Un turno a la vez
+
+La gente escribe en ráfagas. Dos mensajes contestados a la vez leían la sesión
+cada uno sin el otro: el segundo se contestaba sin saber del primero, el
+último en guardar borraba el intercambio anterior y la regla de una sola
+oferta se revisaba contra un estado viejo. `withTurn`
+(`core/store/session-store.ts`) toma un candado por conversación en Redis
+alrededor de leer la sesión, contestar y guardarla, en web y en WhatsApp: el
+segundo mensaje espera al primero. Espera hasta 30 s; si el primero murió o
+Redis no responde, sigue sin candado, porque una respuesta fuera de turno es
+mejor que ninguna. El cron de seguimiento y las acciones del panel escriben la
+sesión sin candado.
+
 ## Audios y fotos por WhatsApp
 
 El asistente solo lee texto. Un audio, imagen, video, documento, ubicación o

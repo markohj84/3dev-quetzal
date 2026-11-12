@@ -1,7 +1,8 @@
 import { NextResponse, after } from 'next/server';
-import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId } from '../../assistant';
+import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
 import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
-import { createSessionStore, createRateLimiter, claimMessage, finishMessage } from '../../../core/store/session-store';
+import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
+import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
 import { isTaken, shouldNotify } from '../../../core/handoff';
 import { withStart } from '../../../core/engine/prompt';
@@ -55,7 +56,6 @@ export async function POST(request: Request) {
     return new Response('forbidden', { status: 403 });
   }
 
-  const sessions = createSessionStore(config.id);
   const adapter = createWhatsAppAdapter({
     phoneNumberId: secrets.whatsapp.phoneNumberId ?? '',
     accessToken: secrets.whatsapp.token ?? '',
@@ -79,6 +79,17 @@ export async function POST(request: Request) {
     if (inbound.id) await finishMessage(config.id, inbound.id).catch((error) => console.error(`[${config.id}] inbound mark failed`, error));
   };
 
+  // One conversation, one reply at a time: a second message waits for the first to be answered.
+  return withTurn(config.id, inbound.contactId, () => answer({ engine, config, secrets }, adapter, inbound, finish));
+}
+
+async function answer(
+  { engine, config, secrets }: Pick<Assistant, 'engine' | 'config' | 'secrets'>,
+  adapter: ChannelAdapter,
+  inbound: InboundMessage,
+  finish: () => Promise<void>,
+): Promise<Response> {
+  const sessions = createSessionStore(config.id);
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
   const profiles = createProfileStore(config.id);
 
