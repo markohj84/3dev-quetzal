@@ -234,16 +234,29 @@ saldo agotado; o la sesión no se pudo guardar), la ruta ya no se queda solo
 con un log. Guarda el
 mensaje de la persona sin respuesta (`appendInbound`; en WhatsApp también en
 la sesión, como en una conversación tomada) y avisa con `reportFailure`
-(`app/failure.ts`): evento `failure` con el mensaje y el error, a lo más **uno
-por cliente y hora**. La web sigue contestando 502 y por WhatsApp la persona
-sigue sin recibir respuesta: el aviso es para que alguien la conteste a mano y
-arregle la causa. Sale por los canales de `notify` del cliente que falló; con
-`ALERT_EMAIL` (variable de la plataforma, sin prefijo) sale solo por correo a
-esa dirección, con la llave de Resend y el remitente de ese cliente. **Poner
+(`app/failure.ts`): evento `failure` con el mensaje y el error. La web sigue
+contestando 502 y por WhatsApp la persona sigue sin recibir respuesta: el
+aviso es para que alguien la conteste a mano y arregle la causa.
+
+En WhatsApp avisan también dos fallas de Meta: que rechace la respuesta al
+enviarla (token vencido, pago; mismo aviso, con el mensaje de la persona) y
+que acepte un envío y después reporte en un acuse que no llegó
+(`failedDeliveries`; el aviso no trae mensaje que citar, solo a quién y el
+código de error de Meta). Los acuses fallidos cubren cualquier envío del
+número: respuestas, plantillas de aviso y de seguimiento, y lo que el dueño
+contesta desde el panel.
+
+Sale **uno por cliente, tipo y hora**. Los tipos son "no pudo contestar" y "no
+se entregó", para que un modelo caído no calle a una cuenta de Meta sin pago.
+El conteo va aparte por entorno (`VERCEL_ENV`; en local, `local`): el dev
+server usa el Redis de producción y cada eval de WhatsApp termina en un envío
+que Meta rechaza.
+
+Sale por los canales de `notify` del cliente que falló; con `ALERT_EMAIL`
+(variable de la plataforma, sin prefijo) sale solo por correo a esa
+dirección, con la llave de Resend y el remitente de ese cliente. **Poner
 `ALERT_EMAIL` antes de dar de alta un cliente que no sea de 3dev**, o el aviso
-de falla le llega a su dueño y no a quien opera. No cubre un envío que Meta
-rechaza (token vencido, pago, número inválido): eso sigue siendo solo un log
-(`whatsapp delivery failed`, `entrega fallida`). Prueba:
+de falla le llega a su dueño y no a quien opera. Prueba:
 `scripts/check-failure.mjs` contra un dev server sin modelo (ver su encabezado).
 
 ## Entregas repetidas de WhatsApp

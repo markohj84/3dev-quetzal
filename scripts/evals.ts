@@ -206,6 +206,24 @@ export function genericCases({
       },
     },
     {
+      // Meta turned the reply down (a dead token, billing): the person got nothing, so someone
+      // has to hear of it. Every WhatsApp case here ends that way, because Meta rejects the test
+      // contact; the alert itself goes nowhere in local, so what shows is its hourly ration,
+      // which a dev server keeps under "local", apart from production's in the same Redis.
+      name: 'por WhatsApp: si Meta rechaza la respuesta, pasa por el aviso de falla',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const hour = () => Math.floor(Date.now() / 1000 / 3600);
+        const rationed = async () => Number((await kv.get(`ratelimit:failed:local:answer:${clientId}:${hour()}`)) ?? 0);
+        const [startedIn, before] = [hour(), await rationed()];
+        await sendWhatsAppTurn(contactId, 'Hola');
+        const after = await rationed();
+        // Across the turn of an hour the count starts over.
+        assert.ok(after > (hour() === startedIn ? before : 0), 'una respuesta que Meta rechazó debe pasar por reportFailure');
+      },
+    },
+    {
       // Voice notes are how people write on WhatsApp: silence reads as a number nobody answers.
       name: 'por WhatsApp: a un audio le contesta que se lo escriban',
       channel: 'whatsapp',

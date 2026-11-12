@@ -1,4 +1,5 @@
-// When the assistant cannot answer, the person's message is kept and someone is told, once.
+// When a reply does not reach the person, someone is told, once an hour per kind: the assistant
+// could not answer (the person's message is kept), or Meta reported a delivery that never arrived.
 // The dev server gets a model key that does not work and a webhook that points here:
 //   ANTHROPIC_API_KEY=mal WHATSAPP_APP_SECRET=local NOTIFY_WEBHOOK_URL=http://127.0.0.1:8788/hook npm run dev
 //   WHATSAPP_APP_SECRET=local node --env-file=.env.local scripts/check-failure.mjs [clientId]
@@ -30,15 +31,22 @@ const stamp = Date.now();
 const web = `eval-failure-${stamp}`;
 // No digits: nothing in it Meta could take for a phone number.
 const wa = `eval-wa-failure-${Array.from({ length: 10 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('')}`;
-// The alert is rationed per client and hour: a run inside the same hour as another starts clean.
-const ration = `ratelimit:failed:${CLIENT_ID}:${Math.floor(stamp / 1000 / 3600)}`;
+// Alerts are rationed per client, kind and hour: a run inside the same hour as another starts clean.
+// "local" is where a dev server keeps its ration, apart from production's, which lives in the same Redis.
+const rations = ['answer', 'delivery'].map((kind) => `ratelimit:failed:local:${kind}:${CLIENT_ID}:${Math.floor(stamp / 1000 / 3600)}`);
+const signed = (body) =>
+  fetch(`${BASE}/api/whatsapp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', SECRET).update(body).digest('hex') },
+    body,
+  });
 const roles = async (contactId) =>
   (await admin.from('messages').select('role, content').eq('client_id', CLIENT_ID).eq('contact_id', contactId).order('id')).data.map((m) => m.role);
 const chat = (text) =>
   fetch(`${BASE}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: web, text }) });
 
 try {
-  await kv.del(ration);
+  await kv.del(...rations);
 
   assert.equal((await chat('¿Cuánto cuesta una página?')).status, 502, 'sin modelo, el chat contesta 502 (¿el dev server tiene ANTHROPIC_API_KEY=mal?)');
   assert.equal((await chat('¿Hay alguien?')).status, 502);
@@ -51,23 +59,34 @@ try {
       metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID },
       messages: [{ from: wa, timestamp: String(Math.floor(stamp / 1000)), text: { body: '¿Tienen cita mañana?' } }],
     } }] }] });
-    const res = await fetch(`${BASE}/api/whatsapp`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', SECRET).update(body).digest('hex') },
-      body,
-    });
-    assert.equal(res.status, 200, 'a Meta se le contesta 200 aunque el asistente falle');
+    assert.equal((await signed(body)).status, 200, 'a Meta se le contesta 200 aunque el asistente falle');
     assert.deepEqual(await roles(wa), ['user'], 'el mensaje de WhatsApp queda en la transcripción');
     const session = await kv.get(`session:${CLIENT_ID}:${wa}`);
     assert.deepEqual(session?.history, [{ role: 'user', content: '¿Tienen cita mañana?' }], 'y en la sesión, para quien conteste después');
     assert.ok(session?.startedAt, 'la sesión nacida de una falla marca cuándo empezó');
+
+    // Meta accepted a message of the assistant's and reports later that it never arrived
+    // (here, the payment method failed): the only notice there is, and it comes as a receipt.
+    const receipt = (recipient) => JSON.stringify({ entry: [{ changes: [{ value: {
+      metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID },
+      statuses: [{ status: 'failed', recipient_id: recipient, errors: [{ code: 131042, title: 'Business eligibility payment issue' }] }],
+    } }] }] });
+    assert.equal((await signed(receipt('520000000001'))).status, 200);
+    assert.equal((await signed(receipt('520000000002'))).status, 200);
   }
 
-  // The alert goes out after the response: give it a moment.
-  for (let i = 0; i < 30 && !events.length; i++) await new Promise((r) => setTimeout(r, 200));
+  // The alerts go out after the response: give them a moment.
+  const expected = SECRET ? 2 : 1;
+  for (let i = 0; i < 30 && events.length < expected; i++) await new Promise((r) => setTimeout(r, 200));
   await new Promise((r) => setTimeout(r, 1000));
-  assert.equal(events.length, 1, `tres mensajes sin respuesta, un solo aviso: llegaron ${events.length} (¿el dev server tiene NOTIFY_WEBHOOK_URL=http://127.0.0.1:8788/hook?)`);
-  const [event] = events;
+  assert.equal(events.length, expected, `un aviso por tipo de falla y hora: llegaron ${events.length} (¿el dev server tiene NOTIFY_WEBHOOK_URL=http://127.0.0.1:8788/hook?)`);
+  const [event, undelivered] = events;
+  if (SECRET) {
+    assert.equal(undelivered.event, 'failure');
+    assert.equal(undelivered.contactId, '520000000001', 'dos entregas fallidas en la hora, un solo aviso: el de la primera');
+    assert.match(undelivered.failure.error, /131042/, 'el aviso trae el motivo que dio Meta');
+    assert.equal(undelivered.failure.text, undefined, 'no hay mensaje de la persona que citar');
+  }
   assert.equal(event.event, 'failure');
   assert.equal(event.clientId, CLIENT_ID);
   assert.equal(event.contactId, web);
@@ -77,6 +96,6 @@ try {
   console.log('check-failure: passed');
 } finally {
   receiver.close();
-  await kv.del(ration, `session:${CLIENT_ID}:${wa}`);
+  await kv.del(...rations, `session:${CLIENT_ID}:${wa}`);
   for (const id of [web, wa]) await admin.from('contacts').delete().eq('client_id', CLIENT_ID).eq('contact_id', id);
 }

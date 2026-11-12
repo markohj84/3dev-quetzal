@@ -23,8 +23,12 @@ export interface LeadAlert {
   panelUrl?: string;
   /** Set when the person wrote into a conversation the owner has taken. */
   inbound?: { name: string; text: string };
-  /** Set when the assistant could not answer: the message left unanswered, and why. */
-  failure?: { text: string; error: string };
+  /**
+   * Set when a reply did not reach the person, and why. `text` is the message
+   * left unanswered; without it, the alert is about a message of the
+   * assistant's that the channel accepted and later reported as undelivered.
+   */
+  failure?: { text?: string; error: string };
 }
 
 export interface LeadNotifier {
@@ -132,13 +136,15 @@ export function emailContent(alert: LeadAlert): { subject: string; text: string 
   const panel = alert.panelUrl ? `Ver en el panel: ${alert.panelUrl}\n\n` : '';
 
   if (alert.failure) {
+    const undelivered = alert.failure.text === undefined;
     return {
-      subject: `El asistente no pudo contestar — canal ${alert.channel}`,
+      subject: undelivered ? 'WhatsApp no entregó un mensaje del asistente' : `El asistente no pudo contestar — canal ${alert.channel}`,
       // The unanswered message first: on WhatsApp it is the one someone has to answer by hand.
       text:
         panel +
         reach +
-        `Mensaje sin respuesta: ${alert.failure.text}\n\nError: ${alert.failure.error}` +
+        (undelivered ? '' : `Mensaje sin respuesta: ${alert.failure.text}\n\n`) +
+        `Error: ${alert.failure.error}` +
         (transcript ? `\n\n---\n\n${transcript}` : ''),
     };
   }
@@ -170,7 +176,8 @@ export function whatsAppAlertParams(alert: LeadAlert): string[] {
   };
   if (alert.failure) {
     const contact = alert.reachAt ?? `sin contacto (llegó por ${alert.channel})`;
-    return ['el asistente no pudo contestar', 'sin nombre', contact, withLink(alert.failure.text)].map(templateParam);
+    const what = alert.failure.text === undefined ? 'WhatsApp no entregó un mensaje' : 'el asistente no pudo contestar';
+    return [what, 'sin nombre', contact, withLink(alert.failure.text ?? alert.failure.error)].map(templateParam);
   }
   if (alert.inbound) {
     return ['te escribió (conversación tomada)', alert.inbound.name, alert.reachAt ?? '—', withLink(alert.inbound.text)].map(templateParam);
@@ -319,6 +326,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.ok(failed.text.includes('credit balance is too low'), 'y por qué falló');
   assert.ok(failed.text.includes(panel) && failed.text.includes(reach), 'y dónde contestarle a la persona');
   assert.ok(failed.text.includes('Prospecto: Quiero un sitio'), 'con lo que se había hablado antes');
+
+  // Meta accepted the assistant's message and later reported it never arrived: there is no unanswered message to quote.
+  const undelivered = { error: '131042 Business eligibility payment issue' };
+  const lost = emailContent({ channel: 'whatsapp', contactId: '522225551234', transcript: [], reachAt: reach, failure: undelivered });
+  assert.equal(lost.subject, 'WhatsApp no entregó un mensaje del asistente');
+  assert.equal(lost.text, `Contactar por whatsapp: ${reach}\n\nError: 131042 Business eligibility payment issue`);
+  assert.deepEqual(
+    whatsAppAlertParams({ channel: 'whatsapp', contactId: '522225551234', transcript: [], reachAt: reach, failure: undelivered }),
+    ['WhatsApp no entregó un mensaje', 'sin nombre', reach, '131042 Business eligibility payment issue'],
+  );
 
   // The alerts that already existed read the same as before.
   assert.equal(emailContent({ channel: 'web', contactId: 'x', transcript }).subject, 'Nuevo interés — canal web');

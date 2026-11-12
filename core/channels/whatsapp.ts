@@ -53,10 +53,8 @@ export function createWhatsAppAdapter(opts: {
       const value = (payload as any)?.entry?.[0]?.changes?.[0]?.value;
       // Meta accepts a send and only reports a failed delivery later, here.
       // Without this log a lost reply or lead alert leaves no trace.
-      for (const status of value?.statuses ?? []) {
-        if (status?.status === 'failed') {
-          console.warn(`[whatsapp] entrega fallida a ${status.recipient_id}`, JSON.stringify(status.errors));
-        }
+      for (const failed of failedDeliveries(payload)) {
+        console.warn(`[whatsapp] entrega fallida a ${failed.recipient}: ${failed.error}`);
       }
       const msg = value?.messages?.[0];
       if (!msg) return null;
@@ -131,6 +129,18 @@ export function createWhatsAppAdapter(opts: {
       }
     },
   };
+}
+
+/** The sends Meta accepted and later reported as never delivered: who each was for, and why. */
+export function failedDeliveries(payload: unknown): { recipient: string; error: string }[] {
+  const statuses: any[] = (payload as any)?.entry?.[0]?.changes?.[0]?.value?.statuses ?? [];
+  return statuses
+    .filter((status) => status?.status === 'failed')
+    .map((status) => {
+      const { code, title, error_data } = status.errors?.[0] ?? {};
+      const reason = [code, title].filter(Boolean).join(' ') || 'sin detalle';
+      return { recipient: String(status.recipient_id ?? ''), error: error_data?.details ? `${reason}: ${error_data.details}` : reason };
+    });
 }
 
 // A sticker or a reaction is a gesture, and silence is the right answer to it: neither is here.
@@ -286,6 +296,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   );
 
   assert.equal(adapter.parse({ entry: [{ changes: [{ value: { statuses: [{}] } }] }] }), null, 'un acuse no es mensaje');
+  // Meta accepts a send and says later, in a receipt, that it never arrived: the only notice there is.
+  const receipts = { entry: [{ changes: [{ value: { metadata: { phone_number_id: '1' }, statuses: [
+    { status: 'delivered', recipient_id: '522220000001' },
+    { status: 'failed', recipient_id: '522225551234', errors: [{ code: 131042, title: 'Business eligibility payment issue', error_data: { details: 'There were one or more errors related to your payment method.' } }] },
+    { status: 'failed', recipient_id: '522225559999', errors: [{ code: 131026, title: 'Message undeliverable' }] },
+  ] } }] }] };
+  assert.deepEqual(failedDeliveries(receipts), [
+    { recipient: '522225551234', error: '131042 Business eligibility payment issue: There were one or more errors related to your payment method.' },
+    { recipient: '522225559999', error: '131026 Message undeliverable' },
+  ]);
+  assert.deepEqual(failedDeliveries(inbound({ from: '52', text: { body: 'hola' }, timestamp: '1' })), [], 'un mensaje no trae entregas fallidas');
+  assert.deepEqual(failedDeliveries(null), []);
   // Voice notes and photos are how people write on WhatsApp: a turn the assistant answers, not silence.
   const audio = adapter.parse(inbound({ from: '52', type: 'audio', audio: { id: 'a1', voice: true }, timestamp: '1' }));
   assert.match(audio?.text ?? '', /^\[Envió un audio\. /, 'un audio es un turno: el asistente contesta que solo lee texto');

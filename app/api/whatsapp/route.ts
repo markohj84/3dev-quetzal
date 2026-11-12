@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
-import { createWhatsAppAdapter, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
+import { createWhatsAppAdapter, failedDeliveries, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
 import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
@@ -61,6 +61,12 @@ export async function POST(request: Request) {
     accessToken: secrets.whatsapp.token ?? '',
   });
   const inbound = adapter.parse(parsed);
+  // Meta accepted a send and reports here, later, that it never arrived: the only notice there is.
+  const [failed] = failedDeliveries(parsed);
+  if (failed) {
+    const alert = { channel: 'whatsapp', contactId: failed.recipient, transcript: [], reachAt: `https://wa.me/${failed.recipient}` };
+    await reportFailure({ config, secrets }, alert, undefined, failed.error);
+  }
   // Meta retries anything that is not a 200, including delivery receipts.
   if (!inbound) return new Response('ok', { status: 200 });
 
@@ -159,12 +165,15 @@ async function answer(
     await createUsageLog(config.id)
       .record(inbound.contactId, result.usage)
       .catch((error) => console.error(`[${config.id}] usage log failed`, error));
+    const reachAt = `https://wa.me/${toMetaRecipient(inbound.contactId)}`;
     // A failed send (expired token, billing, Meta outage) must not also lose
     // the log, the lead and the alert: what the person said still happened.
-    await adapter.deliver(inbound.contactId, result.reply).catch((error) => {
+    // They got no answer, though, so someone has to hear of it.
+    await adapter.deliver(inbound.contactId, result.reply).catch(async (error) => {
       console.error(`[${config.id}] whatsapp delivery failed`, error);
+      const alert = { channel: 'whatsapp', contactId: inbound.contactId, transcript: state.history, reachAt, panelUrl: panelUrl(config, inbound.contactId) };
+      await reportFailure({ config, secrets }, alert, inbound.text, error);
     });
-    const reachAt = `https://wa.me/${toMetaRecipient(inbound.contactId)}`;
     // The log is a record, not the reply: a database hiccup must not cost the person their answer.
     await createConversationLog(config.id)
       .append({
