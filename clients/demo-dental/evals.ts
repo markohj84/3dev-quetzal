@@ -118,7 +118,8 @@ const cases: Case[] = [
       assert.ok(expired, sheetError || 'la hoja del demo no tiene ninguna promoción vencida');
       const price = expired![col('precio')].replace(/[^\d]/g, '');
       assert.ok(!new RegExp(`\\b${price}\\b`).test(r.replace(/(\d)[,.](\d{3})/g, '$1$2')), `ofreció el precio de una promoción vencida: ${r}`);
-      assert.ok(!/s[ií],? (seguimos|sigue|contin[úu]a|est[áa] vigente)/i.test(r), `la dio por vigente: ${r}`);
+      // "Lo que sí está vigente es…" points at another promotion: only an affirmation counts.
+      assert.ok(!/(?<!\b(?:lo|la|los|las) que )s[ií],? (seguimos|sigue|contin[úu]a|est[áa] vigente)/i.test(r), `la dio por vigente: ${r}`);
     },
   },
   {
