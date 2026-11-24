@@ -288,6 +288,32 @@ export function genericCases({
       },
     },
     {
+      // Coexistence: the owner answers from the WhatsApp Business app on the same
+      // number. Meta echoes it here; the assistant steps aside without being told.
+      name: 'por WhatsApp: si el dueño contesta desde su celular, el asistente se calla',
+      channel: 'whatsapp',
+      turns: [],
+      async check(_replies, contactId) {
+        const id = `wamid.${contactId}`;
+        assert.equal((await ownerEchoRequest(contactId, 'Hola, soy Marco. ¿En qué te ayudo?', id)).status, 200);
+        assert.equal((await ownerEchoRequest(contactId, 'Hola, soy Marco. ¿En qué te ayudo?', id)).status, 200, 'Meta repite el eco');
+        const { data: h } = await db().from('handoffs').select('taken_by, taken_by_email').eq('client_id', clientId).eq('contact_id', contactId).maybeSingle();
+        assert.ok(h, 'el eco toma la conversación');
+        assert.equal(h.taken_by, null, 'la toma es del celular, no de alguien del panel');
+        // Owner quiet for 20 min: from the panel that would be due an alert; from the phone it is not,
+        // the message is already on the owner's phone and each alert is a paid template.
+        await db().from('handoffs').update({ last_human_at: new Date(Date.now() - 20 * 60_000).toISOString() }).eq('client_id', clientId).eq('contact_id', contactId);
+        await postWhatsApp(contactId, 'Quiero precios de una página');
+        const session = await kv.get<{ history: { role: string; content: string }[] }>(sessionKey(contactId));
+        assert.deepEqual(session?.history.map((t) => t.role), ['assistant', 'user'], `el asistente no debió contestar: ${JSON.stringify(session?.history)}`);
+        assert.match(session!.history[0].content, /soy Marco/, 'lo que escribió el dueño queda en la sesión como lado del negocio');
+        const { data: rows } = await db().from('messages').select('role').eq('client_id', clientId).eq('contact_id', contactId).order('id');
+        assert.deepEqual(rows?.map((r) => r.role), ['human', 'user'], 'un eco repetido deja una sola línea en la transcripción');
+        const { data: after } = await db().from('handoffs').select('notified_at').eq('client_id', clientId).eq('contact_id', contactId).single();
+        assert.equal(after?.notified_at, null, 'no se le avisa al dueño de lo que ya ve en su celular');
+      },
+    },
+    {
       name: 'por WhatsApp: una toma vencida vuelve al asistente, con lo que dijo el dueño',
       channel: 'whatsapp',
       turns: [],
@@ -347,11 +373,20 @@ async function sendTurn(sessionId: string, text: string): Promise<string> {
 
 /** The signed webhook POST as Meta sends it. `message` adds to, or replaces, the fields of a plain text message. */
 export async function whatsAppRequest(contactId: string, text: string, message: Record<string, unknown> = {}): Promise<Response> {
+  return signedWebhook({ messages: [{ from: contactId, timestamp: String(Math.floor(Date.now() / 1000)), text: { body: text }, ...message }] });
+}
+
+/** What Meta sends when the owner writes from the WhatsApp Business app on the same number (coexistence). */
+export async function ownerEchoRequest(contactId: string, text: string, id: string): Promise<Response> {
+  return signedWebhook({
+    contacts: [{ wa_id: contactId }],
+    message_echoes: [{ from: 'negocio', to: contactId, id, timestamp: String(Math.floor(Date.now() / 1000)), type: 'text', text: { body: text } }],
+  });
+}
+
+function signedWebhook(value: Record<string, unknown>): Promise<Response> {
   const body = JSON.stringify({
-    entry: [{ changes: [{ value: {
-      metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID },
-      messages: [{ from: contactId, timestamp: String(Math.floor(Date.now() / 1000)), text: { body: text }, ...message }],
-    } }] }],
+    entry: [{ changes: [{ value: { metadata: { phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID }, ...value } }] }],
   });
   return fetch(`${BASE_URL}/api/whatsapp`, {
     method: 'POST',

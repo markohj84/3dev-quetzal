@@ -51,7 +51,7 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
         if (!mine) {
           return (
             <form className="handoff" action={take.bind(null, contactId)}>
-              <span>La atiende {handoff!.taken_by_email}.</span>
+              <span>La atiende {handoff!.taken_by_email ?? 'el negocio desde su WhatsApp'}.</span>
               <button type="submit">Tomarla yo</button>
             </form>
           );

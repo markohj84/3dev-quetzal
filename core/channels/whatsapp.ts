@@ -143,6 +143,27 @@ export function failedDeliveries(payload: unknown): { recipient: string; error: 
     });
 }
 
+/**
+ * Coexistence: the owner keeps the WhatsApp Business app on the same number,
+ * and what they send from it comes back here as an echo. Each echo is the
+ * owner answering that person, so the assistant has to step aside or both talk
+ * at once. Every kind counts, a reaction too: it says the owner is in the chat.
+ */
+export function ownerEchoes(payload: unknown): { contactId: string; text: string; id: string }[] {
+  const value = (payload as any)?.entry?.[0]?.changes?.[0]?.value;
+  const echoes: any[] = value?.message_echoes ?? [];
+  // The wa_id is the id the person's own messages arrive from (521… for Mexican
+  // mobiles); `to` is only the number. With one echo, contacts is that person.
+  const waId = echoes.length === 1 ? value?.contacts?.[0]?.wa_id : undefined;
+  return echoes.flatMap((echo) => {
+    const contactId = waId ?? echo.to;
+    if (!contactId) return [];
+    const kind = Object.keys(MEDIA).find((k) => echo[k]);
+    const text = echo.text?.body ?? (kind ? `[Envió ${MEDIA[kind]} desde el celular del negocio.]` : `[Respondió desde el celular del negocio (${echo.type}).]`);
+    return [{ contactId: String(contactId), text, id: String(echo.id ?? '') }];
+  });
+}
+
 // A sticker or a reaction is a gesture, and silence is the right answer to it: neither is here.
 const MEDIA: Record<string, string> = {
   audio: 'un audio',
@@ -335,6 +356,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   );
 
   assert.equal(toWhatsAppMarkup('## Título\n**negritas**\n- uno'), 'Título\n*negritas*\n• uno');
+
+  const echo = (echoes: object[], contacts?: object[]) => ({ entry: [{ changes: [{ field: 'smb_message_echoes', value: { contacts, message_echoes: echoes } }] }] });
+  assert.deepEqual(
+    ownerEchoes(echo([{ from: '522214100378', to: '522225550101', id: 'wamid.1', type: 'text', text: { body: 'Hola, soy Ana' } }], [{ wa_id: '5212225550101' }])),
+    [{ contactId: '5212225550101', text: 'Hola, soy Ana', id: 'wamid.1' }],
+    'el id es el wa_id, el mismo con el que llegan los mensajes de la persona, no el número del `to`',
+  );
+  assert.equal(ownerEchoes(echo([{ to: '522225550101', id: 'w', type: 'text', text: { body: 'ok' } }]))[0].contactId, '522225550101', 'sin contacts, el `to`');
+  assert.match(ownerEchoes(echo([{ to: '52', id: 'w', type: 'image', image: { id: 'x' } }]))[0].text, /una imagen/);
+  assert.equal(ownerEchoes(echo([{ to: '52', id: 'w', type: 'reaction', reaction: { emoji: '👍' } }])).length, 1, 'una reacción también dice que el dueño está en el chat');
+  assert.deepEqual(ownerEchoes(echo([{ id: 'w', type: 'text', text: { body: 'a nadie' } }])), [], 'sin destinatario no hay conversación que tomar');
+  assert.deepEqual(ownerEchoes({ entry: [{ changes: [{ value: { messages: [{ from: '52', text: { body: 'hola' } }] } }] }] }), []);
 
   console.log('whatsapp.ts self-check passed');
 }

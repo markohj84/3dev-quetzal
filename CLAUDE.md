@@ -390,6 +390,19 @@ al panel (`app/panel/links.ts`, `VERCEL_PROJECT_PRODUCTION_URL`). Carrera
 conocida: si toma la conversación mientras el asistente ya está
 contestando, esa respuesta sale una vez.
 
+**Coexistencia** (el cliente conserva su app WhatsApp Business en el mismo
+número): lo que el dueño manda desde la app llega como eco
+(`smb_message_echoes`, `ownerEchoes` en `core/channels/whatsapp.ts`) y toma la
+conversación igual que el panel, con `taken_by` en null (el panel dice "La
+atiende el negocio desde su WhatsApp"). Queda en `messages` como `human` y en
+la sesión como turno del asistente; vuelve sola a las 4 h. Sin aviso al dueño
+de lo que escriba la persona: ya lo ve en su celular. Prueba: eval "si el
+dueño contesta desde su celular". **Falta para usarlo:** que 3dev sea Tech
+Provider (verificación del negocio en Meta), el alta del número por Embedded
+Signup y suscribir el campo `smb_message_echoes` en la app de Meta. No se
+sincroniza el historial previo (`history`) ni los contactos
+(`smb_app_state_sync`).
+
 
 ## Administración de 3dev
 

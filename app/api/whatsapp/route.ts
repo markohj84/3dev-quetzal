@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
-import { createWhatsAppAdapter, failedDeliveries, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
+import { createWhatsAppAdapter, failedDeliveries, ownerEchoes, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
 import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     const alert = { channel: 'whatsapp', contactId: failed.recipient, transcript: [], reachAt: `https://wa.me/${failed.recipient}` };
     await reportFailure({ config, secrets }, alert, undefined, failed.error);
   }
+  for (const echo of ownerEchoes(parsed)) await ownerWrote(config.id, echo);
   // Meta retries anything that is not a 200, including delivery receipts.
   if (!inbound) return new Response('ok', { status: 200 });
 
@@ -87,6 +88,34 @@ export async function POST(request: Request) {
 
   // One conversation, one reply at a time: a second message waits for the first to be answered.
   return withTurn(config.id, inbound.contactId, () => answer({ engine, config, secrets }, adapter, inbound, finish));
+}
+
+/**
+ * The owner answered from the WhatsApp Business app on this same number: the
+ * conversation is theirs, as if taken in the panel, and what they wrote goes
+ * where the panel's replies go (transcript and session). Each write fails on
+ * its own: a lost line beats a lost take, which would let the assistant talk over them.
+ */
+async function ownerWrote(clientId: string, echo: ReturnType<typeof ownerEchoes>[number]): Promise<void> {
+  // Meta repeats a webhook it thinks failed: one echo, one line.
+  const claim = echo.id ? await claimMessage(clientId, echo.id).catch(() => 'new' as const) : 'new';
+  if (claim !== 'new') return;
+  const now = new Date();
+  const log = (what: string) => (error: unknown) => console.error(`[${clientId}] owner echo: ${what} failed`, error);
+  await withTurn(clientId, echo.contactId, async () => {
+    // First: it creates the contact the take points to.
+    await createConversationLog(clientId).appendHuman({ channel: 'whatsapp', contactId: echo.contactId, text: echo.text, at: now }).catch(log('log'));
+    await createHandoffStore(clientId).takeFromPhone(echo.contactId, now).catch(log('take'));
+    // The business said it: when the assistant takes over again, it is its own side of the thread.
+    const sessions = createSessionStore(clientId);
+    try {
+      const state = (await sessions.get(echo.contactId)) ?? { history: [], hasOffered: false };
+      await sessions.set(echo.contactId, { ...withStart(state, now), history: [...state.history, { role: 'assistant', content: echo.text }] });
+    } catch (error) {
+      log('session append')(error);
+    }
+  });
+  if (echo.id) await finishMessage(clientId, echo.id).catch(log('mark'));
 }
 
 async function answer(
@@ -122,7 +151,8 @@ async function answer(
   };
   if (handoff && isTaken(handoff, now)) {
     await keepUnanswered();
-    if (shouldNotify(handoff, now)) {
+    // Taken from the phone, the message is already on the owner's phone: no paid alert for it.
+    if (handoff.taken_by && shouldNotify(handoff, now)) {
       const profile = await profiles.get(inbound.contactId).catch(() => null);
       after(() => createLeadNotifier(config.notify, secrets).notify({
         channel: 'whatsapp',

@@ -69,6 +69,8 @@ export interface ConversationLog {
   append(entry: LogEntry): Promise<void>;
   /** The person's message with no reply: the owner has the conversation. */
   appendInbound(entry: Omit<LogEntry, 'assistantText'>): Promise<void>;
+  /** What the owner wrote outside the panel (from the business's own WhatsApp app). */
+  appendHuman(entry: { channel: string; contactId: string; text: string; at: Date }): Promise<void>;
   /** What this person said before `before` (the current conversation's start): memory for the next reply. */
   earlier(contactId: string, before: Date): Promise<EarlierMessage[]>;
 }
@@ -232,6 +234,11 @@ export function createConversationLog(clientId: string): ConversationLog {
       await touchContact(clientId, entry.contactId, entry.channel, at);
       await must(db().from('messages').insert({ client_id: clientId, contact_id: entry.contactId, role: 'user', content: entry.userText, at }));
     },
+    async appendHuman(entry) {
+      const at = entry.at.toISOString();
+      await touchContact(clientId, entry.contactId, entry.channel, at);
+      await must(db().from('messages').insert({ client_id: clientId, contact_id: entry.contactId, role: 'human', content: entry.text, at }));
+    },
   };
 }
 
@@ -352,6 +359,8 @@ export interface HandoffStore {
   get(contactId: string): Promise<Handoff | null>;
   release(contactId: string): Promise<void>;
   markNotified(contactId: string): Promise<void>;
+  /** The owner wrote from their own WhatsApp app: theirs for the next four hours. The contact must exist. */
+  takeFromPhone(contactId: string, at: Date): Promise<void>;
 }
 
 /** The webhook's view of who has a conversation (service_role: the person writing has no session). */
@@ -366,6 +375,13 @@ export function createHandoffStore(clientId: string): HandoffStore {
     },
     async markNotified(contactId) {
       await must(db().from('handoffs').update({ notified_at: new Date().toISOString() }).eq('client_id', clientId).eq('contact_id', contactId));
+    },
+    async takeFromPhone(contactId, at) {
+      const when = at.toISOString();
+      await must(db().from('handoffs').upsert(
+        { client_id: clientId, contact_id: contactId, taken_by: null, taken_by_email: null, taken_at: when, last_human_at: when, notified_at: null },
+        { onConflict: 'client_id,contact_id' },
+      ));
     },
   };
 }

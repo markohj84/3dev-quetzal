@@ -7,8 +7,9 @@ export const WINDOW_HOURS = 24;
 export interface Handoff {
   client_id: string;
   contact_id: string;
-  taken_by: string;
-  taken_by_email: string;
+  /** Both null: taken from the business's own WhatsApp app, not the panel. */
+  taken_by: string | null;
+  taken_by_email: string | null;
   taken_at: string;
   last_human_at: string;
   notified_at: string | null;
