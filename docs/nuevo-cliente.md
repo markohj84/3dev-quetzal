@@ -131,8 +131,9 @@ No necesita otra línea. Tres caminos:
      tener el **alta por Embedded Signup** (v4 o posterior; la v2 y la v3 se
      retiraron el 15-oct-2026). La coexistencia no se puede conectar a mano.
      El alta todavía no está construida.
-   - En la app de Meta, suscribir además `account_update`, `history`,
-     `smb_app_state_sync` y `smb_message_echoes` (hoy solo `messages`).
+   - La app de Meta de 3dev ya está suscrita a `account_update`, `history`,
+     `smb_app_state_sync` y `smb_message_echoes` además de `messages`
+     (2026-11-24). Una app propia del cliente necesita los mismos.
    - El cliente: app WhatsApp Business **2.24.17 o más nueva**, cuenta con
      algo de antigüedad (una recién creada no es elegible) y abrir la app al
      menos cada 13 días.

@@ -398,8 +398,8 @@ atiende el negocio desde su WhatsApp"). Queda en `messages` como `human` y en
 la sesión como turno del asistente; vuelve sola a las 4 h. Sin aviso al dueño
 de lo que escriba la persona: ya lo ve en su celular. Prueba: eval "si el
 dueño contesta desde su celular". **Falta para usarlo:** que 3dev sea Tech
-Provider (verificación del negocio en Meta), el alta del número por Embedded
-Signup y suscribir el campo `smb_message_echoes` en la app de Meta. No se
+Provider (verificación del negocio en Meta) y el alta del número por Embedded
+Signup; la app de Meta ya recibe `smb_message_echoes`. No se
 sincroniza el historial previo (`history`) ni los contactos
 (`smb_app_state_sync`).
 
