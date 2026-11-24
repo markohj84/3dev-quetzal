@@ -368,6 +368,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(ownerEchoes(echo([{ to: '52', id: 'w', type: 'reaction', reaction: { emoji: '👍' } }])).length, 1, 'una reacción también dice que el dueño está en el chat');
   assert.deepEqual(ownerEchoes(echo([{ id: 'w', type: 'text', text: { body: 'a nadie' } }])), [], 'sin destinatario no hay conversación que tomar');
   assert.deepEqual(ownerEchoes({ entry: [{ changes: [{ value: { messages: [{ from: '52', text: { body: 'hola' } }] } }] }] }), []);
+  // Coexistence sync replays months of past chats: answering them would write to everyone the business ever talked to.
+  const history = { entry: [{ changes: [{ field: 'history', value: { history: [{ threads: [{ id: '52', messages: [{ from: '52', id: 'w', timestamp: '1', type: 'text', text: { body: 'viejo' } }] }] }] } }] }] };
+  assert.equal(adapter.parse(history), null, 'el historial sincronizado no es un mensaje nuevo');
+  assert.deepEqual(ownerEchoes(history), []);
 
   console.log('whatsapp.ts self-check passed');
 }

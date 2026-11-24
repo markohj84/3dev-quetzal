@@ -119,6 +119,48 @@ Pasos:
 
 Las plantillas `aviso_lead` y `seguimiento_lead` las crea el paso 6 de esta guía.
 
+### 3a. Si el cliente ya atiende por WhatsApp Business en su número
+
+No necesita otra línea. Tres caminos:
+
+1. **Coexistencia (lo recomendable, todavía no disponible).** El número sigue
+   en la app del dueño y el asistente contesta por el mismo. Lo que el dueño
+   escribe desde la app toma la conversación cuatro horas (ya construido; ver
+   "Coexistencia" en `CLAUDE.md`). Requisitos:
+   - 3dev debe ser **Tech Provider** (verificación del negocio en Meta) y
+     tener el **alta por Embedded Signup** (v4 o posterior; la v2 y la v3 se
+     retiraron el 15-oct-2026). La coexistencia no se puede conectar a mano.
+     El alta todavía no está construida.
+   - En la app de Meta, suscribir además `account_update`, `history`,
+     `smb_app_state_sync` y `smb_message_echoes` (hoy solo `messages`).
+   - El cliente: app WhatsApp Business **2.24.17 o más nueva**, cuenta con
+     algo de antigüedad (una recién creada no es elegible) y abrir la app al
+     menos cada 13 días.
+   - Al terminar el alta: **no** registrar el número (ya lo está), suscribir
+     la WABA con `override_callback_uri` (paso 6 de arriba) y, **dentro de
+     24 h**, pedir la sincronización
+     (`POST /{phone-id}/smb_app_data` con `sync_type` `smb_app_state_sync` y
+     luego `history`). Pasadas las 24 h hay que desconectarlo y repetir el
+     alta. Hoy los webhooks `history` y `smb_app_state_sync` se reciben con
+     200 y se ignoran: el historial anterior no entra a la transcripción
+     (meterlo pide revisar antes el aviso de privacidad).
+   - Comprobar: `GET /{phone-id}?fields=is_on_biz_app,platform_type` →
+     `true` y `CLOUD_API`. **Primera prueba real:** escribirle al número,
+     que conteste el asistente y que el panel **no** diga "La atiende el
+     negocio desde su WhatsApp". Si lo dice, Meta está mandando eco de las
+     respuestas de la API y cada respuesta callaría al asistente.
+   - Lo que pierde el dueño en la app: mensajes temporales, "ver una vez",
+     ubicación en tiempo real y listas de difusión (quedan de solo lectura).
+     Sus dispositivos vinculados se desvinculan y los vuelve a vincular (no
+     sirven WhatsApp para Windows ni WearOS). Lo que manda desde la app sigue
+     gratis; lo del asistente se cobra como API.
+   - Para desconectarse lo hace el dueño, en la app: Ajustes → Cuenta →
+     Plataforma de negocios → Desconectar.
+2. **Pasar el número a la API.** Borra la cuenta en la app (pierde la app en
+   ese número) y sigue los pasos de arriba. Contesta desde `/panel`.
+3. **Número nuevo solo para el asistente.** Lo más simple; sus clientes ven
+   dos números.
+
 ---
 
 ## 3b. Alta en el deploy compartido (`MULTI_TENANT=1`, lo normal)
