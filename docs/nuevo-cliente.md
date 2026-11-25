@@ -39,6 +39,7 @@ Llena todo lo que está entre `[corchetes]` o marcado `TODO` en:
 | `widget.html` | Nombre, saludo y colores del chat del sitio: los mismos 4 colores de `home.html` |
 | `home.html` | Landing opcional (se sirve en "/" del dominio): 4 colores, fuentes, servicios y precios, horario, mapa y WhatsApp. Precios y datos iguales a `knowledge/`. Si el cliente ya tiene sitio, bórralo |
 | `privacidad.tsx` | Aviso de privacidad del cliente |
+| `terminos.tsx` | Opcional: términos de servicio en `/terminos`. Sin el archivo, esa ruta da 404. Hoy solo 3dev lo tiene: es la URL de términos de su app de Meta |
 | `evals.ts` | La regex `offer` de la invitación y los casos propios del negocio |
 
 `offerPattern` (config) y la regex `offer` (evals) deben atrapar la frase de

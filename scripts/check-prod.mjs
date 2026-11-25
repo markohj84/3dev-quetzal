@@ -4,6 +4,7 @@
 //   git fetch && node --env-file=.env.local scripts/check-prod.mjs [--chat]
 import { execFileSync } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { Redis } from '@upstash/redis';
 import { db } from '../core/store/db.ts';
 
@@ -21,16 +22,18 @@ const tenants = [];
 for (const dir of await readdir('clients', { withFileTypes: true })) {
   if (!dir.isDirectory() || dir.name.startsWith('_')) continue;
   const { default: config } = await import(`../clients/${dir.name}/assistant.config.ts`);
-  for (const host of config.domains) tenants.push({ host, config });
+  for (const host of config.domains) tenants.push({ host, config, terms: existsSync(`clients/${dir.name}/terminos.tsx`) });
 }
 
-for (const { host } of tenants) {
+for (const { host, terms } of tenants) {
   const widget = await get(`https://${host}/widget`);
   const commit = widget.headers.get('x-commit');
   if (!commit) warn(`${host}: no dice qué commit corre (deploy anterior a X-Commit)`);
   else (commit === expected ? ok : bad)(`${host}: corre ${commit}${commit === expected ? '' : `, origin/main es ${expected}: ¿el push no disparó el deploy?`}`);
   (widget.status === 200 && !widget.headers.get('x-frame-options') ? ok : bad)(`${host}/widget: ${widget.status}, se deja incrustar`);
   (((await get(`https://${host}/privacidad`)).status === 200) ? ok : bad)(`${host}/privacidad`);
+  // The Meta app's terms URL: if it stops answering, App Review and Embedded Signup break.
+  if (terms) (((await get(`https://${host}/terminos`)).status === 200) ? ok : bad)(`${host}/terminos`);
   const panel = await get(`https://${host}/panel/entrar`);
   (panel.status === 200 && panel.headers.get('x-frame-options') === 'DENY' ? ok : bad)(`${host}/panel/entrar: ${panel.status}, X-Frame-Options ${panel.headers.get('x-frame-options')}`);
 }
