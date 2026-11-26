@@ -89,6 +89,15 @@ export async function finishMessage(clientId: string, messageId: string): Promis
   await kv.set(inboundKey(clientId, messageId), 'done', { ex: DONE_SECONDS });
 }
 
+/** All contenders for one invitation compete for the same key across function instances. */
+export function quoteBinding(clientId: string, digest: string, expiresAt: number) {
+  const key = `quote-binding:${process.env.VERCEL_ENV || 'local'}:${clientId}:${digest}`;
+  return {
+    owner: () => kv.get<string>(key),
+    claim: async (chat: string) => (await kv.set(key, chat, { nx: true, exat: expiresAt + 60 })) === 'OK',
+  };
+}
+
 export interface RateLimiter {
   /** True if this call is within limit; false if the caller should be rejected. */
   check(key: string): Promise<boolean>;

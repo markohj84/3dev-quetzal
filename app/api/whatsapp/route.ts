@@ -1,8 +1,9 @@
 import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
 import { createWhatsAppAdapter, failedDeliveries, ownerEchoes, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
+import { quotePilotFor, pilotReply } from '../../../core/channels/quote-pilot';
 import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
-import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn } from '../../../core/store/session-store';
+import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn, quoteBinding } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
 import { isTaken, shouldNotify } from '../../../core/handoff';
 import { withStart } from '../../../core/engine/prompt';
@@ -124,6 +125,22 @@ async function answer(
   inbound: InboundMessage,
   finish: () => Promise<void>,
 ): Promise<Response> {
+  // Explicit pilot commands use the signed sender and do not enter the sales transcript.
+  const pilot = quotePilotFor(config.id);
+  if (pilot) {
+    try {
+      const reply = await pilotReply(pilot, quoteBinding(config.id, pilot.digest, pilot.expiresAt), inbound.contactId, inbound.text);
+      if (reply !== null) {
+        await adapter.deliver(inbound.contactId, { text: reply });
+        await finish();
+        return new Response('ok');
+      }
+    } catch {
+      // Keep the claim retryable when Redis or delivery fails. Never send the invitation to the model.
+      return new Response('retry', { status: 503 });
+    }
+  }
+
   const sessions = createSessionStore(config.id);
   const state = (await sessions.get(inbound.contactId)) ?? { history: [], hasOffered: false };
   const profiles = createProfileStore(config.id);
