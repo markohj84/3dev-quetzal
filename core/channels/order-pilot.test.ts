@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { decide, deskDecision, deskRole, details, markNotification, newOrder, orderReceipts, orderText, trackingTag, requestedQuantity, requestedFolio, orderSummary, type Order, type OrderBook } from './order-pilot.ts';
+import { decide, deskDecision, deskRole, details, markNotification, newOrder, orderReceipts, orderText, trackingTag, requestedQuantity, selectedQuantity, requestedFolio, orderSummary, type Order, type OrderBook } from './order-pilot.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const digest = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -12,6 +12,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(requestedQuantity('Quiero pedir 48 mesas',setup),48);
   assert.equal(requestedQuantity('Hola, quiero hacer otro pedido de 16 mesas.',setup),16);
   for (const msg of ['No quiero 32 mesas', 'Quiero pedir 0 mesas', 'Quiero pedir 1.5 mesas', 'Quiero pedir 32 mesas y 4 sillas']) assert.equal(requestedQuantity(msg,setup),null);
+  assert.equal(selectedQuantity('El de 40',setup),40);
+  assert.equal(selectedQuantity('¿El pedido de 56 mesas, por favor?',setup),56);
+  assert.equal(requestedQuantity('el de 56',setup),null);
+  for (const msg of ['Quiero pedir 40 mesas', 'el de 40 o el de 56', 'el de 40 sillas', 'el de 40.5']) {
+    assert.equal(selectedQuantity(msg,setup),null);
+  }
   const states = new Map<string,Order>();
   const book: OrderBook = {
     list:async () => Array.from(states.values()),
@@ -79,6 +85,25 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.match(details(await other.read()).delivery,/4 de febrero/);
   const summary = orderSummary(await book.list(),setup.business);
   for (const o of [a,second]) assert.ok(summary.includes(o.folio));
-  assert.notEqual((await create(48,'message-3')).folio,second.folio);
+  const third = await create(48,'message-3');
+  assert.notEqual(third.folio,second.folio);
 
+  const otherOrder = await other.read();
+  assert.ok(snapshot && otherOrder);
+  const forty = {...snapshot, quantity:40};
+  const fiftySix = {...otherOrder, quantity:56};
+  const choices = [fiftySix, forty];
+  assert.match(orderSummary(choices,setup.business), /el de 56/);
+  for (const order of choices) {
+    assert.equal(orderSummary(choices,setup.business,order.quantity), orderText(order,setup.business));
+  }
+  const pending = {...forty, ventas:null, logistica:null};
+  assert.equal(orderSummary([pending],setup.business,40),orderText(pending,setup.business));
+  const ambiguous = orderSummary([forty, {...fiftySix, quantity:40}, third],setup.business,40);
+  assert.match(ambiguous, /varios pedidos de 40/);
+  for (const order of choices) assert.ok(ambiguous.includes(order.folio));
+  assert.ok(!ambiguous.includes(third.folio));
+  assert.doesNotMatch(ambiguous, /Total por|confirmó la entrega/);
+  assert.match(orderSummary(choices,setup.business,99), /No encontré un pedido de 99/);
+  assert.equal(orderSummary([],setup.business),null);
 }

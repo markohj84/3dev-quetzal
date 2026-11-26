@@ -2,7 +2,7 @@ import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
 import { createWhatsAppAdapter, failedDeliveries, ownerEchoes, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import { quotePilotFor, pilotReply, asksForStatus, boundChat } from '../../../core/channels/quote-pilot';
-import { orderSettings, newOrder, requestedQuantity, requestedFolio, orderSummary, orderText, orderReceipts, markNotification } from '../../../core/channels/order-pilot';
+import { orderSettings, newOrder, requestedQuantity, selectedQuantity, requestedFolio, orderSummary, orderText, orderReceipts, markNotification } from '../../../core/channels/order-pilot';
 import { orderStore } from '../../../core/store/order-store';
 import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
 import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn, quoteBinding } from '../../../core/store/session-store';
@@ -147,9 +147,10 @@ async function answer(
       let reply: string | null = null;
       if (setup && Date.now() < pilot.expiresAt * 1000) {
         const quantity = requestedQuantity(text, setup);
+        const selection = selectedQuantity(text, setup);
         const folio = requestedFolio(text);
         const summary = asksForStatus(text);
-        if ((quantity || folio || summary) && await binding.owner() === boundChat(pilot.digest, inbound.contactId)) {
+        if ((quantity || selection !== null || folio || summary) && await binding.owner() === boundChat(pilot.digest, inbound.contactId)) {
           const book = orderStore(config.id, pilot.digest, pilot.expiresAt);
           if (quantity) {
             if (inbound.id) {
@@ -163,7 +164,7 @@ async function answer(
             reply = order ? orderText(order, setup.business)
               : folio === pilot.folio ? pilot.reply : 'No encontré ese folio en tus pedidos.';
           } else {
-            reply = orderSummary(await book.list(), setup.business);
+            reply = orderSummary(await book.list(), setup.business, selection);
           }
         }
       }
