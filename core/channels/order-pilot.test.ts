@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { decide, deskDecision, deskRole, details, markNotification, newOrder, orderReceipts, orderText, trackingTag, requestedQuantity, selectedQuantity, requestedFolio, orderSummary, type Order, type OrderBook } from './order-pilot.ts';
+import { decide, deskDecision, deskRole, details, markNotification, newOrder, orderReceipts, orderText, trackingTag, requestedQuantity, selectedQuantity, requestedFolio, asksForNewestOrder, orderMenu, orderSummary, type Order, type OrderBook } from './order-pilot.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const digest = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -15,6 +15,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(selectedQuantity('El de 40',setup),40);
   assert.equal(selectedQuantity('¿El pedido de 56 mesas, por favor?',setup),56);
   assert.equal(requestedQuantity('el de 56',setup),null);
+  for (const text of ['el nuevo', 'con el folio nuevo', '¿El nuevo, por favor?']) {
+    assert.ok(asksForNewestOrder(text));
+    assert.equal(requestedQuantity(text, setup), null);
+  }
+  for (const text of ['quiero un pedido nuevo', 'el nuevo escritorio', 'el de 40', 'no, con el folio nuevo']) {
+    assert.equal(asksForNewestOrder(text), false);
+  }
   for (const msg of ['Quiero pedir 40 mesas', 'el de 40 o el de 56', 'el de 40 sillas', 'el de 40.5']) {
     assert.equal(selectedQuantity(msg,setup),null);
   }
@@ -106,4 +113,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.doesNotMatch(ambiguous, /Total por|confirmó la entrega/);
   assert.match(orderSummary(choices,setup.business,99), /No encontré un pedido de 99/);
   assert.equal(orderSummary([],setup.business),null);
+
+  const olderForty = { ...forty, created: '2026-11-26T12:00:00Z' };
+  const newerForty = { ...pending, folio: third.folio, created: '2026-11-26T15:00:00Z' };
+  const laterFiftySix = { ...fiftySix, created: '2026-11-26T16:00:00Z' };
+  const rows = [laterFiftySix, newerForty, olderForty];
+  const menu = orderMenu(rows, setup.business, 40);
+  assert.equal(menu.newestFolio, newerForty.folio);
+  assert.match(menu.text, /«el nuevo»/);
+  assert.ok(menu.text.includes(olderForty.folio) && !menu.text.includes(laterFiftySix.folio));
+  assert.equal(orderMenu(rows, setup.business, 56).newestFolio, null);
+  assert.equal(orderMenu(rows, setup.business, 99).newestFolio, null);
+  assert.equal(orderMenu(rows, setup.business).newestFolio, null);
+  const sameTime = orderMenu([newerForty, { ...olderForty, created: newerForty.created }], setup.business, 40);
+  assert.equal(sameTime.newestFolio, null);
+  assert.doesNotMatch(sameTime.text, /«el nuevo»/);
 }

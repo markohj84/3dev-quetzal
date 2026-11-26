@@ -1,4 +1,4 @@
-import { kv } from './session-store.ts';
+import { kv, SESSION_TTL_SECONDS } from './session-store.ts';
 import { isLegacyOrderFolio, type Order, type OrderBook } from '../channels/order-pilot.ts';
 
 const compareAndSet = `
@@ -8,6 +8,19 @@ const compareAndSet = `
   redis.call('EXPIREAT', KEYS[1], ARGV[3])
   return 1
 `;
+
+// The chat digest already includes the invitation. Keep the exact choice shown across webhook calls.
+export function orderMenuStore(clientId: string, chatDigest: string, pilotExpiresAt: number) {
+  const key = ['quote-order-menu', process.env.VERCEL_ENV || 'local', clientId, chatDigest].join(':');
+  return {
+    newest: () => kv.get<string>(key),
+    clear: () => kv.del(key),
+    remember(folio: string) {
+      const expiresAt = Math.min(pilotExpiresAt, Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS);
+      return kv.set(key, folio, { exat: expiresAt });
+    },
+  };
+}
 
 export function orderStore(clientId: string, binding: string, expiresAt: number): OrderBook {
   const key = ['quote-order', process.env.VERCEL_ENV || 'local', clientId, binding].join(':');

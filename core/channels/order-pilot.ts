@@ -40,6 +40,7 @@ export interface OrderStore {
 }
 
 export interface OrderBook {
+  /** Most recently created first. */
   list(): Promise<Order[]>;
   forFolio(folio: string): OrderStore;
 }
@@ -84,6 +85,10 @@ export function selectedQuantity(text: string, config: OrderSettings): number | 
   return Number(quantity);
 }
 
+export function asksForNewestOrder(text: string) {
+  return /^(?:con )?el (?:(?:folio|pedido) )?nuevo(?: por favor)?$/.test(normalize(text));
+}
+
 export function newOrder(book: OrderBook, config: OrderSettings, sender: string, quantity: number, messageId: string) {
   // Meta retries a message with the same ID. A new message is a new order, even for the same quantity.
   if (!messageId) throw new Error('Falta el identificador del mensaje de WhatsApp.');
@@ -111,19 +116,29 @@ export function orderText(order: Order, business: string, area?: Area) {
   return ['Prueba de ' + business, order.folio + ' · ' + order.quantity + ' ' + order.product, ...lines].join('\n');
 }
 
-export function orderSummary(orders: Order[], business: string, quantity: number | null = null) {
+export function orderMenu(orders: Order[], business: string, quantity: number | null = null) {
   const matches = quantity === null ? orders : orders.filter(order => order.quantity === quantity);
   if (!matches.length) {
-    return quantity === null ? null : 'No encontré un pedido de ' + quantity + ' unidades. Escribe «¿Cómo va mi pedido?» para ver tus pedidos.';
+    const text = quantity === null ? null : 'No encontré un pedido de ' + quantity + ' unidades. Escribe «¿Cómo va mi pedido?» para ver tus pedidos.';
+    return { text, newestFolio: null };
   }
-  if (matches.length === 1) return orderText(matches[0], business);
+  if (matches.length === 1) return { text: orderText(matches[0], business), newestFolio: null };
 
   const lines = matches.slice(0, 20).map(o => o.folio + ' · ' + o.quantity + ' ' + o.product);
   if (quantity !== null) {
-    return ['Tienes varios pedidos de ' + quantity + ' unidades.', ...lines, '¿Cuál quieres consultar? Responde con su folio.'].join('\n');
+    const newestFolio = matches[0].created > matches[1].created ? matches[0].folio : null;
+    const prompt = newestFolio
+      ? '¿Cuál quieres consultar? Responde con su folio o escribe «el nuevo» para ver el más reciente de esta lista.'
+      : '¿Cuál quieres consultar? Responde con su folio.';
+    return { text: ['Tienes varios pedidos de ' + quantity + ' unidades.', ...lines, prompt].join('\n'), newestFolio };
   }
-  return ['Tus pedidos más recientes en ' + business, ...lines,
+  const text = ['Tus pedidos más recientes en ' + business, ...lines,
     'Puedes elegir por cantidad escribiendo, por ejemplo, «el de ' + matches[0].quantity + '». También puedes enviar el folio.'].join('\n');
+  return { text, newestFolio: null };
+}
+
+export function orderSummary(orders: Order[], business: string, quantity: number | null = null) {
+  return orderMenu(orders, business, quantity).text;
 }
 
 export const deskDecision = z.discriminatedUnion('area', [

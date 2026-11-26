@@ -2,8 +2,8 @@ import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
 import { createWhatsAppAdapter, failedDeliveries, ownerEchoes, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
 import { quotePilotFor, pilotReply, asksForStatus, boundChat } from '../../../core/channels/quote-pilot';
-import { orderSettings, newOrder, requestedQuantity, selectedQuantity, requestedFolio, orderSummary, orderText, orderReceipts, markNotification } from '../../../core/channels/order-pilot';
-import { orderStore } from '../../../core/store/order-store';
+import { orderSettings, newOrder, requestedQuantity, selectedQuantity, requestedFolio, asksForNewestOrder, orderMenu, orderText, orderReceipts, markNotification } from '../../../core/channels/order-pilot';
+import { orderMenuStore, orderStore } from '../../../core/store/order-store';
 import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
 import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn, quoteBinding } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
@@ -144,15 +144,25 @@ async function answer(
       const binding = quoteBinding(config.id, pilot.digest, pilot.expiresAt);
       const setup = orderSettings(config.id, pilot.digest);
       const text = inbound.text.trim();
+      const chat = boundChat(pilot.digest, inbound.contactId);
+      const menu = orderMenuStore(config.id, chat, pilot.expiresAt);
+      let newestShown: string | null = null;
       let reply: string | null = null;
       if (setup && Date.now() < pilot.expiresAt * 1000) {
         const quantity = requestedQuantity(text, setup);
         const selection = selectedQuantity(text, setup);
         const folio = requestedFolio(text);
         const summary = asksForStatus(text);
-        if ((quantity || selection !== null || folio || summary) && await binding.owner() === boundChat(pilot.digest, inbound.contactId)) {
+        const newest = asksForNewestOrder(text);
+        if ((quantity || selection !== null || folio || summary || newest) && await binding.owner() === chat) {
           const book = orderStore(config.id, pilot.digest, pilot.expiresAt);
-          if (quantity) {
+          if (!newest) await menu.clear();
+          if (newest) {
+            const shown = await menu.newest();
+            const order = shown ? await book.forFolio(shown).read() : null;
+            reply = order && order.recipient === inbound.contactId ? orderText(order, setup.business)
+              : 'Escribe «el de» seguido de la cantidad para ver los pedidos que coinciden, o envíame el folio que quieres consultar.';
+          } else if (quantity) {
             if (inbound.id) {
               const order = await newOrder(book, setup, inbound.contactId, quantity, inbound.id);
               reply = 'Solicitud registrada.\n' + orderText(order, setup.business);
@@ -164,13 +174,16 @@ async function answer(
             reply = order ? orderText(order, setup.business)
               : folio === pilot.folio ? pilot.reply : 'No encontré ese folio en tus pedidos.';
           } else {
-            reply = orderSummary(await book.list(), setup.business, selection);
+            const listed = orderMenu(await book.list(), setup.business, selection);
+            reply = listed.text;
+            newestShown = listed.newestFolio;
           }
         }
       }
       reply ??= await pilotReply(pilot, binding, inbound.contactId, text);
       if (reply !== null) {
         await adapter.deliver(inbound.contactId, { text: reply });
+        if (newestShown) await menu.remember(newestShown);
         await finish();
         return new Response('ok');
       }

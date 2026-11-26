@@ -8,7 +8,7 @@ export const kv = new Redis({
 });
 
 /** Matches WhatsApp's 24h service window — a session stale past that is dead either way. */
-const SESSION_TTL_SECONDS = 60 * 60 * 24;
+export const SESSION_TTL_SECONDS = 60 * 60 * 24;
 
 export interface SessionStore {
   get(contactId: string): Promise<ConversationState | null>;
