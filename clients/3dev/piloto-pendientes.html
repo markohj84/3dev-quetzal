@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bandeja de solicitudes · Mobiliaria Sur</title>
+<style>
+:root{color-scheme:light;--ink:#211936;--brand:#413074;--line:#d9d5e2;--paper:#f7f7fa;--muted:#615970;--accent:#00716d;font:16px/1.5 Figtree,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+*{box-sizing:border-box}
+body{margin:0}
+header{color:white;background:var(--brand);padding:24px max(20px,calc((100% - 840px)/2))}
+header p,header h1{margin:0}
+header p{color:#e4dff0}
+h1{font-size:clamp(26px,4vw,34px);letter-spacing:-.035em}
+main{max-width:880px;padding:24px 20px 60px;margin:auto}
+nav,.controls,form{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+nav{border-bottom:1px solid var(--line);padding-bottom:16px}
+button,input{font:inherit}
+button{cursor:pointer;border-radius:7px;padding:8px 14px;color:var(--brand);background:white;border:1px solid var(--line);font-weight:600}
+button[aria-pressed=true],button[type=submit]{color:#fff;background:var(--brand);border-color:var(--brand)}
+button:disabled{cursor:wait;opacity:.65}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+nav button:last-child{margin-left:auto}
+article{margin:16px 0;background:white;border:1px solid var(--line);border-radius:10px;padding:clamp(16px,4vw,26px);overflow-wrap:anywhere}
+h2{margin:2px 0 0;font-size:1.28rem}
+.meta,small{color:var(--muted);font-size:.875rem}
+p{margin:8px 0}
+.folio{font-family:ui-monospace,monospace;font-weight:600;color:var(--brand)}
+.stock{white-space:pre-line}
+.details{border-top:1px solid var(--line);padding-top:10px;margin-top:14px}
+.details p{margin:5px 0}
+form{border-top:1px solid var(--line);margin-top:14px;padding-top:16px;align-items:end}
+label{display:grid;gap:4px;font-weight:600}
+input:not([type=checkbox]){border:1px solid #a8a1b5;background:white;color:var(--ink);border-radius:6px;padding:8px;max-width:100%;min-height:40px}
+.check{display:flex;align-items:baseline;gap:6px;width:100%;font-weight:400}
+[hidden]{display:none!important}
+#notice{color:var(--accent)}
+#error{color:#982c12}
+</style>
+</head>
+<body>
+<header><p id="area">Mobiliaria Sur</p><h1>Bandeja de solicitudes</h1></header>
+<main>
+<p id="access" hidden>Abre el enlace de Ventas o Logística que recibiste para esta prueba.</p>
+<nav id="filters" aria-label="Filtrar solicitudes" hidden>
+  <button id="pending" aria-pressed="true">Pendientes</button>
+  <button id="done" aria-pressed="false">Resueltas</button>
+  <button id="reload">Actualizar</button>
+</nav>
+<p id="notice" role="status"></p><p id="error" role="alert"></p>
+<section id="requests" aria-label="Solicitudes"></section>
+</main>
+<template id="card">
+  <article><span class="folio"></span><h2></h2><small class="created"></small>
+
+    <div class="details"><p class="price"></p><small class="price-time"></small><p class="delivery"></p><small class="delivery-time"></small></div>
+    <button class="retry" hidden>Reintentar aviso por WhatsApp</button>
+    <form><label class="sales">Precio autorizado por unidad (MXN)<input name="price" type="number" min="0.01" max="1000000" step="0.01" inputmode="decimal"></label>
+      <label class="logistics">Fecha de entrega del pedido completo<input name="date" type="date"></label>
+      <label class="logistics check"><input name="checked" type="checkbox"><span></span></label>
+      <button type="submit"></button>
+    </form>
+  </article>
+</template>
+<script>
+const $ = id => document.getElementById(id);
+const fragment = new URLSearchParams(location.hash.slice(1));
+if (fragment.has('acceso')) {
+  sessionStorage.setItem('pedido-piloto-area',fragment.get('acceso'));
+  history.replaceState(null,'',location.pathname);
+}
+window.addEventListener('hashchange', () => {
+  if (new URLSearchParams(location.hash.slice(1)).has('acceso')) location.reload();
+});
+let data, resolved = false, busy = false;
+async function api(method, body) {
+  const response = await fetch('/api/piloto/pendientes', {
+    method, cache:'no-store', headers:{ 'Authorization':'Bearer ' + (sessionStorage.getItem('pedido-piloto-area') || ''),
+      ...(body && { 'Content-Type':'application/json' }) }, body:body && JSON.stringify(body),
+  });
+  if (response.status === 401) {
+    sessionStorage.removeItem('pedido-piloto-area');
+    $('filters').hidden = true;
+    $('access').hidden = false;
+    $('requests').replaceChildren();
+  }
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'No se pudo acceder a la bandeja.');
+  return result;
+}
+const clock = new Intl.DateTimeFormat('es-MX',{timeZone:'America/Mexico_City',dateStyle:'medium',timeStyle:'short'});
+const time = s => clock.format(new Date(s));
+const whatsapp = {sending:'Enviando', accepted:'Aceptado por WhatsApp', delivered:'Entregado en el chat', read:'Leído en el chat', failed:'Aviso sin entregar', uncertain:'Recepción por verificar'};
+function card(r) {
+  const node = $('card').content.firstElementChild.cloneNode(true);
+  const find = sel => node.querySelector(sel);
+  const show = (sel,text) => { find(sel).textContent = text; };
+  show('.folio',r.folio);
+  show('h2',r.quantity + ' · ' + r.product);
+  show('.created','Registrada el ' + time(r.created) + ' (hora del centro de México)');
+  show('.price',r.price);
+  show('.delivery',r.delivery);
+  if (r.ventas) show('.price-time',time(r.ventas.at) + ' · ' + whatsapp[r.ventas.status]);
+  if (r.logistica) show('.delivery-time',time(r.logistica.at) + ' · ' + whatsapp[r.logistica.status]);
+  const sales = data.area === 'ventas';
+  const form = find('form'), saved = r[data.area];
+  if (saved) {
+    form.remove();
+    const retry = find('.retry');
+    retry.hidden = saved.status !== 'failed';
+    retry.onclick = () => act(async () => {
+      const fields = sales ? {unitCents:saved.value} : {deliveryDate:saved.value,fullOrderConfirmed:true};
+      await api('POST',{folio:r.folio,area:data.area,...fields,retry:true});
+      await refresh();
+    });
+    return node;
+  }
+  for (const label of form.querySelectorAll(sales ? '.logistics' : '.sales')) label.remove();
+  if (sales) form.elements.price.required = true;
+  else {
+    form.elements.date.min = data.today;
+    form.elements.date.required = form.elements.checked.required = true;
+    show('.check span','Verifiqué que se pueden entregar las ' + r.quantity + ' unidades en esta fecha.');
+  }
+  show('button[type=submit]',sales ? 'Autorizar precio' : 'Confirmar entrega');
+  form.onsubmit = async event => {
+    event.preventDefault();
+    if (busy) return;
+    const decision = sales ? {unitCents:Math.round(form.elements.price.valueAsNumber * 100)}
+      : {deliveryDate:form.elements.date.value, fullOrderConfirmed:form.elements.checked.checked};
+    await act(async () => {
+      const result = await api('POST',{folio:r.folio,area:data.area,...decision});
+      resolved = !!(result.order.ventas && result.order.logistica);
+      $('notice').textContent = (sales ? 'Precio autorizado' : 'Entrega confirmada') + ' · ' + r.folio + ' · ' + whatsapp[result.order[data.area].status];
+      await refresh();
+    });
+  };
+  return node;
+}
+function render() {
+  const complete = r => !!(r.ventas && r.logistica);
+  const finished = data.requests.filter(complete).length;
+  $('pending').textContent = 'Pendientes (' + (data.requests.length - finished) + ')';
+  $('done').textContent = 'Resueltas (' + finished + ')';
+  $('pending').setAttribute('aria-pressed',String(!resolved));
+  $('done').setAttribute('aria-pressed',String(resolved));
+  const rows = data.requests.filter(r => complete(r) === resolved);
+  $('requests').replaceChildren(...rows.map(card));
+  if (!rows.length) $('requests').textContent = resolved ? 'Todavía no hay solicitudes resueltas.' : 'No hay solicitudes pendientes. El pedido aparecerá aquí cuando llegue por WhatsApp.';
+}
+async function refresh() {
+  const updated = await api('GET');
+  if (JSON.stringify(updated) === JSON.stringify(data)) return;
+  data = updated;
+  $('area').textContent = 'Mobiliaria Sur · ' + (data.area === 'ventas' ? 'Ventas' : 'Logística') + ' · Prueba';
+  $('filters').hidden = false;
+  $('access').hidden = true;
+  render();
+}
+async function act(fn) {
+  if (busy) return;
+  busy = true; $('error').textContent = $('notice').textContent = '';
+  const controls = [...document.querySelectorAll('button')];
+  controls.forEach(el => el.disabled = true);
+  try { await fn(); } catch (e) { $('error').textContent = e.message; }
+  finally { controls.forEach(el => el.disabled = false); busy = false; }
+}
+$('pending').onclick = () => { resolved = false; render(); };
+$('done').onclick = () => { resolved = true; render(); };
+$('reload').onclick = () => act(refresh);
+if (sessionStorage.getItem('pedido-piloto-area')) act(refresh);
+else $('access').hidden = false;
+setInterval(() => {
+  if (data && !busy && !document.hidden && !document.activeElement?.closest('form')) refresh().catch(() => {});
+}, 10000);
+</script>
+</body></html>

@@ -1,7 +1,9 @@
 import { NextResponse, after } from 'next/server';
 import { assistantFor, getAssistantOrNull, tenantByPhoneNumberId, type Assistant } from '../../assistant';
 import { createWhatsAppAdapter, failedDeliveries, ownerEchoes, toMetaRecipient, verifySignature } from '../../../core/channels/whatsapp';
-import { quotePilotFor, pilotReply } from '../../../core/channels/quote-pilot';
+import { quotePilotFor, pilotReply, asksForStatus, boundChat } from '../../../core/channels/quote-pilot';
+import { orderSettings, newOrder, wantsOrder, orderText, orderReceipts, markNotification } from '../../../core/channels/order-pilot';
+import { orderStore } from '../../../core/store/order-store';
 import type { ChannelAdapter, InboundMessage } from '../../../core/channels/types';
 import { createSessionStore, createRateLimiter, claimMessage, finishMessage, withTurn, quoteBinding } from '../../../core/store/session-store';
 import { createConversationLog, createLeadStore, createFollowUpStore, createProfileStore, createHandoffStore, createUsageLog } from '../../../core/store/db';
@@ -63,6 +65,16 @@ export async function POST(request: Request) {
   });
   const inbound = adapter.parse(parsed);
   // Meta accepted a send and reports here, later, that it never arrived: the only notice there is.
+  const receipts = orderReceipts(parsed, secrets.whatsapp.phoneNumberId);
+  if (receipts.length) {
+    const pilot = quotePilotFor(config.id);
+    if (pilot && Date.now() < pilot.expiresAt * 1000 && orderSettings(config.id, pilot.digest)) {
+      const store = orderStore(config.id, pilot.digest, pilot.expiresAt);
+      for (const receipt of receipts) {
+        await markNotification(store, receipt.folio, receipt.area, receipt.attempt, receipt.status);
+      }
+    }
+  }
   const [failed] = failedDeliveries(parsed);
   if (failed) {
     const alert = { channel: 'whatsapp', contactId: failed.recipient, transcript: [], reachAt: `https://wa.me/${failed.recipient}` };
@@ -129,7 +141,22 @@ async function answer(
   const pilot = quotePilotFor(config.id);
   if (pilot) {
     try {
-      const reply = await pilotReply(pilot, quoteBinding(config.id, pilot.digest, pilot.expiresAt), inbound.contactId, inbound.text);
+      const binding = quoteBinding(config.id, pilot.digest, pilot.expiresAt);
+      const setup = orderSettings(config.id, pilot.digest);
+      const text = inbound.text.trim();
+      let reply: string | null = null;
+      if (setup && Date.now() < pilot.expiresAt * 1000) {
+        const create = wantsOrder(text, setup);
+        const lookup = asksForStatus(text) || /^MS-[a-f0-9-]{13}$/i.test(text);
+        if ((create || lookup) && await binding.owner() === boundChat(pilot.digest, inbound.contactId)) {
+          const store = orderStore(config.id, pilot.digest, pilot.expiresAt);
+          const order = create ? await newOrder(store, setup, inbound.contactId) : await store.read();
+          if (order && (create || asksForStatus(text) || order.folio.toLowerCase() === text.toLowerCase())) {
+            reply = (create ? 'Solicitud registrada.\n' : '') + orderText(order, setup.business);
+          }
+        }
+      }
+      reply ??= await pilotReply(pilot, binding, inbound.contactId, text);
       if (reply !== null) {
         await adapter.deliver(inbound.contactId, { text: reply });
         await finish();

@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis';
 import type { ConversationState } from '../engine';
 
 /** Names match what Vercel's Upstash Marketplace integration injects, not @upstash/redis's own convention. */
-const kv = new Redis({
+export const kv = new Redis({
   url: process.env.KV_REST_API_URL!,
   token: process.env.KV_REST_API_TOKEN!,
 });

@@ -35,9 +35,18 @@ export function verifySignature(appSecret: string, rawBody: string, header: stri
   return timingSafeEqual(expectedBuf, givenBuf);
 }
 
+export class WhatsAppSendError extends Error {
+  readonly statusCode: number;
+  constructor(statusCode: number, detail: string) {
+    super('WhatsApp delivery failed: ' + statusCode + ' ' + detail);
+    this.statusCode = statusCode;
+  }
+}
+
 export function createWhatsAppAdapter(opts: {
   phoneNumberId: string;
   accessToken: string;
+  callbackTag?: string;
 }): ChannelAdapter {
   return {
     name: 'whatsapp',
@@ -120,12 +129,12 @@ export function createWhatsAppAdapter(opts: {
             Authorization: `Bearer ${opts.accessToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(opts.callbackTag ? { ...payload, biz_opaque_callback_data: opts.callbackTag } : payload),
         },
       );
 
       if (!res.ok) {
-        throw new Error(`WhatsApp delivery failed: ${res.status} ${await res.text()}`);
+        throw new WhatsAppSendError(res.status, await res.text());
       }
     },
   };

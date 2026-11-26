@@ -24,6 +24,8 @@ export function quotePilotFor(clientId: string): QuotePilot | null {
 }
 
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
+export const boundChat = (digest: string, sender: string) => hash(digest + ':' + sender);
+export const asksForStatus = (order: string) => /^(?:¿?c[oó]mo va mi pedido\??|ver (?:mi solicitud|mis solicitudes)|(?:consultar|ver) (?:mi )?(?:pedido|cotizaci[oó]n))[.!?]?$/i.test(order.trim());
 export const inviteMessage = (token: string) => 'Vincular prueba ' + token;
 export const isInvite = (text: string) => /^vincular prueba(?:\s|$)/i.test(text.trim());
 export function acceptsToken(pilot: QuotePilot, token: string, now = Date.now()) {
@@ -32,7 +34,7 @@ export function acceptsToken(pilot: QuotePilot, token: string, now = Date.now())
 }
 
 export async function pilotReply(pilot: QuotePilot, binding: QuoteBinding, sender: string, text: string, now = Date.now()) {
-  const chat = hash(pilot.digest + ':' + sender);
+  const chat = boundChat(pilot.digest, sender);
   const order = text.trim();
   if (isInvite(order)) {
     const token = /^vincular prueba ([\w-]{32})$/i.exec(order)?.[1] ?? '';
@@ -41,7 +43,7 @@ export async function pilotReply(pilot: QuotePilot, binding: QuoteBinding, sende
     return pilot.reply + '\n\nPuedes volver a consultar este folio con «¿Cómo va mi pedido?».';
   }
   if (now >= pilot.expiresAt * 1000) return null;
-  const asks = order.toUpperCase() === pilot.folio.toUpperCase() || /^(?:¿?c[oó]mo va mi pedido\??|ver (?:mi solicitud|mis solicitudes)|(?:consultar|ver) (?:mi )?(?:pedido|cotizaci[oó]n))[.!?]?$/i.test(order);
+  const asks = order.toUpperCase() === pilot.folio.toUpperCase() || asksForStatus(order);
   if (!asks || await binding.owner() !== chat) return null;
   return pilot.reply;
 }
