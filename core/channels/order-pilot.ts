@@ -7,7 +7,7 @@ export type Area = typeof areas[number];
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const settings = z.object({
   binding: digest, business: z.string().min(1), product: z.string().min(1),
-  quantity: z.number().int().positive(), itemNames: z.array(z.string().min(1)).min(1),
+  itemNames: z.array(z.string().min(1)).min(1),
   ventas: digest, logistica: digest,
 }).refine(v => v.ventas !== v.logistica);
 export type OrderSettings = z.infer<typeof settings>;
@@ -39,6 +39,19 @@ export interface OrderStore {
   save(revision: number, next: Order): Promise<boolean>;
 }
 
+export interface OrderBook {
+  list(): Promise<Order[]>;
+  forFolio(folio: string): OrderStore;
+}
+
+const folioPattern = /^MS-(?:[a-f0-9]{8}-[a-f0-9]{4}|[a-f0-9]{8}(?:-[a-f0-9]{8}){2})$/i;
+export const isLegacyOrderFolio = (value: string) => /^MS-[a-f0-9]{8}-[a-f0-9]{4}$/i.test(value);
+
+export function requestedFolio(text: string) {
+  const value = text.trim().replace(/^(?:consultar|ver)\s+(?:folio\s+)?/i, '');
+  return folioPattern.test(value) ? 'MS-' + value.slice(3).toLowerCase() : null;
+}
+
 // The same compare-and-set guards creation, both desks and out-of-order Meta callbacks.
 async function update(store: OrderStore, change: (previous: Order | null) => Order | null) {
   for (let i = 0; i < 12; i++) {
@@ -53,17 +66,23 @@ async function update(store: OrderStore, change: (previous: Order | null) => Ord
 }
 
 const normalize = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-  .replace(/[¿?¡!.,]+/g, '').replace(/\s+/g, ' ').trim();
-export function wantsOrder(text: string, config: OrderSettings) {
+  .replace(/[¿?¡!.,]+/g, ' ').replace(/\s+/g, ' ').trim();
+export function requestedQuantity(text: string, config: OrderSettings) {
   const words = normalize(text).replace(/^(?:hola |buen dia )/, '').replace(/ por favor$/, '');
-  const item = words.match(/^(?:(?:quiero|quisiera|necesito|solicito)(?: (?:pedir|cotizar|comprar|solicitar))?|cotizar|pedir|cotizame|solicitud de prueba) (?:los )?(\d+) (.+)$/);
-  return !!item && Number(item[1]) === config.quantity && config.itemNames.some(name => normalize(name) === item[2]);
+  const item = words.match(/^(?:(?:quiero|quisiera|necesito|solicito)(?: (?:pedir|cotizar|comprar|solicitar|hacer otro pedido de))?|cotizar|pedir|cotizame|solicitud de prueba|otro pedido de) (?:(?:los|otros) )?(\d{1,6}) (.+)$/);
+  if (!item || !config.itemNames.some(name => normalize(name) === item[2])) return null;
+  const quantity = Number(item[1]);
+  return quantity > 0 ? quantity : null;
 }
 
-export function newOrder(store: OrderStore, config: OrderSettings, sender: string) {
-  return update(store, old => old ?? {
-    revision: 0, folio: 'MS-' + randomUUID().slice(0,13), recipient: sender,
-    created: new Date().toISOString(), product: config.product, quantity: config.quantity,
+export function newOrder(book: OrderBook, config: OrderSettings, sender: string, quantity: number, messageId: string) {
+  // Meta retries a message with the same ID. A new message is a new order, even for the same quantity.
+  if (!messageId) throw new Error('Falta el identificador del mensaje de WhatsApp.');
+  const hash = createHash('sha256').update(JSON.stringify([config.binding, sender, messageId])).digest('hex');
+  const folio = 'MS-' + [hash.slice(0,8), hash.slice(8,16), hash.slice(16,24)].join('-');
+  return update(book.forFolio(folio), old => old ?? {
+    revision: 0, folio, recipient: sender, created: new Date().toISOString(),
+    product: config.product, quantity,
     ventas: null, logistica: null,
   });
 }
@@ -83,9 +102,16 @@ export function orderText(order: Order, business: string, area?: Area) {
   return ['Prueba de ' + business, order.folio + ' · ' + order.quantity + ' ' + order.product, ...lines].join('\n');
 }
 
+export function orderSummary(orders: Order[], business: string) {
+  if (!orders.length) return null;
+  if (orders.length === 1) return orderText(orders[0], business);
+  const lines = orders.slice(0, 20).map(o => o.folio + ' · ' + o.quantity + ' ' + o.product);
+  return ['Tus pedidos más recientes en ' + business, ...lines, 'Escribe el folio que quieres consultar.'].join('\n');
+}
+
 export const deskDecision = z.discriminatedUnion('area', [
-  z.object({area:z.literal('ventas'), folio:z.string(), unitCents:z.number().int().min(1).max(100_000_000), retry:z.boolean().optional()}).strict(),
-  z.object({area:z.literal('logistica'), folio:z.string(), deliveryDate:z.string().date(), fullOrderConfirmed:z.literal(true), retry:z.boolean().optional()}).strict(),
+  z.object({area:z.literal('ventas'), folio:z.string().regex(folioPattern), unitCents:z.number().int().min(1).max(100_000_000), retry:z.boolean().optional()}).strict(),
+  z.object({area:z.literal('logistica'), folio:z.string().regex(folioPattern), deliveryDate:z.string().date(), fullOrderConfirmed:z.literal(true), retry:z.boolean().optional()}).strict(),
 ]);
 export class DeskConflict extends Error {}
 
@@ -121,8 +147,8 @@ export function orderReceipts(body: any, phoneId: string) {
     const value = change?.value;
     if (!phoneId || value?.metadata?.phone_number_id !== phoneId) continue;
     for (const receipt of value.statuses ?? []) {
-      const match = /^order\/(MS-[a-f0-9-]{13})\/(ventas|logistica)\/([a-f0-9-]{36})$/.exec(receipt.biz_opaque_callback_data ?? '');
-      if (!match || !['sent','delivered','read','failed'].includes(receipt.status)) continue;
+      const match = /^order\/(MS-[a-f0-9-]+)\/(ventas|logistica)\/([a-f0-9-]{36})$/.exec(receipt.biz_opaque_callback_data ?? '');
+      if (!match || !folioPattern.test(match[1]) || !['sent','delivered','read','failed'].includes(receipt.status)) continue;
       receipts.push({folio:match[1], area:match[2] as Area, attempt:match[3], status:receipt.status === 'sent' ? 'accepted' : receipt.status});
     }
   }

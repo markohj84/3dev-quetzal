@@ -21,16 +21,17 @@ async function desk(request: Request) {
   const area = deskRole(setup, request.headers.get('authorization'));
   if (!area) return json({error:'Abre el acceso de tu área.'},401);
   const today = new Intl.DateTimeFormat('en-CA',{timeZone:client.config.scheduling.timeZone, year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  const store = orderStore(client.config.id, pilot.digest, pilot.expiresAt);
+  const book = orderStore(client.config.id, pilot.digest, pilot.expiresAt);
   if (request.method === 'GET') {
-    const order = await store.read();
-    return json({area, today, business:setup.business, requests:order ? [publicOrder(order)] : []});
+    const orders = await book.list();
+    return json({area, today, business:setup.business, requests:orders.map(publicOrder)});
   }
   if (!request.headers.get('content-type')?.startsWith('application/json')) return json({},415);
   const parsed = deskDecision.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return json({error:'Revisa los datos de la decisión.'},400);
   if (parsed.data.area !== area) return json({error:'Esta decisión corresponde a la otra área.'},403);
   try {
+    const store = book.forFolio(parsed.data.folio);
     const {order, shouldSend, attempt} = await decide(store, parsed.data, today);
     if (shouldSend) {
       const {phoneNumberId, token} = client.secrets.whatsapp;

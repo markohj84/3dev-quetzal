@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { decide, deskDecision, deskRole, details, markNotification, newOrder, orderReceipts, orderText, trackingTag, wantsOrder, type Order, type OrderStore } from './order-pilot.ts';
+import { decide, deskDecision, deskRole, details, markNotification, newOrder, orderReceipts, orderText, trackingTag, requestedQuantity, requestedFolio, orderSummary, type Order, type OrderBook } from './order-pilot.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const digest = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -8,16 +8,28 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const setup = {business:'Demo', binding:'test', product:'Mesa', quantity:32, itemNames:['mesas'], ventas:digest(pass), logistica:digest('B'.repeat(43))};
   assert.equal(deskRole(setup, 'Bearer ' + pass), 'ventas');
   assert.equal(deskRole(setup, 'Bearer ' + 'C'.repeat(43)), null);
-  assert.ok(wantsOrder('Quiero pedir 32 mesas',setup));
-  for (const msg of ['No quiero 32 mesas', 'Quiero pedir 33 mesas', 'Quiero pedir 32 mesas y 4 sillas']) assert.ok(!wantsOrder(msg,setup));
-  let state: Order | null = null;
-  const store: OrderStore = {read:async () => structuredClone(state), save:async (rev,next) => {
-    if ((state?.revision ?? 0) !== rev) return false;
-    state = structuredClone(next);
-    return true;
-  }};
-  const [a,b] = await Promise.all([newOrder(store,setup,'123456789'),newOrder(store,setup,'123456789')]);
+  assert.equal(requestedQuantity('Quiero pedir 32 mesas',setup),32);
+  assert.equal(requestedQuantity('Quiero pedir 48 mesas',setup),48);
+  assert.equal(requestedQuantity('Hola, quiero hacer otro pedido de 16 mesas.',setup),16);
+  for (const msg of ['No quiero 32 mesas', 'Quiero pedir 0 mesas', 'Quiero pedir 1.5 mesas', 'Quiero pedir 32 mesas y 4 sillas']) assert.equal(requestedQuantity(msg,setup),null);
+  const states = new Map<string,Order>();
+  const book: OrderBook = {
+    list:async () => Array.from(states.values()),
+    forFolio:folio => ({
+      read:async () => structuredClone(states.get(folio) ?? null),
+      save:async (rev,next) => {
+        if ((states.get(folio)?.revision ?? 0) !== rev) return false;
+        states.set(folio,structuredClone(next));
+        return true;
+      },
+    }),
+  };
+  const create = (quantity: number, id: string) => newOrder(book,setup,'123456789',quantity,id);
+  const [a,b] = await Promise.all([create(32,'message-1'),create(32,'message-1')]);
+  const store = book.forFolio(a.folio);
   assert.equal(a.folio,b.folio);
+  assert.equal(requestedFolio('Consultar ' + a.folio.toLowerCase()),a.folio);
+  assert.equal(requestedFolio('ms-123456ab-1234'),'MS-123456ab-1234');
   assert.equal(a.ventas,null);
   assert.equal(a.logistica,null);
   const sales = {area:'ventas' as const,folio:a.folio,unitCents:250000};
@@ -46,4 +58,27 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await markNotification(store,a.folio,'ventas',retry.attempt,'accepted');
   assert.equal((await store.read()).ventas.status,'delivered');
   assert.ok(!(await decide(store,{...sales,retry:true},'2027-01-01')).shouldSend);
+  const snapshot = await store.read();
+  const second = await create(48,'message-2');
+  const other = book.forFolio(second.folio);
+  assert.notEqual(second.folio,a.folio);
+  assert.equal(second.ventas,null);
+  assert.equal(second.logistica,null);
+  const inputs = {...sales,folio:second.folio,unitCents:1400};
+  const [sale2, ship2] = await Promise.all([
+    decide(other,inputs,'2027-01-01'),
+    decide(other,{...logistics,folio:second.folio,deliveryDate:'2027-02-04'},'2027-01-01'),
+  ]);
+  assert.equal((await create(48,'message-2')).folio,second.folio);
+  for (const r of [sale2,ship2]) assert.ok(r.shouldSend);
+  await markNotification(other,second.folio,'ventas',retry.attempt,'read');
+  assert.equal((await other.read()).ventas.status,'sending');
+  await markNotification(store,a.folio,'logistica',ship2.attempt,'failed');
+  assert.deepEqual(await store.read(),snapshot);
+  assert.match(details(await other.read()).price,/672.00/);
+  assert.match(details(await other.read()).delivery,/4 de febrero/);
+  const summary = orderSummary(await book.list(),setup.business);
+  for (const o of [a,second]) assert.ok(summary.includes(o.folio));
+  assert.notEqual((await create(48,'message-3')).folio,second.folio);
+
 }
