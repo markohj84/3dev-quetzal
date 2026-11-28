@@ -361,7 +361,7 @@ números de `REPORT_EXCLUDE` en `.env.local` (el del dueño).
 
 `/panel` en el dominio de cada cliente (`app/panel/`): el dueño entra con
 un código de 6 dígitos por correo (Supabase Auth, `shouldCreateUser:
-false`) y ve Resumen, Conversaciones y Leads de su negocio, en solo
+false`) y ve Resumen, Conversaciones, Citas y Leads de su negocio, en solo
 lectura salvo el handoff (ver abajo). Las páginas leen con la sesión del usuario (`@supabase/ssr`,
 llave pública) y RLS decide qué filas ve: solo los `client_id` que tiene
 en `dashboard_users`; ninguna política permite escribir. El panel nunca
@@ -371,7 +371,10 @@ usa `service_role`. `middleware.ts` solo corre en `/panel/*`. Accesos:
 configurado en Supabase. Pruebas: `scripts/check-panel-rls.mjs` (base
 real) y `scripts/check-panel-pages.mjs <clientId>` (contra el dev server,
 con sesión real y sin mandar correos). Las citas del resumen y la
-etiqueta "agendó" salen de Cal.com (`scheduler.bookedPhones`).
+etiqueta "agendó" salen de Cal.com (`scheduler.bookedPhones`). La pestaña Citas
+lista las próximas (`scheduler.upcoming`, con la llave del cliente) y liga cada
+una a su conversación por teléfono o correo; es solo lectura: reagendar y
+cancelar se hace en Cal.com, con el enlace de cada cita.
 
 
 ## Handoff en vivo

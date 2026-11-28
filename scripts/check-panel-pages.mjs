@@ -133,6 +133,7 @@ try {
   assert.match(chat, /Quiero una limpieza el jueves/);
   assert.match(chat, /limpieza/);
   assert.match(await page(`/panel/conversaciones/${encodeURIComponent('no-existe/../x')}`), /Conversación no encontrada/);
+  assert.match(await page('/panel/citas'), /Próximas citas/, 'la pestaña de citas carga con o sin calendario');
   const leads = await page('/panel/leads');
   assert.match(leads, /mailto:luis\.panel@3dev\.test/);
 

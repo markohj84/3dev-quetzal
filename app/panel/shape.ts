@@ -82,6 +82,15 @@ export function formatWhen(iso: string, locale: string, timeZone: string, now: D
   return `${date} ${time}`;
 }
 
+/** "Hoy", "Mañana" or "jueves 4 de dic": how the owner thinks about the days ahead. */
+export function dayLabel(iso: string, locale: string, timeZone: string, now: Date): string {
+  const day = dayKey(iso, timeZone);
+  if (day === dayKey(now.toISOString(), timeZone)) return 'Hoy';
+  if (day === dayKey(new Date(now.getTime() + 864e5).toISOString(), timeZone)) return 'Mañana';
+  return new Intl.DateTimeFormat(locale, { timeZone, weekday: 'long', day: 'numeric', month: 'short' })
+    .format(new Date(iso)).replace(/\./g, '').replace(',', '');
+}
+
 export function contactLink(contacto: string, countryCode?: string): { href: string; label: string } | null {
   const text = contacto.trim();
   if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text)) return { href: `mailto:${text}`, label: text };
@@ -163,6 +172,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.match(formatWhen('2026-10-21T16:42:00Z', 'es-MX', TZ, now), /^hoy 10:42/);
   assert.match(formatWhen('2026-10-21T05:30:00Z', 'es-MX', TZ, now), /^ayer/, 'medianoche se decide en la zona del cliente');
   assert.match(formatWhen('2026-10-02T16:00:00Z', 'es-MX', TZ, now), /2 oct/);
+
+  assert.equal(dayLabel('2026-10-21T22:00:00Z', 'es-MX', TZ, now), 'Hoy');
+  assert.equal(dayLabel('2026-10-22T15:00:00Z', 'es-MX', TZ, now), 'Mañana');
+  assert.equal(dayLabel('2026-10-22T05:30:00Z', 'es-MX', TZ, now), 'Hoy', '23:30 en México sigue siendo hoy');
+  assert.match(dayLabel('2026-10-29T16:00:00Z', 'es-MX', TZ, now), /^jueves 29 (de )?oct$/);
 
   assert.deepEqual(contactLink('luis@correo.mx'), { href: 'mailto:luis@correo.mx', label: 'luis@correo.mx' });
   assert.deepEqual(contactLink('222 555 0101', '52'), { href: 'https://wa.me/522225550101', label: '222 555 0101' });

@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import type { Scheduler, SlotPick } from './types.ts';
+import type { Scheduler, SlotPick, UpcomingBooking } from './types.ts';
 import { describeSlot, spreadAcrossDays, withinHours } from './calendly.ts';
 
 export interface CalcomOptions {
@@ -27,7 +27,7 @@ const TIMEOUT_MS = 8_000;
 export function createCalcomScheduler(url: string, opts: CalcomOptions = {}): Scheduler {
   const { apiKey, eventTypeId, timeZone = 'UTC', locale = 'es-MX', earliestHour, latestHour } = opts;
 
-  const scheduler: Scheduler = { provider: 'calcom', bookingUrl: () => url };
+  const scheduler: Scheduler = { provider: 'calcom', bookingUrl: () => url, dashboardUrl: 'https://app.cal.com/bookings/upcoming' };
   if (!apiKey || !eventTypeId) return scheduler;
 
   async function openSlots(days: number): Promise<string[]> {
@@ -114,7 +114,46 @@ export function createCalcomScheduler(url: string, opts: CalcomOptions = {}): Sc
     return phonesFromBookings(body.data ?? [], since);
   };
 
+  scheduler.upcoming = async () => {
+    // ponytail: the 100 soonest; a calendar with more booked ahead than that needs pagination.
+    const query = new URLSearchParams({ status: 'upcoming', sortStart: 'asc', take: '100' });
+    const res = await fetch(`${API}/bookings?${query}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, 'cal-api-version': '2024-08-13' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`Cal.com upcoming failed: ${res.status} ${await res.text()}`);
+    const body = (await res.json()) as { data?: CalcomListedBooking[] };
+    return (body.data ?? []).map(toUpcoming).filter((b): b is UpcomingBooking => !!b);
+  };
+
   return scheduler;
+}
+
+export interface CalcomListedBooking {
+  uid?: string;
+  title?: string;
+  status?: string;
+  start?: string;
+  end?: string;
+  meetingUrl?: string | null;
+  attendees?: { name?: string; email?: string; phoneNumber?: string | null }[];
+}
+
+/** A cancelled or malformed booking is not a meeting to show. */
+export function toUpcoming(b: CalcomListedBooking): UpcomingBooking | null {
+  if (!b.uid || !b.start || !b.end || b.status === 'cancelled' || b.status === 'rejected') return null;
+  const who = b.attendees?.[0] ?? {};
+  return {
+    id: b.uid,
+    start: b.start,
+    end: b.end,
+    title: b.title ?? '',
+    name: who.name?.trim() || 'Sin nombre',
+    ...(who.email ? { email: who.email } : {}),
+    ...(who.phoneNumber ? { phone: who.phoneNumber } : {}),
+    ...(b.meetingUrl && /^https:\/\//.test(b.meetingUrl) ? { meetingUrl: b.meetingUrl } : {}),
+    manageUrl: `https://app.cal.com/booking/${encodeURIComponent(b.uid)}`,
+  };
 }
 
 export function missingField(errorBody: string): string | null {
@@ -192,6 +231,20 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ['+5212225344440'],
     'solo citas vigentes creadas desde `since`, y solo las que traen teléfono',
   );
+
+  const listed = toUpcoming({
+    uid: 'abc 1', title: 'Llamada', status: 'accepted', start: '2026-12-01T16:00:00.000Z', end: '2026-12-01T16:30:00.000Z',
+    meetingUrl: 'https://app.cal.com/video/abc', attendees: [{ name: ' Ana López ', email: 'ana@correo.mx', phoneNumber: '+522225344440' }],
+  });
+  assert.deepEqual(listed, {
+    id: 'abc 1', start: '2026-12-01T16:00:00.000Z', end: '2026-12-01T16:30:00.000Z', title: 'Llamada', name: 'Ana López',
+    email: 'ana@correo.mx', phone: '+522225344440', meetingUrl: 'https://app.cal.com/video/abc', manageUrl: 'https://app.cal.com/booking/abc%201',
+  });
+  assert.equal(toUpcoming({ uid: 'x', status: 'cancelled', start: 'a', end: 'b' }), null, 'una cancelada no se muestra');
+  assert.equal(toUpcoming({ uid: 'x', start: 'a' }), null, 'sin fin no es una cita');
+  const bare = toUpcoming({ uid: 'y', start: 'a', end: 'b', meetingUrl: 'integrations:daily', attendees: [] });
+  assert.equal(bare?.name, 'Sin nombre');
+  assert.equal(bare?.meetingUrl, undefined, 'una ubicación que no es enlace no se ofrece como "Unirse"');
 
   console.log('calcom.ts self-check passed');
 }

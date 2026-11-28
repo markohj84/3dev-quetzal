@@ -3,7 +3,8 @@ import { getAssistantOr404 } from '../assistant';
 import { selectAll } from '../../core/store/db';
 import { metaPhone } from '../../core/followup';
 import { isTaken, type Handoff } from '../../core/handoff';
-import { summarizeConversations, type ContactLite, type LeadLite, type MessageLite } from './shape';
+import { contactPhone, summarizeConversations, type ContactLite, type LeadLite, type MessageLite } from './shape';
+import type { UpcomingBooking } from '../../core/scheduling/types';
 
 const PAGE_SIZE = 50;
 /** Eval runs write to the same database; the report hides them, so does the panel. */
@@ -128,4 +129,49 @@ export async function loadLeads(sb: SupabaseClient, period: Period) {
   return [...(await leadsByContact(sb, config.id)).values()]
     .filter((l) => new Date(l.at) >= period.since)
     .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+export type ListedBooking = UpcomingBooking & { contactId?: string };
+export type UpcomingView =
+  | { state: 'unsupported'; dashboardUrl?: string; bookingUrl: string }
+  | { state: 'error'; dashboardUrl?: string }
+  | { state: 'ok'; dashboardUrl?: string; bookings: ListedBooking[] };
+
+/** Bookings ahead from the calendar, each tied to its conversation when the phone or email matches one. */
+export async function loadUpcoming(sb: SupabaseClient): Promise<UpcomingView> {
+  const { config, scheduler } = await getAssistantOr404();
+  await requireAccess(sb, config.id);
+  const dashboardUrl = scheduler.dashboardUrl;
+  if (!scheduler.upcoming) return { state: 'unsupported', dashboardUrl, bookingUrl: scheduler.bookingUrl() };
+  let bookings: UpcomingBooking[];
+  try {
+    bookings = await scheduler.upcoming();
+  } catch (error) {
+    console.error('panel: could not read upcoming bookings', error);
+    return { state: 'error', dashboardUrl };
+  }
+  const [leads, contacts] = await Promise.all([
+    leadsByContact(sb, config.id),
+    contactsSeenSince(sb, config.id, new Date(Date.now() - 90 * 864e5)),
+  ]);
+  const cc = config.followUp?.countryCode;
+  const byKey = new Map<string, string>();
+  for (const [id, lead] of leads) {
+    const phone = contactPhone(id, lead.channel, lead, cc);
+    if (phone) byKey.set(phone, id);
+    if (lead.contacto.includes('@')) byKey.set(lead.contacto.trim().toLowerCase(), id);
+  }
+  // A WhatsApp number beats a lead's typed phone: it is the conversation that holds the thread.
+  for (const [id, c] of contacts) {
+    const phone = contactPhone(id, c.channel, leads.get(id), cc);
+    if (phone) byKey.set(phone, id);
+  }
+  return {
+    state: 'ok',
+    dashboardUrl,
+    bookings: bookings.map((b) => {
+      const contactId = (b.phone && byKey.get(metaPhone(b.phone))) || (b.email && byKey.get(b.email.toLowerCase())) || undefined;
+      return contactId ? { ...b, contactId } : b;
+    }),
+  };
 }

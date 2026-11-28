@@ -26,6 +26,29 @@ export interface Scheduler {
    * it, only bookings made in the chat are known.
    */
   bookedPhones?(since: Date): Promise<string[]>;
+  /**
+   * Meetings still ahead, soonest first, for the owner's panel. Optional:
+   * a provider whose API can't list them leaves the owner in its own app.
+   */
+  upcoming?(): Promise<UpcomingBooking[]>;
+  /** Where the owner manages every booking in the provider's own app. */
+  readonly dashboardUrl?: string;
+}
+
+export interface UpcomingBooking {
+  id: string;
+  /** ISO, UTC. */
+  start: string;
+  end: string;
+  title: string;
+  name: string;
+  email?: string;
+  /** As the calendar stored it, usually international format. */
+  phone?: string;
+  /** Video call link, when the meeting has one. */
+  meetingUrl?: string;
+  /** Reschedule or cancel this one booking in the provider's app. */
+  manageUrl: string;
 }
 
 export interface SlotPick {
