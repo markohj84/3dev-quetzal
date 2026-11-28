@@ -3,7 +3,7 @@ import { createPanelClient } from '../../../supabase';
 import { loadConversation } from '../../../data';
 import { contactLink, contactPhone, dayKey, displayName, formatWhen, parseDays } from '../../../shape';
 import { isTaken, returnsAt, windowOpen } from '../../../../../core/handoff';
-import { Avatar, Bot, Chat, ChevronLeft, Globe, Lock, Person, ReturnArrow, Send } from '../../../icons';
+import { Avatar, Bot, Chat, ChevronLeft, Globe, Lock, Person, ReturnArrow, Send, UserPlus } from '../../../icons';
 import { Submit } from '../../../submit';
 import { take, reply, giveBack } from './actions';
 import { Live, ScrollToEnd } from './live';
@@ -21,7 +21,7 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
   const sb = await createPanelClient();
   const userEmail = (await sb.auth.getUser()).data.user?.email;
   const data = await loadConversation(sb, contactId);
-  if (!data) return <>{back}<p className="notice">Conversación no encontrada.</p></>;
+  if (!data) return <>{back}<p className="notice warn">Conversación no encontrada.</p></>;
 
   const { contact, lead, messages, handoff, lastUserAt } = data;
   const tz = config.scheduling.timeZone ?? 'UTC';
@@ -34,29 +34,42 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
   const until = taken ? formatWhen(returnsAt(handoff!).toISOString(), config.locale, tz, now).replace(/^hoy /, 'a las ') : '';
   const clock = new Intl.DateTimeFormat(config.locale, { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
+  // Errors say what failed; "Enviado, pero…" is a warning the message did go out.
+  const avisoTone = aviso && /^(No se pudo|Escribe|WhatsApp)/.test(aviso) ? 'danger' : 'warn';
+  const interest = contact?.interest ?? lead?.necesidad;
+  const leftData = !!lead || !!contact?.left_contact;
+
   let lastDay = '';
   let lastRole = '';
   return (
     <>
       {back}
-      <div className="contact">
-        <Avatar name={name} channel={channel} size="lg" />
-        <div>
+      <section className="contact" aria-label="Contacto">
+        <Avatar name={name} channel={channel} size="lg" attention={taken} />
+        <div className="contact-body">
           <h1>{name}</h1>
           <div className="contact-meta">
             {channel === 'whatsapp'
-              ? <span className={`mode ${taken ? 'human' : 'bot'}`}><span className="dot" />{taken ? 'Atiende una persona' : 'Asistente activo'}</span>
-              : null}
-            {channel === 'whatsapp'
-              ? <a href={`https://wa.me/${contactPhone(contactId, 'whatsapp') ?? contactId}`}><Chat size={13} /> +{contactId}</a>
-              : <span><Globe size={13} /> Chat web</span>}
-            {reach && <a href={reach.href}>{reach.label}</a>}
-            {(contact?.interest || lead?.necesidad) && <span>Le interesa: {contact?.interest ?? lead?.necesidad}</span>}
+              ? <a href={`https://wa.me/${contactPhone(contactId, 'whatsapp') ?? contactId}`}><Chat size={14} />+{contactId}</a>
+              : <span><Globe size={14} /> Chat web</span>}
+            {reach && <><span className="sep">|</span><a href={reach.href}>{reach.label}</a></>}
+            {interest && <><span className="sep">|</span><span>Le interesa: {interest}</span></>}
+          </div>
+          <div className="chips" style={{ marginTop: 10 }}>
+            {channel === 'whatsapp' && (taken
+              ? <span className="chip tone-warn"><span className="dot" />Atiende una persona</span>
+              : <span className="chip tone-info"><span className="dot" />Asistente activo</span>)}
+            {leftData && <span className="chip tone-lead"><UserPlus size={13} />Dejó datos</span>}
           </div>
         </div>
-      </div>
-      {aviso && <p className="notice alert" role="status">{aviso}</p>}
+      </section>
+      {aviso && <p className={`notice ${avisoTone}`} role="status">{aviso}</p>}
 
+      <div className="legend" aria-hidden="true">
+        <span><i style={{ background: 'var(--bubble-person)' }} />Cliente</span>
+        <span><i style={{ background: 'var(--bubble-assistant)', borderColor: 'var(--info-line)' }} />Asistente</span>
+        <span><i style={{ background: 'var(--bubble-you)', borderColor: 'var(--bubble-you)' }} />Tú / el negocio</span>
+      </div>
       <div className="thread">
         {messages.map((m, i) => {
           const day = dayKey(m.at, tz);
@@ -68,7 +81,7 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
           return (
             <div key={i} style={{ display: 'contents' }}>
               {separator}
-              {label && <div className="who right">{m.role === 'assistant' ? <Bot size={14} /> : <Person size={14} />}{label}</div>}
+              {label && <div className={`who ${m.role}`}>{m.role === 'assistant' ? <Bot size={14} /> : <Person size={14} />}{label}</div>}
               <div className={`bubble ${m.role}`}>{m.content}<time dateTime={m.at}>{clock.format(new Date(m.at))}</time></div>
             </div>
           );
@@ -83,8 +96,8 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
           <div className="dock-card">
             <form className="dock-row" action={take.bind(null, contactId)}>
               <div className="dock-text">
-                <span className="dock-icon"><Bot /></span>
-                <div><b>El asistente está contestando</b><span>Si contestas tú, el asistente se pausa hasta que se la devuelvas.</span></div>
+                <span className="dock-icon tone-info"><Bot size={20} /></span>
+                <div><b>El asistente está contestando</b><p>Si contestas tú, el asistente se pausa hasta que se la devuelvas.</p></div>
               </div>
               <Submit pending="Abriendo…"><Person /> Contestar yo</Submit>
             </form>
@@ -93,10 +106,10 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
           <div className="dock-card">
             <form className="dock-row" action={take.bind(null, contactId)}>
               <div className="dock-text">
-                <span className="dock-icon"><Person /></span>
-                <div><b>La atiende {handoff!.taken_by_email ?? 'el negocio desde su WhatsApp'}</b><span>El asistente está en pausa. Lo retoma solo {until} si nadie escribe.</span></div>
+                <span className="dock-icon tone-warn"><Person size={20} /></span>
+                <div><b>La atiende {handoff!.taken_by_email ?? 'el negocio desde su WhatsApp'}</b><p>El asistente está en pausa. Lo retoma solo {until} si nadie escribe.</p></div>
               </div>
-              <Submit pending="Abriendo…" className="ghost"><Person /> Contestar yo</Submit>
+              <Submit pending="Abriendo…" className="secondary"><Person /> Contestar yo</Submit>
             </form>
           </div>
         ) : (
@@ -104,11 +117,11 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
             <Live />
             <div className="dock-row">
               <div className="dock-text">
-                <span className="dock-icon"><Person /></span>
-                <div><b>La atiendes tú · asistente en pausa</b><span>Lo retoma solo {until} si no escribes.</span></div>
+                <span className="dock-icon tone-warn"><Person size={20} /></span>
+                <div><b>La atiendes tú · asistente en pausa</b><p>Lo retoma solo {until} si no escribes.</p></div>
               </div>
               <form action={giveBack.bind(null, contactId)}>
-                <Submit pending="Devolviendo…" className="amber"><ReturnArrow /> Devolver al asistente</Submit>
+                <Submit pending="Devolviendo…" className="warn"><ReturnArrow /> Devolver al asistente</Submit>
               </form>
             </div>
             {(() => {

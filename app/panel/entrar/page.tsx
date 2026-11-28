@@ -40,26 +40,29 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
   return (
     <main className={`panel ${panelFont.variable}`}>
       <header>
-        <div>
-          <h1>{config.organization}</h1>
-          <div className="sub">Panel de {config.name}</div>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">{config.organization.trim()[0]?.toUpperCase()}</span>
+          <div>
+            <h1>{config.organization}</h1>
+            <div className="sub">Panel de {config.name}</div>
+          </div>
         </div>
       </header>
-      {message && <p className="notice">{message}</p>}
+      {message && <p className={estado === 'enviado' ? 'notice' : 'notice warn'} role="status">{message}</p>}
       {correo ? (
-        <form action={verifyCode}>
+        <form className="auth" action={verifyCode}>
           <input type="hidden" name="email" value={correo} />
           <label htmlFor="token">Código que te llegó a {correo}</label>
           {/* Supabase sets the code length per project (6 here, 8 by default): never cut it short. */}
           <input id="token" name="token" inputMode="numeric" autoComplete="one-time-code" maxLength={10} required autoFocus />
-          <button type="submit">Entrar</button>
+          <button type="submit" className="btn">Entrar</button>
           <a href="/panel/entrar">Usar otro correo</a>
         </form>
       ) : (
-        <form action={sendCode}>
+        <form className="auth" action={sendCode}>
           <label htmlFor="email">Tu correo</label>
           <input id="email" name="email" type="email" autoComplete="email" required autoFocus />
-          <button type="submit">Enviarme un código</button>
+          <button type="submit" className="btn">Enviarme un código</button>
         </form>
       )}
     </main>

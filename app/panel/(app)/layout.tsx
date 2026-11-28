@@ -21,13 +21,16 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <main className={`panel ${panelFont.variable}`}>
       <header>
-        <div>
-          <h1>{config.organization}</h1>
-          <div className="sub">Panel de {config.name} · {user.email}</div>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">{config.organization.trim()[0]?.toUpperCase()}</span>
+          <div>
+            <h1>{config.organization}</h1>
+            <div className="sub">Panel de {config.name} · {user.email}</div>
+          </div>
         </div>
-        <form action="/panel/salir" method="post"><button type="submit" className="ghost">Salir</button></form>
+        <form action="/panel/salir" method="post"><button type="submit" className="btn secondary">Salir</button></form>
       </header>
-      {access ? children : <p className="notice">No tienes acceso a este panel.</p>}
+      {access ? children : <p className="notice warn">No tienes acceso a este panel.</p>}
     </main>
   );
 }

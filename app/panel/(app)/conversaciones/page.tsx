@@ -3,7 +3,7 @@ import { createPanelClient } from '../../supabase';
 import { loadConversations, periodOf } from '../../data';
 import { formatWhen, parseDays } from '../../shape';
 import { Nav } from '../../nav';
-import { Avatar, Chat, ChevronLeft, ChevronRight, Globe, Inbox } from '../../icons';
+import { Avatar, Calendar, Chat, ChevronLeft, ChevronRight, Globe, Inbox, Person, UserPlus } from '../../icons';
 
 type Search = Promise<{ dias?: string; canal?: string; pagina?: string }>;
 
@@ -32,19 +32,19 @@ export default async function ConversacionesPage({ searchParams }: { searchParam
     <>
       <Nav active="conversaciones" days={days} filters={filters} />
       {rows.length ? (
-        <ul className="convos">
+        <ul className="list">
           {rows.map((r) => (
             <li key={r.contactId}>
               <a className="convo" href={`/panel/conversaciones/${encodeURIComponent(r.contactId)}?dias=${days}`}>
-                <Avatar name={r.name} channel={r.channel} />
+                <Avatar name={r.name} channel={r.channel} attention={taken.has(r.contactId)} />
                 <div className="convo-main">
-                  <div className="convo-name"><b>{r.name}</b></div>
+                  <div className="convo-name">{r.name}</div>
                   <div className="preview">{r.lastText}</div>
                   <div className="chips">
-                    <span className="chip">{r.channel === 'whatsapp' ? <Chat size={13} /> : <Globe size={13} />}{r.channel === 'whatsapp' ? 'WhatsApp' : 'Web'} · {r.count} mensajes</span>
-                    {taken.has(r.contactId) && <span className="chip taken">Atiende una persona</span>}
-                    {r.leftData && <span className="chip lead">Dejó datos</span>}
-                    {r.booked && <span className="chip booked">Agendó</span>}
+                    {taken.has(r.contactId) && <span className="chip tone-warn"><Person size={13} />Atiende una persona</span>}
+                    {r.booked && <span className="chip tone-brand"><Calendar size={13} />Agendó</span>}
+                    {r.leftData && <span className="chip tone-lead"><UserPlus size={13} />Dejó datos</span>}
+                    <span className="chip plain tone-neutral">{r.channel === 'whatsapp' ? <Chat size={13} /> : <Globe size={13} />}{r.channel === 'whatsapp' ? 'WhatsApp' : 'Web'} · {r.count} {r.count === 1 ? 'mensaje' : 'mensajes'}</span>
                   </div>
                 </div>
                 <div className="convo-side">

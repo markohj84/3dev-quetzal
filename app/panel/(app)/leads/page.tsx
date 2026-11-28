@@ -15,11 +15,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     <>
       <Nav active="leads" days={days} />
       {leads.length ? (
-        <ul className="rows">
+        <ul className="list">
           {leads.map((l) => {
             const reach = contactLink(l.contacto, config.followUp?.countryCode);
             return (
-              <li key={`${l.contact_id}-${l.at}`}>
+              <li key={`${l.contact_id}-${l.at}`} className="item">
                 <div className="row-top"><b>{l.nombre}</b><span className="when">{formatWhen(l.at, config.locale, tz, now)}</span></div>
                 <div>{reach ? <a href={reach.href}>{reach.label}</a> : l.contacto}</div>
                 {l.necesidad && <div className="preview">{l.necesidad}</div>}

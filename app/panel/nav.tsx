@@ -1,8 +1,11 @@
+import { Chart, Chat, UserPlus } from './icons';
+
 type Tab = 'resumen' | 'conversaciones' | 'leads';
-const TABS: [Tab, string, string][] = [
-  ['resumen', 'Resumen', '/panel'],
-  ['conversaciones', 'Conversaciones', '/panel/conversaciones'],
-  ['leads', 'Leads', '/panel/leads'],
+// Each module keeps its hue (tone) on its icon only: color tells you where you are, not decoration.
+const TABS: [Tab, string, string, React.ReactNode, string][] = [
+  ['resumen', 'Resumen', '/panel', <Chart key="i" />, 'brand'],
+  ['conversaciones', 'Conversaciones', '/panel/conversaciones', <Chat key="i" />, 'info'],
+  ['leads', 'Leads', '/panel/leads', <UserPlus key="i" />, 'lead'],
 ];
 
 /** `filters` sits left of the period picker, on the same row. */
@@ -11,8 +14,10 @@ export function Nav({ active, days, filters }: { active: Tab; days: 7 | 30 | 90;
   return (
     <>
       <nav className="tabs">
-        {TABS.map(([id, label, href]) => (
-          <a key={id} href={`${href}?dias=${days}`} aria-current={id === active ? 'page' : undefined}>{label}</a>
+        {TABS.map(([id, label, href, icon, tone]) => (
+          <a key={id} href={`${href}?dias=${days}`} className={`tone-${tone}`} aria-current={id === active ? 'page' : undefined}>
+            <span className="tab-icon">{icon}</span>{label}
+          </a>
         ))}
       </nav>
       <div className="toolbar">
