@@ -30,6 +30,13 @@ export function contactPhone(contactId: string, channel: string, lead?: LeadLite
   return lead ? leadPhone({ nombre: lead.nombre, contacto: lead.contacto, channel: 'web', contactId, at: lead.at }, countryCode) : null;
 }
 
+/** Two letters for the avatar; a bare number or "Visitante web" gets none (the channel icon shows instead). */
+export function initials(name: string): string | null {
+  if (/^\+?\d/.test(name) || name === 'Visitante web') return null;
+  const words = name.trim().split(/\s+/).filter((w) => /\p{L}/u.test(w[0] ?? ''));
+  return words.length ? (words[0][0] + (words[1]?.[0] ?? '')).toUpperCase() : null;
+}
+
 const PREVIEW = 80;
 
 export function summarizeConversations(
@@ -118,6 +125,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   assert.equal(displayName('s1', 'web', undefined, lead), 'Luis Ramos', 'sin nombre en el contacto, el del lead');
   assert.equal(displayName('5212225344440', 'whatsapp'), '+5212225344440', 'en WhatsApp, el número completo');
   assert.equal(displayName('s9', 'web'), 'Visitante web');
+
+  assert.equal(initials('Ana López'), 'AL');
+  assert.equal(initials('ana'), 'A');
+  assert.equal(initials('+5212225344440'), null, 'un número no tiene iniciales');
+  assert.equal(initials('Visitante web'), null);
 
   assert.equal(contactPhone('5212225344440', 'whatsapp'), '522225344440');
   assert.equal(contactPhone('s1', 'web', lead, '52'), '522225550101');

@@ -125,7 +125,7 @@ try {
   assert.match(resumen, /Luis Panel/, 'el resumen lista los leads recientes');
   const lista = await page('/panel/conversaciones?dias=7');
   assert.ok(lista.indexOf('Ana Panel') < lista.indexOf('Luis Panel'), 'la más reciente arriba; el nombre del lead si el contacto no tiene');
-  assert.match(lista, /dejó datos/);
+  assert.match(lista, /dejó datos/i);
   for (const body of [resumen, lista, await page('/panel/leads')]) assert.doesNotMatch(body, /Eval Ruido|mensaje de eval/, 'el tráfico de evals no aparece');
   assert.match(await page('/panel/conversaciones?canal=whatsapp'), /Ana Panel/);
   assert.doesNotMatch(await page('/panel/conversaciones?canal=whatsapp'), /Luis Panel/, 'el filtro por canal funciona');
@@ -139,13 +139,13 @@ try {
   // Handoff: take, a reply Meta refuses (test contact), give back.
   const convo = `/panel/conversaciones/${WA}`;
   assert.match(await page(convo), /El asistente está contestando/);
-  assert.doesNotMatch(await page(`/panel/conversaciones/${WEB}`), /Tomar conversación/, 'la web no se toma');
-  let res = await submit(convo, cookie, 'Tomar conversación');
+  assert.doesNotMatch(await page(`/panel/conversaciones/${WEB}`), /Contestar yo/, 'la web no se toma');
+  let res = await submit(convo, cookie, 'Contestar yo');
   assert.equal(res.status, 303, `tomar: ${res.status}`);
   assert.equal((await handoffRow())?.taken_by_email, OWNER);
   const takenPage = await page(convo);
   assert.match(takenPage, /La atiendes tú/);
-  assert.match(await page('/panel/conversaciones?dias=7'), /tomada/);
+  assert.match(await page('/panel/conversaciones?dias=7'), /Atiende una persona/);
 
   res = await submit(convo, cookie, 'Enviar', { text: 'Hola, soy del equipo' });
   assert.equal(res.status, 303);

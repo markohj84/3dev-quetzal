@@ -3,6 +3,7 @@ import { createPanelClient } from '../../supabase';
 import { loadLeads, periodOf } from '../../data';
 import { contactLink, formatWhen, parseDays } from '../../shape';
 import { Nav } from '../../nav';
+import { ChevronRight, Inbox } from '../../icons';
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ dias?: string }> }) {
   const days = parseDays((await searchParams).dias);
@@ -22,12 +23,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 <div className="row-top"><b>{l.nombre}</b><span className="when">{formatWhen(l.at, config.locale, tz, now)}</span></div>
                 <div>{reach ? <a href={reach.href}>{reach.label}</a> : l.contacto}</div>
                 {l.necesidad && <div className="preview">{l.necesidad}</div>}
-                <a className="tags" href={`/panel/conversaciones/${encodeURIComponent(l.contact_id)}?dias=${days}`}>Ver conversación ›</a>
+                <a className="open-link" href={`/panel/conversaciones/${encodeURIComponent(l.contact_id)}?dias=${days}`}>Ver conversación <ChevronRight size={15} /></a>
               </li>
             );
           })}
         </ul>
-      ) : <p className="notice">Nadie ha dejado sus datos en este periodo.</p>}
+      ) : <div className="empty"><Inbox /><b>Nadie ha dejado sus datos en este periodo</b><span>Prueba con un periodo más largo.</span></div>}
     </>
   );
 }

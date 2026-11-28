@@ -4,6 +4,7 @@ import { getAssistantOr404 } from '../../assistant';
 import { createPanelClient } from '../supabase';
 import { loginMessage, stateAfterSend, stateAfterVerify } from '../shape';
 import '../panel.css';
+import { panelFont } from '../font';
 
 export const metadata: Metadata = { title: 'Entrar al panel', robots: { index: false } };
 
@@ -37,7 +38,7 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
   const { config } = await getAssistantOr404();
   const message = loginMessage(estado);
   return (
-    <main className="panel">
+    <main className={`panel ${panelFont.variable}`}>
       <header>
         <div>
           <h1>{config.organization}</h1>

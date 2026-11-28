@@ -12,3 +12,11 @@ export function Live({ seconds = 5 }: { seconds?: number }) {
   }, [router, seconds]);
   return null;
 }
+
+/** Opens at the latest message, like any chat, and follows new ones as they arrive. */
+export function ScrollToEnd({ count }: { count: number }) {
+  useEffect(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight });
+  }, [count]);
+  return null;
+}

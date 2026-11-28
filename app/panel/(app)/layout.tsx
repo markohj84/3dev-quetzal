@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getAssistantOr404 } from '../../assistant';
 import { createPanelClient } from '../supabase';
 import '../panel.css';
+import { panelFont } from '../font';
 
 export const metadata: Metadata = { title: 'Panel', robots: { index: false } };
 // Per-user data: never cached, never prerendered.
@@ -18,13 +19,13 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const { data: access } = await sb.from('dashboard_users').select('client_id').eq('client_id', config.id).maybeSingle();
 
   return (
-    <main className="panel">
+    <main className={`panel ${panelFont.variable}`}>
       <header>
         <div>
           <h1>{config.organization}</h1>
           <div className="sub">Panel de {config.name} · {user.email}</div>
         </div>
-        <form action="/panel/salir" method="post"><button type="submit">Salir</button></form>
+        <form action="/panel/salir" method="post"><button type="submit" className="ghost">Salir</button></form>
       </header>
       {access ? children : <p className="notice">No tienes acceso a este panel.</p>}
     </main>
