@@ -15,12 +15,15 @@ export default async function ResumenPage({ searchParams }: { searchParams: Prom
     <>
       <Nav active="resumen" days={days} />
       <div className="stats">
-        <div className="stat"><span className="stat-icon tone-info"><Users /></span><div><b>{s.people}</b><span className="stat-label">personas escribieron</span></div></div>
-        <div className="stat"><span className="stat-icon tone-lead"><UserPlus /></span><div><b>{s.leads}</b><span className="stat-label">dejaron sus datos</span></div></div>
-        <div className="stat"><span className="stat-icon tone-brand"><Calendar /></span><div><b>{s.booked ?? '—'}</b><span className="stat-label">agendaron cita</span></div></div>
-        <div className="stat"><span className="stat-icon tone-neutral"><Chat /></span><div><b>{s.messages}</b><span className="stat-label">mensajes recibidos</span></div></div>
+        <div className="stat tone-info"><span className="stat-icon"><Users size={20} /></span><div><b>{s.people}</b><span className="stat-label">personas escribieron</span></div></div>
+        <div className="stat tone-lead"><span className="stat-icon"><UserPlus size={20} /></span><div><b>{s.leads}</b><span className="stat-label">dejaron sus datos</span></div></div>
+        <div className="stat hero"><span className="stat-icon"><Calendar size={20} /></span><div><b>{s.booked ?? '—'}</b><span className="stat-label">agendaron cita</span></div></div>
+        <div className="stat plain"><span className="stat-icon"><Chat size={20} /></span><div><b>{s.messages}</b><span className="stat-label">mensajes recibidos</span></div></div>
       </div>
-      <h2 className="section-title">Últimos leads</h2>
+      <div className="section-head">
+        <h2><span className="stat-icon tone-lead"><UserPlus /></span>Últimos leads</h2>
+        <a href={`/panel/leads?dias=${days}`}>Ver todos <ChevronRight size={16} /></a>
+      </div>
       {s.recentLeads.length ? (
         <ul className="list">
           {s.recentLeads.map((l) => (
