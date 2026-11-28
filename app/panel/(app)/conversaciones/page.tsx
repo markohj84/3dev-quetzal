@@ -32,10 +32,10 @@ export default async function ConversacionesPage({ searchParams }: { searchParam
     <>
       <Nav active="conversaciones" days={days} filters={filters} />
       {rows.length ? (
-        <ul className="list">
+        <ul className="list cards">
           {rows.map((r) => (
             <li key={r.contactId}>
-              <a className="convo" href={`/panel/conversaciones/${encodeURIComponent(r.contactId)}?dias=${days}`}>
+              <a className={`convo ${taken.has(r.contactId) ? 'is-taken' : r.booked ? 'is-booked' : r.leftData ? 'is-lead' : ''}`} href={`/panel/conversaciones/${encodeURIComponent(r.contactId)}?dias=${days}`}>
                 <Avatar name={r.name} channel={r.channel} attention={taken.has(r.contactId)} />
                 <div className="convo-main">
                   <div className="convo-name">{r.name}</div>

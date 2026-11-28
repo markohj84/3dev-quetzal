@@ -157,7 +157,7 @@ try {
   res = await submit(convo, cookie, 'Enviar', { text: '   ' });
   assert.match(await page(res.location), /Escribe un mensaje/);
 
-  res = await submit(convo, cookie, 'Devolver al asistente');
+  res = await submit(convo, cookie, 'Devolver');
   assert.equal(res.status, 303);
   assert.equal(await handoffRow(), undefined, 'devuelta');
 

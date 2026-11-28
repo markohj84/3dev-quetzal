@@ -129,10 +129,10 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
             <div className="dock-row">
               <div className="dock-text">
                 <span className="dock-icon tone-warn"><Person size={20} /></span>
-                <div><b>La atiendes tú · asistente en pausa</b><p>Lo retoma solo {until} si no escribes.</p></div>
+                <div><b>La atiendes tú<span className="hide-sm"> · asistente en pausa</span></b><p>Lo retoma solo {until} si no escribes.</p></div>
               </div>
               <form action={giveBack.bind(null, contactId)}>
-                <Submit pending="Devolviendo…" className="glass-warn"><ReturnArrow /> Devolver al asistente</Submit>
+                <Submit pending="Devolviendo…" className="glass-warn"><ReturnArrow /> Devolver<span className="hide-sm"> al asistente</span></Submit>
               </form>
             </div>
             {(() => {
@@ -140,7 +140,7 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
               return (
                 <form className="composer" action={reply.bind(null, contactId)}>
                   <label htmlFor="reply" className="composer-label">Tu respuesta a {name}</label>
-                  <textarea id="reply" name="text" rows={4} maxLength={4096} disabled={!open}
+                  <textarea id="reply" name="text" rows={1} maxLength={4096} disabled={!open}
                     placeholder={open ? 'Escribe aquí tu mensaje…' : 'WhatsApp solo deja escribir libremente 24 h después del último mensaje de la persona.'} />
                   <div className="composer-foot">
                     <span className="composer-hint"><Chat size={14} /> Sale por WhatsApp desde el número del negocio.</span>

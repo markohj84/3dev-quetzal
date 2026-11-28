@@ -143,6 +143,19 @@ html:has(.panel), body:has(.panel) { background: #eef2ef; margin: 0; }
 /* A whole row is the link; the chevron says so */
 .panel a.convo { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 14px 12px 14px 16px; color: inherit; transition: background .15s; }
 .panel a.convo:hover { background: var(--hover); color: inherit; }
+/* Conversations as separate cards: each one reads as its own thing, with a stripe for its state. */
+.panel .list.cards { display: grid; gap: 10px; background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+.panel .list.cards > li + li { border-top: 0; }
+.panel .list.cards a.convo { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 1px 2px rgba(17, 26, 21, .06), 0 6px 16px -12px rgba(17, 26, 21, .18);
+  transition: border-color .2s, box-shadow .2s, transform .2s var(--ease); }
+.panel .list.cards a.convo:hover { background: var(--surface); border-color: var(--brand-line); box-shadow: 0 2px 4px rgba(17, 26, 21, .06), 0 12px 24px -14px rgba(22, 58, 42, .35); transform: translateY(-1px); }
+.panel .list.cards a.convo:focus-visible { border-radius: 16px; box-shadow: var(--ring); }
+.panel .list.cards a.convo { position: relative; }
+.panel a.convo[class*='is-']::before { content: ''; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 4px; border-radius: 0 4px 4px 0; background: var(--stripe); }
+.panel a.convo.is-taken { --stripe: var(--warn-icon); }
+.panel .list.cards a.convo.is-taken { background: linear-gradient(90deg, #fff6e3, var(--surface) 45%); border-color: var(--warn-line); }
+.panel a.convo.is-booked { --stripe: var(--brand); }
+.panel a.convo.is-lead { --stripe: #2a9d8f; }
 .panel a.convo:focus-visible { border-radius: 0; box-shadow: inset var(--ring); }
 .panel .convo-main { min-width: 0; }
 .panel .convo-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -235,8 +248,6 @@ html:has(.panel), body:has(.panel) { background: #eef2ef; margin: 0; }
   --glass-info: #a9c8f6; --glass-warn: #f6c776;
 }
 .panel .dock { position: sticky; bottom: 0; z-index: 10; margin-top: 16px; padding: 16px 0 12px; background: linear-gradient(to bottom, rgba(238, 242, 239, 0), var(--bg) 28px); }
-/* Replying needs a big composer: pinned it would hide half the thread, so it sits after the last message (the page opens there). */
-.panel .dock:has(.mine) { position: static; }
 .panel .dock-card { border-radius: 20px; padding: 16px 16px 16px 18px; }
 .panel .dock-card.glass {
   background: var(--glass-solid); color: var(--glass-ink); border: 1px solid var(--glass-line);
@@ -271,11 +282,13 @@ html:has(.panel), body:has(.panel) { background: #eef2ef; margin: 0; }
 .panel .composer { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-line); }
 .panel .composer-label { font-size: 13px; font-weight: 600; color: var(--glass-muted); }
 .panel .composer textarea {
-  width: 100%; min-height: 120px; max-height: 45vh; padding: 14px 16px; font-size: 16px; line-height: 1.5;
+  width: 100%; min-height: 56px; max-height: 35vh; padding: 14px 16px; transition: min-height .2s var(--ease); font-size: 16px; line-height: 1.5;
   border-radius: 14px; border: 1px solid transparent; background: #fbfcfb; color: var(--ink);
   box-shadow: inset 0 1px 2px rgba(13, 24, 18, .08);
 }
 .panel .composer textarea::placeholder { color: #69736e; }
+/* Pinned, so it stays small while you read and opens up once you start writing. */
+.panel .composer:focus-within textarea { min-height: 120px; }
 .panel .composer textarea:focus { border-color: var(--bright); box-shadow: 0 0 0 3px rgba(143, 220, 180, .45); }
 .panel .composer textarea:disabled { background: rgba(255, 255, 255, .1); color: var(--glass-muted); }
 .panel .composer textarea:disabled::placeholder { color: var(--glass-muted); }
@@ -317,7 +330,21 @@ html:has(.panel), body:has(.panel) { background: #eef2ef; margin: 0; }
   .panel a.convo { gap: 10px; padding: 12px 8px 12px 12px; }
   .panel .avatar { width: 38px; height: 38px; font-size: 13px; }
   .panel .bubble { max-width: 88%; }
-  .panel .dock-row > .btn, .panel .composer .btn { width: 100%; }
+  .panel .dock-row > .btn { width: 100%; }
+  .panel .dock { padding: 10px 0 8px; }
+  .panel .dock-card.mine { padding: 12px; }
+  .panel .dock-card.mine .dock-row { flex-wrap: nowrap; gap: 10px; }
+  .panel .dock-card.mine .dock-text { flex: 1 1 auto; gap: 10px; }
+  .panel .dock-card.mine .dock-text p { display: none; }
+  .panel .dock-card.mine .dock-icon { width: 36px; height: 36px; border-radius: 10px; }
+  .panel .dock-card.mine .dock-text b { font-size: 14px; }
+  .panel .composer { grid-template-columns: 1fr auto; align-items: end; gap: 8px; margin-top: 10px; padding-top: 10px; }
+  .panel .composer-label, .panel .composer-hint, .panel .hide-sm { display: none; }
+  .panel .composer-foot { display: contents; }
+  .panel .composer .btn { min-width: 0; padding: 10px 14px; }
+  .panel .composer textarea { min-height: 48px; padding: 12px 14px; }
+  .panel .composer:focus-within textarea { min-height: 96px; }
+  .panel .list.cards a.convo { padding: 12px 10px 12px 14px; }
   .panel .dock-card { padding: 14px; }
   .panel .auth-card { padding: 22px 18px 20px; }
   .panel .auth-brand { margin: -22px -18px 20px; padding: 16px 18px; }

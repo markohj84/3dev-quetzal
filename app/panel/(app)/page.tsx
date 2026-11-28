@@ -25,7 +25,7 @@ export default async function ResumenPage({ searchParams }: { searchParams: Prom
         <a href={`/panel/leads?dias=${days}`}>Ver todos <ChevronRight size={16} /></a>
       </div>
       {s.recentLeads.length ? (
-        <ul className="list">
+        <ul className="list cards">
           {s.recentLeads.map((l) => (
             <li key={`${l.contact_id}-${l.at}`}>
               <a className="convo" href={`/panel/conversaciones/${encodeURIComponent(l.contact_id)}?dias=${days}`}>
