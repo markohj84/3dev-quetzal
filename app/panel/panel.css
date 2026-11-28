@@ -12,20 +12,21 @@
  * Color only ever marks meaning; layout and type carry the hierarchy.
  */
 .panel {
-  --bg: #f4f5f3; --surface: #ffffff; --sunken: #f8f9f8;
-  --ink: #17201b; --ink-2: #3b4540; --muted: #5f6964;
-  --line: #e1e5e2; --line-soft: #edf0ee; --hover: #f6f8f7;
+  --bg: #eef2ef; --surface: #ffffff; --sunken: #f5f8f6;
+  --ink: #111a15; --ink-2: #2f3934; --muted: #4f5a54;
+  --line: #d3dbd6; --line-soft: #e5ebe7; --hover: #f3f7f4;
+  --brand-deep: #163a2a; --brand-deep-2: #1f4d38;
 
-  --brand: #2d6a4f; --brand-hover: #245a42; --brand-ink: #1d5a3e; --brand-soft: #e6f2eb; --brand-line: #c4dfd0;
-  --info-ink: #1d4b8f; --info-soft: #e9f0fb; --info-line: #c9d9f2; --info-icon: #3266b5;
-  --lead-ink: #0f5f59; --lead-soft: #e1f3f0; --lead-line: #bfe3dd;
-  --warn-ink: #874a00; --warn-soft: #fdf3e0; --warn-line: #f0d6a6; --warn-icon: #b8650a;
-  --danger-ink: #a3261c; --danger-soft: #fdecea; --danger-line: #f4c7c2;
-  --neutral-soft: #eef0ef;
+  --brand: #2d6a4f; --brand-hover: #245a42; --brand-ink: #1d5a3e; --brand-soft: #d9efe2; --brand-line: #aed6be;
+  --info-ink: #1a4589; --info-soft: #dce8fb; --info-line: #b7cdf0; --info-icon: #3266b5;
+  --lead-ink: #0b5953; --lead-soft: #d2efea; --lead-line: #a9dcd3;
+  --warn-ink: #7d4400; --warn-soft: #fcebc8; --warn-line: #eccb8a; --warn-icon: #b8650a;
+  --danger-ink: #9b2118; --danger-soft: #fce1de; --danger-line: #f1b9b2;
+  --neutral-soft: #e6ebe8;
 
   --bubble-person: var(--surface); --bubble-person-ink: var(--ink);
-  --bubble-assistant: #edf3fc; --bubble-assistant-ink: #16325c; --bubble-assistant-meta: #5c6f8c;
-  --bubble-you: #1f2a25; --bubble-you-ink: #f3f5f4; --bubble-you-meta: #aab4af;
+  --bubble-assistant: #e2ecfc; --bubble-assistant-ink: #122c55; --bubble-assistant-meta: #4c6287;
+  --bubble-you: #173a2b; --bubble-you-ink: #f3f5f4; --bubble-you-meta: #a9c4b6;
 
   --ring: 0 0 0 3px rgba(45, 106, 79, .3);
   --shadow-sm: 0 1px 2px rgba(23, 32, 27, .05);
@@ -37,7 +38,7 @@
   font: 15px/1.5 var(--font-panel, system-ui), system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
+html:has(.panel), body:has(.panel) { background: #eef2ef; margin: 0; }
 .panel *, .panel *::before, .panel *::after { box-sizing: border-box; }
 .panel a { color: var(--brand); text-decoration: none; }
 .panel a:hover { color: var(--brand-hover); }
@@ -47,7 +48,11 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
 .panel svg { flex: none; }
 
 /* ── Shell ─────────────────────────────────────────────── */
-.panel > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.panel > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px;
+  padding: 14px 16px; border-radius: 18px; color: #fff;
+  background: linear-gradient(135deg, var(--brand-deep-2), var(--brand-deep)); box-shadow: 0 12px 28px -16px rgba(22, 58, 42, .6), inset 0 1px 0 rgba(255, 255, 255, .08); }
+.panel > header .sub { color: #b7d3c4; }
+.panel > header .brand-mark { background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
 .panel .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .panel .brand-mark { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-md); background: var(--brand); color: #fff; font-weight: 700; font-size: 17px; }
 
@@ -61,7 +66,7 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
 .panel nav.tabs a[aria-current='page'].tone-lead .tab-icon { background: var(--lead-soft); color: var(--lead-ink); }
 
 .panel .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
-.panel .period, .panel .segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: #e8ebe9; font-size: 13px; }
+.panel .period, .panel .segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: #dfe6e2; font-size: 13px; }
 .panel .period a, .panel .segmented a { padding: 5px 12px; border-radius: var(--r-sm); color: var(--ink-2); font-weight: 500; transition: background .2s, color .2s; }
 .panel .period a:hover, .panel .segmented a:hover { color: var(--ink); }
 .panel .period a[aria-current='true'], .panel .segmented a[aria-current='true'] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(23, 32, 27, .12); }
@@ -137,6 +142,12 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
 
 .panel .avatar { position: relative; flex: none; display: inline-grid; place-items: center; width: 42px; height: 42px; border-radius: 999px; background: var(--neutral-soft); color: var(--ink-2); font-size: 14px; font-weight: 650; letter-spacing: .02em; }
 .panel .avatar.lg { width: 52px; height: 52px; font-size: 17px; }
+/* Tints tell people apart at a glance; they carry no status. */
+.panel .avatar.t0 { background: #dce8fb; color: #1a4589; }
+.panel .avatar.t1 { background: #d2efea; color: #0b5953; }
+.panel .avatar.t2 { background: #d9efe2; color: #1d5a3e; }
+.panel .avatar.t3 { background: #f3e3d3; color: #7a3f12; }
+.panel .avatar.t4 { background: #e9e1f3; color: #4b3474; }
 /* Someone is waiting on a human: the avatar carries an amber ring */
 .panel .avatar.attention { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--warn-icon); }
 
@@ -149,13 +160,24 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
 .panel .pager a:hover { color: var(--ink); border-color: #cdd3cf; }
 
 /* ── Conversation ───────────────────────────────────────── */
-.panel .back { display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 500; color: var(--muted); padding: 4px 8px 4px 2px; margin-bottom: 12px; }
-.panel .back:hover { color: var(--ink); }
-.panel .contact { display: flex; gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+.panel .convo-bar {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin: 0 -4px 14px; padding: 12px 14px; border-radius: 18px; border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .92); box-shadow: var(--shadow);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .panel .convo-bar { background: rgba(255, 255, 255, .8); -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); }
+}
+.panel .back-btn { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 14px 0 8px; border-radius: 12px; background: var(--brand-deep); color: #fff; font-size: 14px; font-weight: 600; transition: background .2s, transform .15s var(--ease); }
+.panel .back-btn:hover { background: var(--brand-deep-2); color: #fff; }
+.panel .back-btn:active { transform: scale(.97); }
+.panel .convo-id { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 260px; }
+.panel .convo-id h1 { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel .convo-bar .contact-meta { margin-top: 2px; }
 .panel .contact-body { min-width: 0; }
 .panel .contact-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; color: var(--muted); font-size: 13px; }
 .panel .contact-meta a { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
-.panel .contact-meta .sep { color: var(--line); }
+.panel .contact-meta .sep { color: #b4bfb9; }
 
 .panel .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; position: relative; }
 .panel .tone-info .dot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: currentColor; animation: panel-pulse 2s var(--ease) infinite; }
@@ -188,12 +210,12 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
  * thread scrolls under it and stays legible through the blur.
  */
 .panel {
-  --glass: rgba(22, 30, 26, .84); --glass-solid: #1c2521; --glass-line: rgba(255, 255, 255, .10);
-  --glass-ink: #f4f7f5; --glass-muted: #b9c4be;
+  --glass: rgba(19, 50, 37, .86); --glass-solid: #173a2b; --glass-line: rgba(255, 255, 255, .12);
+  --glass-ink: #f4f8f6; --glass-muted: #bcd3c6;
   --bright: #8fdcb4; --bright-hover: #a6e6c5; --bright-ink: #0d2a1c;
   --glass-info: #a9c8f6; --glass-warn: #f6c776;
 }
-.panel .dock { position: sticky; bottom: 0; z-index: 10; margin-top: 16px; padding: 16px 0 12px; background: linear-gradient(to bottom, rgba(244, 245, 243, 0), var(--bg) 28px); }
+.panel .dock { position: sticky; bottom: 0; z-index: 10; margin-top: 16px; padding: 16px 0 12px; background: linear-gradient(to bottom, rgba(238, 242, 239, 0), var(--bg) 28px); }
 /* Replying needs a big composer: pinned it would hide half the thread, so it sits after the last message (the page opens there). */
 .panel .dock:has(.mine) { position: static; }
 .panel .dock-card { border-radius: 20px; padding: 16px 16px 16px 18px; }
@@ -277,6 +299,9 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
   .panel .dock-card { padding: 14px; }
   .panel .auth-card { padding: 22px 18px 20px; }
   .panel .thread { padding: 12px 10px; }
+  .panel .back-btn span { display: none; }
+  .panel .back-btn { padding: 0 10px; }
+  .panel .convo-bar { gap: 10px; padding: 10px; }
   .panel nav.tabs a { padding: 10px 8px; }
 }
 

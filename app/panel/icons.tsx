@@ -25,8 +25,10 @@ export const Inbox = ({ size = 28 }: P) => svg(size, <><path d="M4 13h4l1.5 3h5L
 
 export function Avatar({ name, channel, size = 'md', attention }: { name: string; channel: string; size?: 'md' | 'lg'; attention?: boolean }) {
   const letters = initials(name);
+  // Same name, same tint on every page.
+  const tint = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 5;
   return (
-    <span className={`avatar ${size}${attention ? ' attention' : ''}`} aria-hidden="true">
+    <span className={`avatar ${size} t${tint}${attention ? ' attention' : ''}`} aria-hidden="true">
       {letters ?? (channel === 'whatsapp' ? <Chat size={18} /> : <Globe size={18} />)}
     </span>
   );

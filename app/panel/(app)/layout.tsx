@@ -28,7 +28,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             <div className="sub">Panel de {config.name} · {user.email}</div>
           </div>
         </div>
-        <form action="/panel/salir" method="post"><button type="submit" className="btn secondary">Salir</button></form>
+        <form action="/panel/salir" method="post"><button type="submit" className="btn glass-outline">Salir</button></form>
       </header>
       {access ? children : <p className="notice warn">No tienes acceso a este panel.</p>}
     </main>

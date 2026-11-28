@@ -17,11 +17,15 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
   const { dias, aviso } = await searchParams;
   const days = parseDays(dias);
   const { config } = await getAssistantOr404();
-  const back = <a className="back" href={`/panel/conversaciones?dias=${days}`}><ChevronLeft /> Conversaciones</a>;
+  const back = (
+    <a className="back-btn" href={`/panel/conversaciones?dias=${days}`} aria-label="Volver a conversaciones">
+      <ChevronLeft /><span>Conversaciones</span>
+    </a>
+  );
   const sb = await createPanelClient();
   const userEmail = (await sb.auth.getUser()).data.user?.email;
   const data = await loadConversation(sb, contactId);
-  if (!data) return <>{back}<p className="notice warn">Conversación no encontrada.</p></>;
+  if (!data) return <><div className="convo-bar">{back}</div><p className="notice warn">Conversación no encontrada.</p></>;
 
   const { contact, lead, messages, handoff, lastUserAt } = data;
   const tz = config.scheduling.timeZone ?? 'UTC';
@@ -43,24 +47,27 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
   let lastRole = '';
   return (
     <>
-      {back}
-      <section className="contact" aria-label="Contacto">
-        <Avatar name={name} channel={channel} size="lg" attention={taken} />
-        <div className="contact-body">
-          <h1>{name}</h1>
-          <div className="contact-meta">
-            {channel === 'whatsapp'
-              ? <a href={`https://wa.me/${contactPhone(contactId, 'whatsapp') ?? contactId}`}><Chat size={14} />+{contactId}</a>
-              : <span><Globe size={14} /> Chat web</span>}
-            {reach && <><span className="sep">|</span><a href={reach.href}>{reach.label}</a></>}
-            {interest && <><span className="sep">|</span><span>Le interesa: {interest}</span></>}
+      {/* Pinned: the page opens at the last message, so the way back has to stay in view. */}
+      <section className="convo-bar" aria-label="Contacto">
+        {back}
+        <div className="convo-id">
+          <Avatar name={name} channel={channel} attention={taken} />
+          <div className="contact-body">
+            <h1>{name}</h1>
+            <div className="contact-meta">
+              {channel === 'whatsapp'
+                ? <a href={`https://wa.me/${contactPhone(contactId, 'whatsapp') ?? contactId}`}><Chat size={14} />+{contactId}</a>
+                : <span><Globe size={14} /> Chat web</span>}
+              {reach && <><span className="sep">|</span><a href={reach.href}>{reach.label}</a></>}
+              {interest && <><span className="sep">|</span><span>Le interesa: {interest}</span></>}
+            </div>
           </div>
-          <div className="chips" style={{ marginTop: 10 }}>
-            {channel === 'whatsapp' && (taken
-              ? <span className="chip tone-warn"><span className="dot" />Atiende una persona</span>
-              : <span className="chip tone-info"><span className="dot" />Asistente activo</span>)}
-            {leftData && <span className="chip tone-lead"><UserPlus size={13} />Dejó datos</span>}
-          </div>
+        </div>
+        <div className="chips">
+          {channel === 'whatsapp' && (taken
+            ? <span className="chip tone-warn"><span className="dot" />Atiende una persona</span>
+            : <span className="chip tone-info"><span className="dot" />Asistente activo</span>)}
+          {leftData && <span className="chip tone-lead"><UserPlus size={13} />Dejó datos</span>}
         </div>
       </section>
       {aviso && <p className={`notice ${avisoTone}`} role="status">{aviso}</p>}
