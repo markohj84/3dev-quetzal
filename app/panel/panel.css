@@ -83,7 +83,6 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
 .panel .btn[aria-busy='true'] { cursor: progress; }
 
 /* ── Login form ─────────────────────────────────────────── */
-.panel form.auth { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
 .panel label { font-size: 14px; font-weight: 500; color: var(--ink-2); }
 .panel input, .panel textarea { font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); transition: border-color .2s, box-shadow .2s; }
 .panel input:focus, .panel textarea:focus { outline: none; border-color: var(--brand); box-shadow: var(--ring); }
@@ -183,27 +182,100 @@ html:has(.panel), body:has(.panel) { background: #f4f5f3; margin: 0; }
 .panel .bubble.human time { color: var(--bubble-you-meta); }
 .panel .bubble.assistant a, .panel .bubble.user a { color: inherit; text-decoration: underline; }
 
-/* Bottom dock: take / reply / give back live where you'd type */
-.panel .dock { position: sticky; bottom: 0; margin-top: 12px; padding: 12px 0 8px; background: linear-gradient(to bottom, rgba(244, 245, 243, 0), var(--bg) 16px); }
-.panel .dock-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 12px 12px 14px; box-shadow: var(--shadow); }
-.panel .dock-card.mine { border-color: var(--warn-line); box-shadow: 0 0 0 3px var(--warn-soft), var(--shadow); }
-.panel .dock-row { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+/*
+ * Bottom dock: take / reply / give back live where you'd type. Dark glass so the
+ * one control that changes who talks stands apart from the light page; the
+ * thread scrolls under it and stays legible through the blur.
+ */
+.panel {
+  --glass: rgba(22, 30, 26, .84); --glass-solid: #1c2521; --glass-line: rgba(255, 255, 255, .10);
+  --glass-ink: #f4f7f5; --glass-muted: #b9c4be;
+  --bright: #8fdcb4; --bright-hover: #a6e6c5; --bright-ink: #0d2a1c;
+  --glass-info: #a9c8f6; --glass-warn: #f6c776;
+}
+.panel .dock { position: sticky; bottom: 0; z-index: 10; margin-top: 16px; padding: 16px 0 12px; background: linear-gradient(to bottom, rgba(244, 245, 243, 0), var(--bg) 28px); }
+/* Replying needs a big composer: pinned it would hide half the thread, so it sits after the last message (the page opens there). */
+.panel .dock:has(.mine) { position: static; }
+.panel .dock-card { border-radius: 20px; padding: 16px 16px 16px 18px; }
+.panel .dock-card.glass {
+  background: var(--glass-solid); color: var(--glass-ink); border: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 18px 40px -18px rgba(13, 24, 18, .55), 0 2px 6px rgba(13, 24, 18, .12);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .panel .dock-card.glass { background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%); }
+}
+.panel .dock-card.glass.mine { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 1px rgba(246, 199, 118, .35), 0 18px 40px -18px rgba(13, 24, 18, .55); }
+.panel .dock-row { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
 .panel .dock-row > form { display: contents; }
-.panel .dock-text { display: flex; gap: 12px; align-items: center; min-width: 0; flex: 1 1 280px; }
-.panel .dock-text b { display: block; font-size: 14px; }
-.panel .dock-text p { margin: 1px 0 0; color: var(--muted); font-size: 13px; }
-.panel .dock-icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r-md); }
-.panel .composer { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
-.panel .composer textarea { flex: 1; min-height: 46px; max-height: 40vh; }
-.panel .composer .btn { min-height: 46px; }
+.panel .dock-text { display: flex; gap: 14px; align-items: center; min-width: 0; flex: 1 1 300px; }
+.panel .dock-text b { display: block; font-size: 15px; font-weight: 650; }
+.panel .dock-text p { margin: 2px 0 0; color: var(--glass-muted); font-size: 13.5px; }
+.panel .dock-icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; }
+.panel .glass .dock-icon { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px var(--glass-line); }
+.panel .glass .dock-icon.tone-info { color: var(--glass-info); }
+.panel .glass .dock-icon.tone-warn { color: var(--glass-warn); }
+
+/* Buttons that live on the dark glass */
+.panel .btn.lg { min-height: 48px; padding: 10px 20px; font-size: 15px; border-radius: 12px; }
+.panel .btn.bright { background: var(--bright); color: var(--bright-ink); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 6px 16px -8px rgba(143, 220, 180, .7); }
+.panel .btn.bright:hover { background: var(--bright-hover); }
+.panel .btn.bright:disabled { background: rgba(255, 255, 255, .14); color: var(--glass-muted); box-shadow: none; opacity: 1; }
+.panel .btn.glass-outline { background: rgba(255, 255, 255, .06); color: var(--glass-ink); border-color: rgba(255, 255, 255, .22); }
+.panel .btn.glass-outline:hover { background: rgba(255, 255, 255, .12); }
+.panel .btn.glass-warn { background: rgba(246, 199, 118, .12); color: var(--glass-warn); border-color: rgba(246, 199, 118, .45); }
+.panel .btn.glass-warn:hover { background: rgba(246, 199, 118, .2); }
+.panel .glass :focus-visible { box-shadow: 0 0 0 3px rgba(143, 220, 180, .55); }
+
+/* Composer: roomy, full width, the send button where the thumb lands */
+.panel .composer { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-line); }
+.panel .composer-label { font-size: 13px; font-weight: 600; color: var(--glass-muted); }
+.panel .composer textarea {
+  width: 100%; min-height: 120px; max-height: 45vh; padding: 14px 16px; font-size: 16px; line-height: 1.5;
+  border-radius: 14px; border: 1px solid transparent; background: #fbfcfb; color: var(--ink);
+  box-shadow: inset 0 1px 2px rgba(13, 24, 18, .08);
+}
+.panel .composer textarea::placeholder { color: #69736e; }
+.panel .composer textarea:focus { border-color: var(--bright); box-shadow: 0 0 0 3px rgba(143, 220, 180, .45); }
+.panel .composer textarea:disabled { background: rgba(255, 255, 255, .1); color: var(--glass-muted); }
+.panel .composer textarea:disabled::placeholder { color: var(--glass-muted); }
+.panel .composer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.panel .composer-hint { display: inline-flex; align-items: center; gap: 6px; color: var(--glass-muted); font-size: 13px; }
+.panel .composer .btn { min-width: 132px; }
 .panel .readonly { display: flex; align-items: center; gap: 8px; justify-content: center; color: var(--muted); font-size: 13px; padding: 10px; }
+
+/* ── Login ──────────────────────────────────────────────── */
+.panel.auth-page { min-height: 100dvh; max-width: none; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 32px 16px;
+  background: radial-gradient(1200px 520px at 50% -10%, #e3efe8 0%, rgba(227, 239, 232, 0) 70%), var(--bg); }
+.panel .auth-card { width: min(420px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 28px 24px; box-shadow: var(--shadow), 0 30px 60px -30px rgba(23, 32, 27, .18); }
+.panel .auth-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 20px; margin-bottom: 22px; border-bottom: 1px solid var(--line-soft); }
+.panel .auth-brand b { display: block; font-size: 15px; }
+.panel .auth-brand span:not(.brand-mark) { display: block; color: var(--muted); font-size: 13px; }
+.panel .auth-step { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--brand-ink); background: var(--brand-soft); border-radius: 999px; padding: 3px 10px; margin-bottom: 12px; }
+.panel .auth-card h1 { font-size: 24px; letter-spacing: -.02em; }
+.panel .auth-lead { color: var(--muted); margin: 6px 0 20px; }
+.panel .auth-email { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; margin: -8px 0 20px; padding: 8px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.panel .auth-email svg { color: var(--muted); }
+.panel form.auth { display: grid; gap: 16px; max-width: none; }
+.panel .field { display: grid; gap: 6px; }
+.panel .auth input { width: 100%; min-height: 50px; font-size: 16px; padding: 12px 14px; border-radius: 12px; }
+.panel .input-icon { position: relative; }
+.panel .input-icon svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.panel .input-icon input { padding-left: 44px; }
+.panel .auth input.otp { text-align: center; font-size: 26px; font-weight: 600; letter-spacing: .4em; padding-left: calc(14px + .4em); font-variant-numeric: tabular-nums; }
+.panel .auth input.otp::placeholder { color: #cdd3cf; }
+.panel .btn.block { width: 100%; min-height: 50px; font-size: 15px; border-radius: 12px; }
+.panel .auth-alt { display: inline-flex; align-items: center; gap: 4px; margin-top: 16px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.panel .auth-alt:hover { color: var(--ink); }
+.panel .auth-foot { color: var(--muted); font-size: 13px; margin: 0; text-align: center; }
 
 @media (max-width: 560px) {
   .panel { padding: 16px 12px 24px; }
   .panel a.convo { gap: 10px; padding: 12px 8px 12px 12px; }
   .panel .avatar { width: 38px; height: 38px; font-size: 13px; }
   .panel .bubble { max-width: 88%; }
-  .panel .dock-row > .btn { width: 100%; }
+  .panel .dock-row > .btn, .panel .composer .btn { width: 100%; }
+  .panel .dock-card { padding: 14px; }
+  .panel .auth-card { padding: 22px 18px 20px; }
   .panel .thread { padding: 12px 10px; }
   .panel nav.tabs a { padding: 10px 8px; }
 }

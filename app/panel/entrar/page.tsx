@@ -5,6 +5,8 @@ import { createPanelClient } from '../supabase';
 import { loginMessage, stateAfterSend, stateAfterVerify } from '../shape';
 import '../panel.css';
 import { panelFont } from '../font';
+import { ChevronLeft, Mail } from '../icons';
+import { Submit } from '../submit';
 
 export const metadata: Metadata = { title: 'Entrar al panel', robots: { index: false } };
 
@@ -37,34 +39,59 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
   const { correo, estado } = await searchParams;
   const { config } = await getAssistantOr404();
   const message = loginMessage(estado);
+  // "Sent" is the normal next step, not a warning: it becomes the step's lead line.
+  const problem = estado && estado !== 'enviado' ? message : null;
+  const initial = config.organization.trim()[0]?.toUpperCase();
   return (
-    <main className={`panel ${panelFont.variable}`}>
-      <header>
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">{config.organization.trim()[0]?.toUpperCase()}</span>
+    <main className={`panel auth-page ${panelFont.variable}`}>
+      <div className="auth-card">
+        <div className="auth-brand">
+          <span className="brand-mark" aria-hidden="true">{initial}</span>
           <div>
-            <h1>{config.organization}</h1>
-            <div className="sub">Panel de {config.name}</div>
+            <b>{config.organization}</b>
+            <span>Panel de {config.name}</span>
           </div>
         </div>
-      </header>
-      {message && <p className={estado === 'enviado' ? 'notice' : 'notice warn'} role="status">{message}</p>}
-      {correo ? (
-        <form className="auth" action={verifyCode}>
-          <input type="hidden" name="email" value={correo} />
-          <label htmlFor="token">Código que te llegó a {correo}</label>
-          {/* Supabase sets the code length per project (6 here, 8 by default): never cut it short. */}
-          <input id="token" name="token" inputMode="numeric" autoComplete="one-time-code" maxLength={10} required autoFocus />
-          <button type="submit" className="btn">Entrar</button>
-          <a href="/panel/entrar">Usar otro correo</a>
-        </form>
-      ) : (
-        <form className="auth" action={sendCode}>
-          <label htmlFor="email">Tu correo</label>
-          <input id="email" name="email" type="email" autoComplete="email" required autoFocus />
-          <button type="submit" className="btn">Enviarme un código</button>
-        </form>
-      )}
+        {correo ? (
+          <>
+            <div className="auth-step">Paso 2 de 2</div>
+            <h1>Revisa tu correo</h1>
+            {/* Same words for every email: saying "we sent it" would reveal which ones have access. */}
+            <p className="auth-lead">{loginMessage('enviado')}</p>
+            <p className="auth-email"><Mail size={16} />{correo}</p>
+            {problem && <p className="notice danger" role="status">{problem}</p>}
+            <form className="auth" action={verifyCode}>
+              <input type="hidden" name="email" value={correo} />
+              <div className="field">
+                <label htmlFor="token">Código de acceso</label>
+                {/* Supabase sets the code length per project (6 here, 8 by default): never cut it short. */}
+                <input id="token" name="token" className="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={10}
+                  placeholder="000000" required autoFocus />
+              </div>
+              <Submit pending="Entrando…" className="block">Entrar al panel</Submit>
+            </form>
+            <a className="auth-alt" href="/panel/entrar"><ChevronLeft size={16} /> Usar otro correo</a>
+          </>
+        ) : (
+          <>
+            <div className="auth-step">Paso 1 de 2</div>
+            <h1>Entra a tu panel</h1>
+            <p className="auth-lead">Escribe tu correo y te mandamos un código para entrar. Sin contraseñas.</p>
+            {problem && <p className="notice danger" role="status">{problem}</p>}
+            <form className="auth" action={sendCode}>
+              <div className="field">
+                <label htmlFor="email">Correo</label>
+                <div className="input-icon">
+                  <Mail />
+                  <input id="email" name="email" type="email" autoComplete="email" placeholder="tu@negocio.com" required autoFocus />
+                </div>
+              </div>
+              <Submit pending="Enviando…" className="block">Enviarme un código</Submit>
+            </form>
+          </>
+        )}
+      </div>
+      <p className="auth-foot">Solo entran los correos que el equipo dio de alta.</p>
     </main>
   );
 }

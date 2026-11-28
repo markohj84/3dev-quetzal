@@ -93,27 +93,27 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
         {channel !== 'whatsapp' ? (
           <div className="readonly"><Lock /> Las conversaciones del chat web son de solo lectura.</div>
         ) : !taken ? (
-          <div className="dock-card">
+          <div className="dock-card glass">
             <form className="dock-row" action={take.bind(null, contactId)}>
               <div className="dock-text">
                 <span className="dock-icon tone-info"><Bot size={20} /></span>
                 <div><b>El asistente está contestando</b><p>Si contestas tú, el asistente se pausa hasta que se la devuelvas.</p></div>
               </div>
-              <Submit pending="Abriendo…"><Person /> Contestar yo</Submit>
+              <Submit pending="Abriendo…" className="bright lg"><Person /> Contestar yo</Submit>
             </form>
           </div>
         ) : !mine ? (
-          <div className="dock-card">
+          <div className="dock-card glass">
             <form className="dock-row" action={take.bind(null, contactId)}>
               <div className="dock-text">
                 <span className="dock-icon tone-warn"><Person size={20} /></span>
                 <div><b>La atiende {handoff!.taken_by_email ?? 'el negocio desde su WhatsApp'}</b><p>El asistente está en pausa. Lo retoma solo {until} si nadie escribe.</p></div>
               </div>
-              <Submit pending="Abriendo…" className="secondary"><Person /> Contestar yo</Submit>
+              <Submit pending="Abriendo…" className="glass-outline lg"><Person /> Contestar yo</Submit>
             </form>
           </div>
         ) : (
-          <div className="dock-card mine">
+          <div className="dock-card glass mine">
             <Live />
             <div className="dock-row">
               <div className="dock-text">
@@ -121,16 +121,20 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
                 <div><b>La atiendes tú · asistente en pausa</b><p>Lo retoma solo {until} si no escribes.</p></div>
               </div>
               <form action={giveBack.bind(null, contactId)}>
-                <Submit pending="Devolviendo…" className="warn"><ReturnArrow /> Devolver al asistente</Submit>
+                <Submit pending="Devolviendo…" className="glass-warn"><ReturnArrow /> Devolver al asistente</Submit>
               </form>
             </div>
             {(() => {
               const open = windowOpen(lastUserAt, now);
               return (
                 <form className="composer" action={reply.bind(null, contactId)}>
-                  <textarea name="text" rows={2} maxLength={4096} disabled={!open} aria-label="Tu respuesta"
-                    placeholder={open ? `Escribe a ${name}…` : 'WhatsApp solo deja escribir libremente 24 h después del último mensaje de la persona.'} />
-                  <Submit pending="Enviando…" disabled={!open}><Send /> Enviar</Submit>
+                  <label htmlFor="reply" className="composer-label">Tu respuesta a {name}</label>
+                  <textarea id="reply" name="text" rows={4} maxLength={4096} disabled={!open}
+                    placeholder={open ? 'Escribe aquí tu mensaje…' : 'WhatsApp solo deja escribir libremente 24 h después del último mensaje de la persona.'} />
+                  <div className="composer-foot">
+                    <span className="composer-hint"><Chat size={14} /> Sale por WhatsApp desde el número del negocio.</span>
+                    <Submit pending="Enviando…" disabled={!open} className="bright lg"><Send /> Enviar</Submit>
+                  </div>
                 </form>
               );
             })()}

@@ -20,6 +20,7 @@ export const Chart = ({ size = 16 }: P) => svg(size, <><path d="M4 20V10M10 20V4
 export const Users = ({ size = 16 }: P) => svg(size, <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c.9-3 3.2-4.5 6-4.5s5.1 1.5 6 4.5M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.4.6 2.4 2 2.9 4.2" /></>);
 export const UserPlus = ({ size = 16 }: P) => svg(size, <><circle cx="10" cy="8" r="3.5" /><path d="M3.5 20c1.1-3.4 3.6-5 6.5-5s5.4 1.6 6.5 5M19 8v6M16 11h6" /></>);
 export const Calendar = ({ size = 16 }: P) => svg(size, <><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M8 3v4M16 3v4M4 10h16M9 14.5l2 2 4-4" /></>);
+export const Mail = ({ size = 18 }: P) => svg(size, <><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m4 7 8 6 8-6" /></>);
 export const Inbox = ({ size = 28 }: P) => svg(size, <><path d="M4 13h4l1.5 3h5L16 13h4" /><path d="M5.5 5h13L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Z" /></>);
 
 export function Avatar({ name, channel, size = 'md', attention }: { name: string; channel: string; size?: 'md' | 'lg'; attention?: boolean }) {
