@@ -42,33 +42,37 @@ export default async function ConversacionPage({ params, searchParams }: Props) 
   const avisoTone = aviso && /^(No se pudo|Escribe|WhatsApp)/.test(aviso) ? 'danger' : 'warn';
   const interest = contact?.interest ?? lead?.necesidad;
   const leftData = !!lead || !!contact?.left_contact;
+  // The lead's phone is usually the WhatsApp number itself: showing it twice is noise.
+  const leadDigits = lead?.contacto.replace(/\D/g, '').slice(-10) ?? '';
+  const sameNumber = channel === 'whatsapp' && leadDigits.length === 10 && contactId.endsWith(leadDigits);
 
   let lastDay = '';
   let lastRole = '';
   return (
     <>
-      {/* Pinned: the page opens at the last message, so the way back has to stay in view. */}
+      {/* Pinned, so only what you need to get back and know who's talking: details scroll away below. */}
       <section className="convo-bar" aria-label="Contacto">
         {back}
         <div className="convo-id">
           <Avatar name={name} channel={channel} attention={taken} />
           <div className="contact-body">
             <h1>{name}</h1>
-            <div className="contact-meta">
-              {channel === 'whatsapp'
-                ? <a href={`https://wa.me/${contactPhone(contactId, 'whatsapp') ?? contactId}`}><Chat size={14} />+{contactId}</a>
-                : <span><Globe size={14} /> Chat web</span>}
-              {reach && <><span className="sep">|</span><a href={reach.href}>{reach.label}</a></>}
-              {interest && <><span className="sep">|</span><span>Le interesa: {interest}</span></>}
-            </div>
+            {channel === 'whatsapp' && (taken
+              ? <span className="convo-status tone-warn"><span className="dot" />Atiende una persona</span>
+              : <span className="convo-status tone-info"><span className="dot" />Asistente activo</span>)}
+            {channel !== 'whatsapp' && <span className="convo-status"><Globe size={13} />Chat web</span>}
           </div>
         </div>
-        <div className="chips">
-          {channel === 'whatsapp' && (taken
-            ? <span className="chip tone-warn"><span className="dot" />Atiende una persona</span>
-            : <span className="chip tone-info"><span className="dot" />Asistente activo</span>)}
+      </section>
+      <section className="contact-details" aria-label="Datos del contacto">
+        <div className="contact-links">
+          {channel === 'whatsapp' && (
+            <a className="pill-link" href={`https://wa.me/${contactPhone(contactId, 'whatsapp') ?? contactId}`}><Chat size={15} />+{contactId}</a>
+          )}
+          {reach && !sameNumber && <a className="pill-link" href={reach.href}>{reach.label}</a>}
           {leftData && <span className="chip tone-lead"><UserPlus size={13} />Dejó datos</span>}
         </div>
+        {interest && <p className="contact-interest"><span>Le interesa</span>{interest}</p>}
       </section>
       {aviso && <p className={`notice ${avisoTone}`} role="status">{aviso}</p>}
 
