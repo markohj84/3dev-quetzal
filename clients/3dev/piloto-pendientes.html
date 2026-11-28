@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bandeja de solicitudes · Mobiliaria Sur</title>
+<title>Bandeja de pedidos</title>
 <style>
 :root{color-scheme:light;--ink:#211936;--brand:#413074;--line:#d9d5e2;--paper:#f7f7fa;--muted:#615970;--accent:#00716d;font:16px/1.5 Figtree,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
 *{box-sizing:border-box}
@@ -13,14 +13,15 @@ header p,header h1{margin:0}
 header p{color:#e4dff0}
 h1{font-size:clamp(26px,4vw,34px);letter-spacing:-.035em}
 main{max-width:880px;padding:24px 20px 60px;margin:auto}
-nav,.controls,form{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+nav,#queues,form{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
 nav{border-bottom:1px solid var(--line);padding-bottom:16px}
+#queues{width:100%}
 button,input{font:inherit}
 button{cursor:pointer;border-radius:7px;padding:8px 14px;color:var(--brand);background:white;border:1px solid var(--line);font-weight:600}
 button[aria-pressed=true],button[type=submit]{color:#fff;background:var(--brand);border-color:var(--brand)}
 button:disabled{cursor:wait;opacity:.65}
 :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
-nav button:last-child{margin-left:auto}
+#reload{margin-left:auto}
 article{margin:16px 0;background:white;border:1px solid var(--line);border-radius:10px;padding:clamp(16px,4vw,26px);overflow-wrap:anywhere}
 h2{margin:2px 0 0;font-size:1.28rem}
 .meta,small{color:var(--muted);font-size:.875rem}
@@ -39,21 +40,27 @@ input:not([type=checkbox]){border:1px solid #a8a1b5;background:white;color:var(-
 </style>
 </head>
 <body>
-<header><p id="area">Mobiliaria Sur</p><h1>Bandeja de solicitudes</h1></header>
+<header><p id="area"></p><h1>Bandeja de pedidos</h1></header>
 <main>
 <p id="access" hidden>Abre el enlace de Ventas o Logística que recibiste para esta prueba.</p>
-<nav id="filters" aria-label="Filtrar solicitudes" hidden>
-  <button id="pending" aria-pressed="true">Pendientes</button>
-  <button id="done" aria-pressed="false">Resueltas</button>
+<nav id="filters" aria-label="Filtrar pedidos" hidden>
+  <label>Buscar folio en todos los estados<input id="search" type="search" autocomplete="off" spellcheck="false"></label>
   <button id="reload">Actualizar</button>
+  <div id="queues" role="group" aria-label="Vistas del área">
+    <button id="pending">Pendientes</button><button id="waiting">En espera</button>
+    <button id="done">Resueltos</button><button id="attention">Avisos del área por revisar</button>
+  </div>
 </nav>
 <p id="notice" role="status"></p><p id="error" role="alert"></p>
+<p id="syncWarning" role="status" hidden>Se muestran los últimos datos recibidos. No se pudo actualizar la bandeja.</p>
+<p id="summary" role="status"></p>
 <section id="requests" aria-label="Solicitudes"></section>
 </main>
 <template id="card">
   <article><span class="folio"></span><h2></h2><small class="created"></small>
 
     <div class="details"><p class="price"></p><small class="price-time"></small><p class="delivery"></p><small class="delivery-time"></small></div>
+    <p class="uncertain" hidden>La recepción del aviso de tu área está por verificar. Revisa la conversación antes de volver a contactar al cliente.</p>
     <button class="retry" hidden>Reintentar aviso por WhatsApp</button>
     <form><label class="sales">Precio autorizado por unidad (MXN)<input name="price" type="number" min="0.01" max="1000000" step="0.01" inputmode="decimal"></label>
       <label class="logistics">Fecha de entrega del pedido completo<input name="date" type="date"></label>
@@ -72,25 +79,27 @@ if (fragment.has('acceso')) {
 window.addEventListener('hashchange', () => {
   if (new URLSearchParams(location.hash.slice(1)).has('acceso')) location.reload();
 });
-let data, resolved = false, busy = false;
+let data, queue = 'pending', busy = false, polling = false, version = 0;
+const cards = new Map();
 async function api(method, body) {
   const response = await fetch('/api/piloto/pendientes', {
     method, cache:'no-store', headers:{ 'Authorization':'Bearer ' + (sessionStorage.getItem('pedido-piloto-area') || ''),
       ...(body && { 'Content-Type':'application/json' }) }, body:body && JSON.stringify(body),
   });
-  if (response.status === 401) {
-    sessionStorage.removeItem('pedido-piloto-area');
-    $('filters').hidden = true;
-    $('access').hidden = false;
-    $('requests').replaceChildren();
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw Object.assign(new Error(result.error || 'La bandeja no está disponible.'), {status:response.status});
   }
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'No se pudo acceder a la bandeja.');
-  return result;
+  return response.json();
 }
 const clock = new Intl.DateTimeFormat('es-MX',{timeZone:'America/Mexico_City',dateStyle:'medium',timeStyle:'short'});
 const time = s => clock.format(new Date(s));
 const whatsapp = {sending:'Enviando', accepted:'Aceptado por WhatsApp', delivered:'Entregado en el chat', read:'Leído en el chat', failed:'Aviso sin entregar', uncertain:'Recepción por verificar'};
+function decisionInfo(d, action) {
+  if (!d) return '';
+  const label = whatsapp[d.status] || 'Sin acuse de WhatsApp';
+  return action + ' el ' + time(d.at) + ' · ' + label + (d.receiptAt ? ' · Acuse del ' + time(d.receiptAt) : '');
+}
 function card(r) {
   const node = $('card').content.firstElementChild.cloneNode(true);
   const find = sel => node.querySelector(sel);
@@ -98,28 +107,13 @@ function card(r) {
   show('.folio',r.folio);
   show('h2',r.quantity + ' · ' + r.product);
   show('.created','Registrada el ' + time(r.created) + ' (hora del centro de México)');
-  show('.price',r.price);
-  show('.delivery',r.delivery);
-  if (r.ventas) show('.price-time',time(r.ventas.at) + ' · ' + whatsapp[r.ventas.status]);
-  if (r.logistica) show('.delivery-time',time(r.logistica.at) + ' · ' + whatsapp[r.logistica.status]);
   const sales = data.area === 'ventas';
-  const form = find('form'), saved = r[data.area];
-  if (saved) {
-    form.remove();
-    const retry = find('.retry');
-    retry.hidden = saved.status !== 'failed';
-    retry.onclick = () => act(async () => {
-      const fields = sales ? {unitCents:saved.value} : {deliveryDate:saved.value,fullOrderConfirmed:true};
-      await api('POST',{folio:r.folio,area:data.area,...fields,retry:true});
-      await refresh();
-    });
-    return node;
-  }
+  const form = find('form');
   for (const label of form.querySelectorAll(sales ? '.logistics' : '.sales')) label.remove();
   if (sales) form.elements.price.required = true;
   else {
-    form.elements.date.min = data.today;
     form.elements.date.required = form.elements.checked.required = true;
+    form.elements.date.oninput = () => { form.elements.checked.checked = false; };
     show('.check span','Verifiqué que se pueden entregar las ' + r.quantity + ' unidades en esta fecha.');
   }
   show('button[type=submit]',sales ? 'Autorizar precio' : 'Confirmar entrega');
@@ -128,50 +122,126 @@ function card(r) {
     if (busy) return;
     const decision = sales ? {unitCents:Math.round(form.elements.price.valueAsNumber * 100)}
       : {deliveryDate:form.elements.date.value, fullOrderConfirmed:form.elements.checked.checked};
-    await act(async () => {
-      const result = await api('POST',{folio:r.folio,area:data.area,...decision});
-      resolved = !!(result.order.ventas && result.order.logistica);
-      $('notice').textContent = (sales ? 'Precio autorizado' : 'Entrega confirmada') + ' · ' + r.folio + ' · ' + whatsapp[result.order[data.area].status];
-      await refresh();
-    });
+    await save(r.folio, decision, sales ? 'Precio autorizado' : 'Entrega confirmada');
   };
   return node;
 }
-function render() {
-  const complete = r => !!(r.ventas && r.logistica);
-  const finished = data.requests.filter(complete).length;
-  $('pending').textContent = 'Pendientes (' + (data.requests.length - finished) + ')';
-  $('done').textContent = 'Resueltas (' + finished + ')';
-  $('pending').setAttribute('aria-pressed',String(!resolved));
-  $('done').setAttribute('aria-pressed',String(resolved));
-  const rows = data.requests.filter(r => complete(r) === resolved);
-  $('requests').replaceChildren(...rows.map(card));
-  if (!rows.length) $('requests').textContent = resolved ? 'Todavía no hay solicitudes resueltas.' : 'No hay solicitudes pendientes. El pedido aparecerá aquí cuando llegue por WhatsApp.';
+function save(folio, fields, action) {
+  return act(async () => {
+    const {order} = await api('POST',{folio,area:data.area,...fields});
+    data.requests = data.requests.map(row => row.folio === folio ? order : row);
+    renderCards();
+    $('notice').textContent = action + ' · ' + folio + ' · ' + whatsapp[order[data.area].status];
+    await refresh();
+  });
+}
+function renderCards() {
+  const list = $('requests');
+  const present = new Set(data.requests.map(r => r.folio));
+  for (const [folio, node] of cards) {
+    if (!present.has(folio)) { node.remove(); cards.delete(folio); }
+  }
+  for (const [index, r] of data.requests.entries()) {
+    const node = cards.get(r.folio) || card(r);
+    cards.set(r.folio, node);
+    if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null);
+    node.querySelector('.price').textContent = r.price;
+    node.querySelector('.delivery').textContent = r.delivery;
+    node.querySelector('.price-time').textContent = decisionInfo(r.ventas,'Autorizado');
+    node.querySelector('.delivery-time').textContent = decisionInfo(r.logistica,'Confirmada');
+    const own = r[data.area], form = node.querySelector('form'), retry = node.querySelector('.retry');
+    if (own && !form.hidden) form.reset();
+    form.hidden = Boolean(own);
+    if (form.elements.date) form.elements.date.min = data.today;
+    node.querySelector('.uncertain').hidden = own?.status !== 'uncertain';
+    retry.hidden = own?.status !== 'failed';
+    retry.onclick = retry.hidden ? null : () => {
+      const fields = data.area === 'ventas' ? {unitCents:own.value} : {deliveryDate:own.value,fullOrderConfirmed:true};
+      return save(r.folio, {...fields,retry:true}, 'Reintento de aviso');
+    };
+  }
+  filterCards();
+}
+function filterCards() {
+  if (!data) return;
+  const sales = data.area === 'ventas', other = sales ? 'logistica' : 'ventas';
+  const labels = {pending:sales ? 'Por autorizar precio' : 'Por confirmar entrega', waiting:sales ? 'En espera de Logística' : 'En espera de Ventas', done:'Resueltos', attention:'Avisos del área por revisar'};
+  const counts = {pending:0, waiting:0, done:0, attention:0};
+  const term = $('search').value.trim().toLowerCase();
+  let matches = 0;
+  for (const r of data.requests) {
+    const own = r[data.area];
+    const state = !own ? 'pending' : r[other] ? 'done' : 'waiting';
+    const attention = own?.status === 'failed' || own?.status === 'uncertain';
+    counts[state]++;
+    if (attention) counts.attention++;
+    const visible = term ? r.folio.toLowerCase().includes(term) : queue === 'attention' ? attention : queue === state;
+    cards.get(r.folio).hidden = !visible;
+    if (visible) matches++;
+  }
+  $('queues').hidden = Boolean(term);
+  for (const button of $('queues').children) {
+    button.textContent = labels[button.id] + ' (' + counts[button.id] + ')';
+    button.setAttribute('aria-pressed', String(button.id === queue));
+  }
+  const empty = {pending:'Tu área está al día.', waiting:'No hay pedidos en espera de la otra área.', done:'Todavía no hay pedidos con precio y entrega confirmados.', attention:'No hay avisos de tu área por revisar.'};
+  $('summary').textContent = term ? (matches === 1 ? '1 folio encontrado.' : matches + ' folios encontrados.') : matches ? '' : empty[queue];
 }
 async function refresh() {
-  const updated = await api('GET');
+  const requestVersion = ++version;
+  let updated;
+  try { updated = await api('GET'); }
+  catch (e) { if (requestVersion === version) throw e; return; }
+  if (requestVersion !== version) return;
+  $('syncWarning').hidden = true;
   if (JSON.stringify(updated) === JSON.stringify(data)) return;
   data = updated;
-  $('area').textContent = 'Mobiliaria Sur · ' + (data.area === 'ventas' ? 'Ventas' : 'Logística') + ' · Prueba';
+  const role = data.area === 'ventas' ? 'Ventas' : 'Logística';
+  $('area').textContent = data.business + ' · ' + role + ' · Piloto';
+  document.title = role + ' · ' + data.business + ' · Pedidos';
   $('filters').hidden = false;
   $('access').hidden = true;
-  render();
+  renderCards();
+}
+function reportError(e) {
+  $('error').textContent = e.message;
+  if (e.status !== 401 && e.status !== 404) return;
+  if (e.status === 401) sessionStorage.removeItem('pedido-piloto-area');
+  data = null;
+  cards.clear();
+  $('requests').replaceChildren();
+  $('filters').hidden = true;
+  $('syncWarning').hidden = true;
+  $('access').hidden = e.status !== 401;
+  $('search').value = $('summary').textContent = $('notice').textContent = $('area').textContent = '';
+  document.title = 'Bandeja de pedidos';
 }
 async function act(fn) {
   if (busy) return;
-  busy = true; $('error').textContent = $('notice').textContent = '';
+  busy = true; version++; $('error').textContent = $('notice').textContent = '';
   const controls = [...document.querySelectorAll('button')];
   controls.forEach(el => el.disabled = true);
-  try { await fn(); } catch (e) { $('error').textContent = e.message; }
+  try { await fn(); } catch (e) {
+    reportError(e);
+    if (e.status === 409) await refresh().catch(reportError);
+  }
   finally { controls.forEach(el => el.disabled = false); busy = false; }
 }
-$('pending').onclick = () => { resolved = false; render(); };
-$('done').onclick = () => { resolved = true; render(); };
+for (const button of $('queues').children) {
+  button.onclick = () => { queue = button.id; filterCards(); };
+}
+$('search').oninput = filterCards;
 $('reload').onclick = () => act(refresh);
 if (sessionStorage.getItem('pedido-piloto-area')) act(refresh);
 else $('access').hidden = false;
-setInterval(() => {
-  if (data && !busy && !document.hidden && !document.activeElement?.closest('form')) refresh().catch(() => {});
+setInterval(async () => {
+  if (!data || busy || polling || document.hidden) return;
+  polling = true;
+  try { await refresh(); } catch (e) {
+    if (e.status === 401 || e.status === 404) reportError(e);
+    else $('syncWarning').hidden = false;
+  }
+  finally { polling = false; }
 }, 10000);
 </script>
 </body></html>

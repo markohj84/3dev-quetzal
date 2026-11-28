@@ -6,7 +6,7 @@ import { createWhatsAppAdapter, WhatsAppSendError } from '../../../../core/chann
 
 const json = (data: object, status = 200) => Response.json(data, {status, headers:{'Cache-Control':'private, no-store'}});
 function publicOrder(order: Order) {
-  const decision = (d: Order['ventas']) => d && {value:d.value, at:d.at, status:d.status};
+  const decision = (d: Order['ventas']) => d && {value:d.value, at:d.at, status:d.status, receiptAt:d.receiptAt};
   return {
     folio:order.folio, created:order.created, product:order.product, quantity:order.quantity,
     ventas:decision(order.ventas), logistica:decision(order.logistica), ...details(order),

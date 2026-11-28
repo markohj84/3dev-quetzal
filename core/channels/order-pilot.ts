@@ -29,7 +29,7 @@ export function deskRole(config: OrderSettings, authorization: string | null): A
 }
 
 type Status = 'sending' | 'accepted' | 'delivered' | 'read' | 'failed' | 'uncertain';
-type Decision = { value: string | number; at: string; status: Status; attempt: string };
+type Decision = { value: string | number; at: string; status: Status; attempt: string; receiptAt?: string };
 export type Order = {
   revision: number; folio: string; recipient: string; created: string;
   product: string; quantity: number; ventas: Decision | null; logistica: Decision | null;
@@ -164,24 +164,29 @@ export async function decide(store: OrderStore, input: z.infer<typeof deskDecisi
   return {order, shouldSend:order[area].attempt === attempt, attempt};
 }
 
-export function markNotification(store: OrderStore, folio: string, area: Area, attempt: string, status: Status) {
+export function markNotification(store: OrderStore, folio: string, area: Area, attempt: string, status: Status, receiptAt?: string) {
   const rank = {sending:0, uncertain:1, accepted:2, failed:3, delivered:4, read:5};
   return update(store, old => {
     const current = old?.[area];
-    if (old?.folio !== folio || !current || current.attempt !== attempt || rank[status] <= rank[current.status]) return old;
-    return {...old, [area]:{...current, status}};
+    if (old?.folio !== folio || !current || current.attempt !== attempt || rank[status] < rank[current.status]) return old;
+    // A synchronous acceptance can precede a dated receipt for the same status.
+    if (status === current.status && (current.receiptAt || !receiptAt)) return old;
+    return {...old, [area]:{...current, status, receiptAt}};
   });
 }
 export const trackingTag = (folio: string, area: Area, attempt: string) => ['order',folio,area,attempt].join('/');
 export function orderReceipts(body: any, phoneId: string) {
-  const receipts: {folio:string; area:Area; attempt:string; status: Status}[] = [];
+  const receipts: {folio:string; area:Area; attempt:string; status: Status; receiptAt?: string}[] = [];
   for (const entry of body?.entry ?? []) for (const change of entry?.changes ?? []) {
     const value = change?.value;
     if (!phoneId || value?.metadata?.phone_number_id !== phoneId) continue;
     for (const receipt of value.statuses ?? []) {
       const match = /^order\/(MS-[a-f0-9-]+)\/(ventas|logistica)\/([a-f0-9-]{36})$/.exec(receipt.biz_opaque_callback_data ?? '');
       if (!match || !folioPattern.test(match[1]) || !['sent','delivered','read','failed'].includes(receipt.status)) continue;
-      receipts.push({folio:match[1], area:match[2] as Area, attempt:match[3], status:receipt.status === 'sent' ? 'accepted' : receipt.status});
+      const seconds = Number(receipt.timestamp);
+      const receiptAt = /^\d{1,11}$/.test(String(receipt.timestamp)) && seconds > 0
+        ? new Date(seconds * 1000).toISOString() : undefined;
+      receipts.push({folio:match[1], area:match[2] as Area, attempt:match[3], status:receipt.status === 'sent' ? 'accepted' : receipt.status, receiptAt});
     }
   }
   return receipts;

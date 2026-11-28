@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     if (pilot && Date.now() < pilot.expiresAt * 1000 && orderSettings(config.id, pilot.digest)) {
       const store = orderStore(config.id, pilot.digest, pilot.expiresAt);
       for (const receipt of receipts) {
-        await markNotification(store.forFolio(receipt.folio), receipt.folio, receipt.area, receipt.attempt, receipt.status);
+        await markNotification(store.forFolio(receipt.folio), receipt.folio, receipt.area, receipt.attempt, receipt.status, receipt.receiptAt);
       }
     }
   }
